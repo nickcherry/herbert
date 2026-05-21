@@ -97,12 +97,6 @@ class Hardware:
         if not self.mock:
             install_no_sudo_guard()
 
-            with contextlib.redirect_stdout(sys.stderr):
-                from picarx import Picarx
-
-                patch_picarx_startup(Picarx)
-                self._px = Picarx(config=str(prepare_picarx_config()))
-
         self._watchdog = threading.Thread(target=self._watchdog_loop, daemon=True)
         self._watchdog.start()
 
@@ -280,7 +274,7 @@ class Hardware:
             self._closed = True
             self._motor_active = False
 
-            if self.mock:
+            if self.mock or self._px is None:
                 return
 
             with contextlib.redirect_stdout(sys.stderr):
@@ -288,11 +282,18 @@ class Hardware:
 
     def _require_px(self) -> Any:
         if self._px is None:
-            raise BridgeError("PiCar-X hardware is not initialized.")
+            with contextlib.redirect_stdout(sys.stderr):
+                from picarx import Picarx
+
+                patch_picarx_startup(Picarx)
+                self._px = Picarx(config=str(prepare_picarx_config()))
 
         return self._px
 
     def _stop_locked(self) -> None:
+        if self._px is None:
+            return
+
         px = self._require_px()
 
         if hasattr(px, "stop"):
