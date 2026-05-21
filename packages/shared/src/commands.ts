@@ -81,6 +81,9 @@ export const robotCommandPayloadSchema = z.discriminatedUnion("type", [
     name: photoNameSchema.optional(),
   }),
   z.object({
+    type: z.literal("camera_check"),
+  }),
+  z.object({
     type: z.literal("say"),
     text: speechTextSchema,
     lang: speechLanguageSchema.optional(),
@@ -127,6 +130,10 @@ export const robotCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     id: commandIdSchema,
+    type: z.literal("camera_check"),
+  }),
+  z.object({
+    id: commandIdSchema,
     type: z.literal("say"),
     text: speechTextSchema,
     lang: speechLanguageSchema.optional(),
@@ -154,6 +161,23 @@ export const takePhotoResultSchema = z.object({
   path: z.string().min(1),
 });
 
+export const cameraCheckResultSchema = z.object({
+  picamera2: z.object({
+    available: z.boolean(),
+    cameraCount: z.number().int().nonnegative().optional(),
+    cameras: z.array(z.unknown()).optional(),
+    version: z.string().optional(),
+    error: z.string().optional(),
+  }),
+  rpicamHello: z.object({
+    available: z.boolean(),
+    exitCode: z.number().int().nullable().optional(),
+    stdout: z.string().optional(),
+    stderr: z.string().optional(),
+    error: z.string().optional(),
+  }),
+});
+
 export const bridgeErrorResponseSchema = z.object({
   type: z.literal("error"),
   id: commandIdSchema.optional(),
@@ -175,3 +199,4 @@ export type BridgeErrorResponse = z.infer<typeof bridgeErrorResponseSchema>;
 export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
 export type SpeechLanguage = z.infer<typeof speechLanguageSchema>;
 export type TakePhotoResult = z.infer<typeof takePhotoResultSchema>;
+export type CameraCheckResult = z.infer<typeof cameraCheckResultSchema>;

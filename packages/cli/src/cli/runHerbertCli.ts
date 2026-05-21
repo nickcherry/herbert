@@ -11,6 +11,7 @@ import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates"
 import { runTelegramMonitor } from "@herbert/server/telegram/runTelegramMonitor";
 import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
 import {
+  type CameraCheckResult,
   motorSpeedSchema,
   speechLanguageSchema,
   speechTextSchema,
@@ -80,6 +81,24 @@ export async function runHerbertCli({
     try {
       await robot.ping();
       process.stdout.write(`${pc.bold("bridge")} ${pc.green("ok")}\n`);
+    } finally {
+      await robot.close();
+    }
+
+    return;
+  }
+
+  if (command === "robot:camera-check" || command === "camera:check") {
+    const flags = parseRobotFlags({ argv: rest });
+    const robot = await HerbertController.create({
+      mock: flags.mock,
+      pythonPath: flags.pythonPath,
+      safetyTimeoutMs: flags.safetyTimeoutMs,
+    });
+
+    try {
+      const result = await robot.cameraCheck();
+      process.stdout.write(renderCameraCheckResult({ result }));
     } finally {
       await robot.close();
     }
@@ -201,6 +220,7 @@ export function renderUsage(): string {
     pc.bold("Usage"),
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:keyboard")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:say")} <text> [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("server:start")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
@@ -244,6 +264,76 @@ function formatKeyValue({
   readonly value: string;
 }): string {
   return `${pc.dim(`${key}=`)}${value}`;
+}
+
+function renderCameraCheckResult({
+  result,
+}: {
+  readonly result: CameraCheckResult;
+}): string {
+  const lines = [
+    `${pc.bold("camera")} ${formatCheckStatus({
+      ok:
+        result.picamera2.available &&
+        result.picamera2.cameraCount !== undefined &&
+        result.picamera2.cameraCount > 0,
+    })}`,
+    `${pc.bold("picamera2")} ${formatKeyValue({
+      key: "available",
+      value: String(result.picamera2.available),
+    })} ${formatKeyValue({
+      key: "count",
+      value: String(result.picamera2.cameraCount ?? "unknown"),
+    })} ${formatKeyValue({
+      key: "version",
+      value: result.picamera2.version ?? "unknown",
+    })}`,
+  ];
+
+  if (result.picamera2.error !== undefined) {
+    lines.push(`${pc.red("picamera2 error")} ${result.picamera2.error}`);
+  }
+
+  if (
+    result.picamera2.cameras !== undefined &&
+    result.picamera2.cameras.length > 0
+  ) {
+    lines.push(
+      `${pc.bold("picamera2 cameras")} ${JSON.stringify(result.picamera2.cameras)}`,
+    );
+  }
+
+  lines.push(
+    `${pc.bold("rpicam-hello")} ${formatKeyValue({
+      key: "available",
+      value: String(result.rpicamHello.available),
+    })} ${formatKeyValue({
+      key: "exit",
+      value: String(result.rpicamHello.exitCode ?? "unknown"),
+    })}`,
+  );
+
+  if (result.rpicamHello.error !== undefined) {
+    lines.push(`${pc.red("rpicam-hello error")} ${result.rpicamHello.error}`);
+  }
+
+  if (hasText(result.rpicamHello.stdout)) {
+    lines.push(`${pc.bold("stdout")}\n${result.rpicamHello.stdout.trim()}`);
+  }
+
+  if (hasText(result.rpicamHello.stderr)) {
+    lines.push(`${pc.bold("stderr")}\n${result.rpicamHello.stderr.trim()}`);
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function formatCheckStatus({ ok }: { readonly ok: boolean }): string {
+  return ok ? pc.green("detected") : pc.red("not detected");
+}
+
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && value.trim().length > 0;
 }
 
 function parseRobotFlags({

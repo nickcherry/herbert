@@ -162,6 +162,25 @@ class Hardware:
 
         return {"path": str(photo_path)}
 
+    def camera_check(self) -> dict[str, Any]:
+        if self.mock:
+            return {
+                "picamera2": {
+                    "available": True,
+                    "cameraCount": 1,
+                    "cameras": [{"model": "mock-camera"}],
+                    "version": "mock",
+                },
+                "rpicamHello": {
+                    "available": True,
+                    "exitCode": 0,
+                    "stdout": "Available cameras\n0 : mock-camera\n",
+                    "stderr": "",
+                },
+            }
+
+        return camera_check()
+
     def _capture_photo(self, photo_path: Path) -> None:
         picam2: Any | None = None
 
@@ -178,9 +197,7 @@ class Hardware:
                 time.sleep(PHOTO_WARMUP_S)
                 picam2.capture_file(str(photo_path))
         except IndexError as error:
-            raise BridgeError(
-                "No Raspberry Pi camera was detected. Check the camera cable and run rpicam-hello."
-            ) from error
+            raise BridgeError(camera_detection_error_message()) from error
         except BridgeError:
             raise
         except Exception as error:  # noqa: BLE001
@@ -353,6 +370,8 @@ def handle_line(*, hardware: Hardware, line: str) -> bool:
                 directory=optional_string(command.get("directory"), name="directory"),
                 name=optional_string(command.get("name"), name="name"),
             )
+        elif command_type == "camera_check":
+            result = hardware.camera_check()
         elif command_type == "say":
             hardware.say(
                 text=require_string(command.get("text"), name="text"),
@@ -442,6 +461,127 @@ def create_still_configuration(picam2: Any) -> Any:
         )
     except TypeError:
         return picam2.create_still_configuration()
+
+
+def camera_detection_error_message() -> str:
+    return (
+        "No Raspberry Pi camera was detected. "
+        f"{camera_check_summary(camera_check())} "
+        "Run `bun herbert robot:camera-check` on Herbert for the full diagnostics."
+    )
+
+
+def camera_check() -> dict[str, Any]:
+    return {
+        "picamera2": picamera2_check(),
+        "rpicamHello": rpicam_hello_check(),
+    }
+
+
+def picamera2_check() -> dict[str, Any]:
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            import picamera2
+            from picamera2 import Picamera2
+
+            cameras = Picamera2.global_camera_info()
+
+        return {
+            "available": True,
+            "cameraCount": len(cameras),
+            "cameras": json_safe(cameras),
+            "version": str(getattr(picamera2, "__version__", "unknown")),
+        }
+    except Exception as error:  # noqa: BLE001
+        return {
+            "available": False,
+            "error": str(error),
+        }
+
+
+def rpicam_hello_check() -> dict[str, Any]:
+    try:
+        completed = subprocess.run(
+            ["rpicam-hello", "--list-cameras"],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=8,
+        )
+    except FileNotFoundError:
+        return {
+            "available": False,
+            "error": "rpicam-hello was not found on PATH.",
+        }
+    except subprocess.TimeoutExpired as error:
+        return {
+            "available": True,
+            "exitCode": None,
+            "stdout": truncate_text(error.stdout),
+            "stderr": truncate_text(error.stderr),
+            "error": "rpicam-hello --list-cameras timed out.",
+        }
+    except Exception as error:  # noqa: BLE001
+        return {
+            "available": False,
+            "error": str(error),
+        }
+
+    return {
+        "available": True,
+        "exitCode": completed.returncode,
+        "stdout": truncate_text(completed.stdout),
+        "stderr": truncate_text(completed.stderr),
+    }
+
+
+def camera_check_summary(result: dict[str, Any]) -> str:
+    picamera2 = result.get("picamera2")
+    rpicam_hello = result.get("rpicamHello")
+    parts: list[str] = []
+
+    if isinstance(picamera2, dict):
+        count = picamera2.get("cameraCount")
+
+        if isinstance(count, int):
+            parts.append(f"Picamera2 reports {count} camera(s).")
+        elif isinstance(picamera2.get("error"), str):
+            parts.append(f"Picamera2 check failed: {picamera2['error']}.")
+
+    if isinstance(rpicam_hello, dict):
+        exit_code = rpicam_hello.get("exitCode")
+
+        if isinstance(exit_code, int):
+            parts.append(f"rpicam-hello --list-cameras exited {exit_code}.")
+        elif isinstance(rpicam_hello.get("error"), str):
+            parts.append(f"rpicam-hello check failed: {rpicam_hello['error']}.")
+
+    return " ".join(parts).strip()
+
+
+def truncate_text(value: Any, limit: int = 4_000) -> str:
+    if value is None:
+        return ""
+
+    if isinstance(value, bytes):
+        text = value.decode(errors="replace")
+    else:
+        text = str(value)
+
+    return text if len(text) <= limit else text[:limit] + "\n[truncated]"
+
+
+def json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+
+    return repr(value)
 
 
 def prepare_picarx_config() -> Path:

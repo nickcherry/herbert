@@ -7,6 +7,7 @@
 ```sh
 bun herbert --help
 bun herbert robot:bridge-check --mock
+bun herbert robot:camera-check --mock
 bun herbert robot:say --mock "hello from Herbert"
 bun herbert robot:keyboard --mock
 bun herbert robot:keyboard
@@ -68,6 +69,15 @@ The bridge captures photos with Picamera2 directly instead of Vilib. This avoids
 Vilib's `camera_start()` path, which can block indefinitely when the camera is
 not detected. If capture fails with a camera-detection error, check the camera
 cable and run `rpicam-hello` on Herbert.
+
+For camera diagnostics from Herbert's runtime environment, run:
+
+```sh
+bun herbert robot:camera-check
+```
+
+This reports Picamera2's camera count and the output of
+`rpicam-hello --list-cameras` without using sudo.
 
 ## Speaker
 

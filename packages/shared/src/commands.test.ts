@@ -45,6 +45,16 @@ describe("robot command schemas", () => {
     });
   });
 
+  test("accept camera diagnostics commands", () => {
+    expect(
+      robotCommandPayloadSchema.parse({
+        type: "camera_check",
+      }),
+    ).toEqual({
+      type: "camera_check",
+    });
+  });
+
   test("reject unsafe out-of-range commands", () => {
     expect(() =>
       robotCommandPayloadSchema.parse({

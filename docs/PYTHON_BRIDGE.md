@@ -66,6 +66,7 @@ Photo response:
 - `set_camera_pan` with `angle` from `-35` to `35`
 - `set_camera_tilt` with `angle` from `-35` to `35`
 - `take_photo`
+- `camera_check`
 - `say` with `text` and optional `lang`
 - `stop`
 - `shutdown`
@@ -81,6 +82,9 @@ path that was written. The TypeScript side gives this command a longer timeout
 than normal motor and servo commands because the camera has to initialize and
 warm up. Camera detection failures are returned as bridge errors rather than
 letting the command hang.
+
+`camera_check` returns Picamera2 camera enumeration and
+`rpicam-hello --list-cameras` output for no-sudo diagnostics.
 
 `shutdown` stops the drive motors. Keyboard mode also centers steering before
 closing, but it does not send camera pan or tilt commands during shutdown.

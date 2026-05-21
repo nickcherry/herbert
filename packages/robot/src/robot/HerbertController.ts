@@ -5,6 +5,8 @@ import {
   type BridgeOkResponse,
   cameraAngleLimits,
   cameraAngleSchema,
+  type CameraCheckResult,
+  cameraCheckResultSchema,
   motorSpeedSchema,
   speechLanguageSchema,
   speechTextSchema,
@@ -161,6 +163,17 @@ export class HerbertController {
     return takePhotoResultSchema.parse(response.result);
   }
 
+  public async cameraCheck(): Promise<CameraCheckResult> {
+    const response = await this.bridge.send(
+      {
+        type: "camera_check",
+      },
+      { timeoutMs: cameraCheckTimeoutMs },
+    );
+
+    return cameraCheckResultSchema.parse(response.result);
+  }
+
   public async say({ text, lang }: SayOptions): Promise<BridgeOkResponse> {
     return await this.bridge.send(
       {
@@ -188,3 +201,4 @@ function speechTimeoutMs({ text }: { readonly text: string }): number {
 }
 
 const photoTimeoutMs = 30_000;
+const cameraCheckTimeoutMs = 15_000;
