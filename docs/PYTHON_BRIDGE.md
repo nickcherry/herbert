@@ -87,8 +87,10 @@ closing, but it does not send camera pan or tilt commands during shutdown.
 
 On hardware startup, the bridge passes `Picarx()` a local config path at
 `~/.config/herbert/picar-x.conf` and patches Robot HAT's config-file helper to
-skip its upstream `sudo chmod` and `sudo chown` calls. This avoids a root
-password prompt before keyboard control starts.
+skip upstream privileged ownership calls. It also installs a no-sudo guard
+around common shell-out APIs before importing the hardware SDK. If the SDK tries
+to launch a privileged command, the bridge returns an error instead of prompting
+for a password.
 
 ## Isolation Rule
 

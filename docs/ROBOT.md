@@ -76,29 +76,26 @@ bun herbert robot:say --lang en-GB "hello from Herbert"
 ```
 
 `robot:say` uses the Robot HAT TTS speaker. Keyboard mode also maps `v` to a
-small speaker test phrase. On Herbert, SunFounder requires the Robot HAT I2S
-amplifier setup before audio works:
-
-```sh
-cd ~/picar-x
-sudo bash i2samp.sh
-```
-
-The speaker command may also need the robot process to run with permissions
-compatible with Robot HAT audio.
+small speaker test phrase. Herbert does not run privileged setup commands from
+the app. If audio is not configured at the OS image level, `robot:say` should
+fail or be silent rather than asking for a root password.
 
 ## PiCar-X Startup
 
 The SunFounder PiCar-X SDK initializes a config file through Robot HAT's
-`fileDB` helper. Upstream SDK code uses `sudo chmod` and `sudo chown` while
-initializing that file, which can trigger a root password prompt before Herbert
-starts.
+`fileDB` helper. Upstream SDK code can run privileged file ownership commands
+while initializing that file, which can trigger a root password prompt before
+Herbert starts.
 
 Herbert patches that startup path inside the Python bridge. On first hardware
 startup it copies `/opt/picar-x/picar-x.conf` into
 `~/.config/herbert/picar-x.conf` if the upstream config exists; otherwise it
 creates a local Herbert config file. The bridge then passes that local config to
-`Picarx()` and skips the SDK's sudo-based config ownership commands.
+`Picarx()` and skips the SDK's privileged config ownership commands.
+
+The Python bridge also installs a no-sudo runtime guard before importing the
+hardware SDK. If SDK code tries to launch a privileged shell command, Herbert
+raises a bridge error instead of prompting for a password.
 
 ## SDK Assumptions
 

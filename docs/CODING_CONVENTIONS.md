@@ -75,3 +75,6 @@
 - The local persistence database path is normal config and belongs in a typed
   constants file, not env. Only move database settings into env when they are
   credentials or deployment-local identities.
+- Herbert runtime commands must never ask for a root password or invoke
+  privileged shell commands. If hardware permissions are wrong, fail with an
+  actionable error instead of escalating.

@@ -5,7 +5,10 @@ import argparse
 import contextlib
 import getpass
 import json
+import os
 import shutil
+import shlex
+import subprocess
 import sys
 import threading
 import time
@@ -24,6 +27,17 @@ SPEECH_LANGUAGES = {"en-US", "en-GB", "zh-CN", "de-DE", "es-ES"}
 PHOTO_WARMUP_S = 1.5
 DEFAULT_PICARX_CONFIG_PATH = Path("/opt/picar-x/picar-x.conf")
 HERBERT_PICARX_CONFIG_PATH = Path.home() / ".config" / "herbert" / "picar-x.conf"
+NO_SUDO_MESSAGE = (
+    "Herbert runtime never runs sudo. Fix device permissions or hardware setup "
+    "outside the robot process."
+)
+_ORIGINAL_OS_POPEN = os.popen
+_ORIGINAL_OS_SYSTEM = os.system
+_ORIGINAL_SUBPROCESS_RUN = subprocess.run
+_ORIGINAL_SUBPROCESS_CALL = subprocess.call
+_ORIGINAL_SUBPROCESS_CHECK_CALL = subprocess.check_call
+_ORIGINAL_SUBPROCESS_CHECK_OUTPUT = subprocess.check_output
+_ORIGINAL_SUBPROCESS_POPEN = subprocess.Popen
 
 
 class BridgeError(Exception):
@@ -42,6 +56,8 @@ class Hardware:
         self._tts: Any | None = None
 
         if not self.mock:
+            install_no_sudo_guard()
+
             with contextlib.redirect_stdout(sys.stderr):
                 from picarx import Picarx
 
@@ -456,6 +472,89 @@ def patch_picarx_startup(Picarx: Any) -> None:
 
     if file_db is not None:
         file_db.file_check_create = herbert_file_check_create
+
+
+def install_no_sudo_guard() -> None:
+    os.popen = guarded_os_popen
+    os.system = guarded_os_system
+    subprocess.run = guarded_subprocess_run
+    subprocess.call = guarded_subprocess_call
+    subprocess.check_call = guarded_subprocess_check_call
+    subprocess.check_output = guarded_subprocess_check_output
+    subprocess.Popen = guarded_subprocess_popen
+
+
+def guarded_os_popen(command: Any, *args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(command)
+    return _ORIGINAL_OS_POPEN(command, *args, **kwargs)
+
+
+def guarded_os_system(command: Any) -> int:
+    reject_sudo_command(command)
+    return _ORIGINAL_OS_SYSTEM(command)
+
+
+def guarded_subprocess_run(*args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(first_subprocess_arg(args=args, kwargs=kwargs))
+    return _ORIGINAL_SUBPROCESS_RUN(*args, **kwargs)
+
+
+def guarded_subprocess_call(*args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(first_subprocess_arg(args=args, kwargs=kwargs))
+    return _ORIGINAL_SUBPROCESS_CALL(*args, **kwargs)
+
+
+def guarded_subprocess_check_call(*args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(first_subprocess_arg(args=args, kwargs=kwargs))
+    return _ORIGINAL_SUBPROCESS_CHECK_CALL(*args, **kwargs)
+
+
+def guarded_subprocess_check_output(*args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(first_subprocess_arg(args=args, kwargs=kwargs))
+    return _ORIGINAL_SUBPROCESS_CHECK_OUTPUT(*args, **kwargs)
+
+
+def guarded_subprocess_popen(*args: Any, **kwargs: Any) -> Any:
+    reject_sudo_command(first_subprocess_arg(args=args, kwargs=kwargs))
+    return _ORIGINAL_SUBPROCESS_POPEN(*args, **kwargs)
+
+
+def first_subprocess_arg(*, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    if len(args) > 0:
+        return args[0]
+
+    return kwargs.get("args")
+
+
+def reject_sudo_command(command: Any) -> None:
+    if not starts_with_sudo(command):
+        return
+
+    raise BridgeError(NO_SUDO_MESSAGE)
+
+
+def starts_with_sudo(command: Any) -> bool:
+    first_word = command_first_word(command)
+
+    if first_word is None:
+        return False
+
+    return Path(first_word).name == "sudo"
+
+
+def command_first_word(command: Any) -> str | None:
+    if isinstance(command, str):
+        try:
+            words = shlex.split(command)
+        except ValueError:
+            words = command.strip().split()
+
+        return words[0] if len(words) > 0 else None
+
+    if isinstance(command, (list, tuple)) and len(command) > 0:
+        return str(command[0])
+
+    return None
 
 
 def herbert_file_check_create(
