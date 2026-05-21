@@ -26,7 +26,7 @@ describe("parseKeyboardInput", () => {
     ]);
   });
 
-  test("maps left and right arrows to steering only", () => {
+  test("maps left and right arrows to steering deltas only", () => {
     expect(
       parseKeyboardInput({
         input: "\u001b[D\u001b[C",
@@ -34,12 +34,12 @@ describe("parseKeyboardInput", () => {
       }),
     ).toEqual([
       {
-        type: "steering",
-        angle: -25,
+        type: "steering_delta",
+        delta: -25,
       },
       {
-        type: "steering",
-        angle: 25,
+        type: "steering_delta",
+        delta: 25,
       },
     ]);
   });

@@ -4,8 +4,8 @@ export type KeyboardAction =
       readonly motorSpeed: number;
     }
   | {
-      readonly type: "steering";
-      readonly angle: number;
+      readonly type: "steering_delta";
+      readonly delta: number;
     }
   | {
       readonly type: "camera_delta";
@@ -71,8 +71,8 @@ export function parseKeyboardInput({
 
       if (sequence === "\u001b[D") {
         actions.push({
-          type: "steering",
-          angle: -turnAngle,
+          type: "steering_delta",
+          delta: -turnAngle,
         });
         index += 2;
         continue;
@@ -80,8 +80,8 @@ export function parseKeyboardInput({
 
       if (sequence === "\u001b[C") {
         actions.push({
-          type: "steering",
-          angle: turnAngle,
+          type: "steering_delta",
+          delta: turnAngle,
         });
         index += 2;
         continue;

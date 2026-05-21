@@ -11,6 +11,7 @@ import { uploadRobotPhoto } from "@herbert/robot/server/uploadRobotPhoto";
 import {
   cameraAngleLimits,
   motorSpeedSchema,
+  steeringAngleLimits,
   steeringAngleSchema,
 } from "@herbert/shared";
 import pc from "picocolors";
@@ -45,6 +46,7 @@ export async function runKeyboardDrive(
   const input = process.stdin;
   const wasRaw = input.isRaw;
   let cameraPosition = robot.getCameraPosition();
+  let steeringAngle = 0;
   let motorStopTimer: ReturnType<typeof setTimeout> | undefined;
   let commandChain = Promise.resolve();
   let shutdownStarted = false;
@@ -100,13 +102,22 @@ export async function runKeyboardDrive(
       return;
     }
 
-    if (action.type === "steering") {
+    if (action.type === "steering_delta") {
+      const targetAngle = nextSteeringAngle({
+        currentAngle: steeringAngle,
+        delta: action.delta,
+      });
+      steeringAngle = targetAngle;
+
       writeStatus({
         label: "steer",
-        detail: formatSteeringAction({ action }),
+        detail: formatSteeringAction({
+          delta: action.delta,
+          angle: targetAngle,
+        }),
       });
       enqueue(async () => {
-        await robot.setSteering({ angle: action.angle });
+        await robot.setSteering({ angle: targetAngle });
       });
       return;
     }
@@ -238,6 +249,7 @@ export async function runKeyboardDrive(
   await shutdownComplete;
 
   async function stopAndCenterSteering(): Promise<void> {
+    steeringAngle = 0;
     await robot.stop();
     await robot.setSteering({ angle: 0 });
   }
@@ -250,7 +262,7 @@ function renderKeyboardHelp({ mock }: { readonly mock: boolean }): string {
     `${pc.bold("Herbert keyboard control")} ${pc.dim(`(${mode})`)}`,
     "",
     `${pc.bold("Drive")}   ↑/↓     forward/reverse pulse`,
-    `${pc.bold("Steer")}   ←/→     set wheel angle without motor power`,
+    `${pc.bold("Steer")}   ←/→     adjust wheel angle without motor power`,
     `${pc.bold("Camera")}  wasd    pan/tilt`,
     `${pc.bold("Photo")}   p       take photo`,
     `${pc.bold("Voice")}   v       say hello`,
@@ -285,14 +297,15 @@ function formatMotorAction({
 }
 
 function formatSteeringAction({
-  action,
+  delta,
+  angle,
 }: {
-  readonly action: Extract<KeyboardAction, { readonly type: "steering" }>;
+  readonly delta: number;
+  readonly angle: number;
 }): string {
-  const direction =
-    action.angle < 0 ? "left" : action.angle > 0 ? "right" : "center";
+  const direction = delta < 0 ? "left" : delta > 0 ? "right" : "center";
 
-  return `${direction} angle=${action.angle}`;
+  return `${direction} angle=${angle}`;
 }
 
 function motorDirectionForAction({
@@ -345,6 +358,20 @@ function nextCameraPosition({
       max: cameraAngleLimits.max,
     }),
   };
+}
+
+export function nextSteeringAngle({
+  currentAngle,
+  delta,
+}: {
+  readonly currentAngle: number;
+  readonly delta: number;
+}): number {
+  return clamp({
+    value: currentAngle + delta,
+    min: steeringAngleLimits.min,
+    max: steeringAngleLimits.max,
+  });
 }
 
 function formatUnknownError(error: unknown): string {

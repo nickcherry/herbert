@@ -35,10 +35,11 @@ q       stop and quit
 ```
 
 The PiCar-X steers like a car. Left and right do not spin in place and do not
-drive the motors. They set the front wheel angle and leave it there until
-another steering command, space, or quit centers it. Press left or right, then
-press up or down to drive in an arc. Motor pulses stop when the pulse ends;
-space stops motors and centers steering.
+drive the motors. Each left or right press adjusts the current wheel angle by
+`--turn-angle` and leaves it there until another steering command, space, or
+quit changes it. Repeated presses walk the wheels through intermediate angles up
+to the steering limits. Press up or down after steering to drive in an arc.
+Motor pulses stop when the pulse ends; space stops motors and centers steering.
 
 Keyboard mode runs the terminal in raw mode, so typed keys do not echo as
 characters. Each recognized keypress prints a status line instead.
@@ -50,7 +51,7 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 ```
 
 - `--speed` controls motor power for drive pulses.
-- `--turn-angle` controls front steering angle for left/right arrows.
+- `--turn-angle` controls the steering step for left/right arrows.
 - `--pulse-ms` controls how long the car keeps moving after a drive keypress.
 - `--safety-ms` controls the Python watchdog timeout.
 - `--python` overrides the Python executable. `HERBERT_PYTHON` can also set it.
