@@ -162,7 +162,10 @@ export async function runKeyboardDrive(
           return;
         }
 
-        writeStatus({ label: "photo", detail: "uploading to server..." });
+        writeStatus({
+          label: "photo",
+          detail: `uploading to ${options.serverUrl}...`,
+        });
         const upload = await uploadRobotPhoto({
           serverUrl: options.serverUrl,
           path: result.path,

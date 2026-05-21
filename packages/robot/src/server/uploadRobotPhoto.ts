@@ -16,6 +16,7 @@ export async function uploadRobotPhoto({
   serverUrl,
   path,
 }: UploadRobotPhotoOptions): Promise<RobotPhotoUploadResponse> {
+  const url = photoUploadUrl({ serverUrl });
   const photo = Bun.file(path);
 
   if (!(await photo.exists())) {
@@ -26,18 +27,18 @@ export async function uploadRobotPhoto({
   formData.append("image", photo, basename(path));
   formData.set("sourcePath", path);
 
-  const response = await fetch(photoUploadUrl({ serverUrl }), {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetchPhotoUpload({ url, formData });
   const rawBody = await response.text();
-  const payload = parseJsonPayload({ rawBody, context: "robot photo upload" });
+  const payload = parseJsonPayload({
+    rawBody,
+    context: `robot photo upload to ${url.href}`,
+  });
 
   if (!response.ok) {
     const error = apiErrorResponseSchema.safeParse(payload);
     const message = error.success ? error.data.message : rawBody;
     throw new Error(
-      `Photo upload failed with HTTP ${response.status}: ${message}`,
+      `Photo upload to ${url.href} failed with HTTP ${response.status}: ${message}`,
     );
   }
 
@@ -46,6 +47,29 @@ export async function uploadRobotPhoto({
 
 function photoUploadUrl({ serverUrl }: { readonly serverUrl: string }): URL {
   return new URL(robotPhotoUploadPath, serverUrl);
+}
+
+async function fetchPhotoUpload({
+  url,
+  formData,
+}: {
+  readonly url: URL;
+  readonly formData: FormData;
+}): Promise<Response> {
+  try {
+    return await fetch(url, {
+      method: "POST",
+      body: formData,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Unable to connect to Herbert server at ${url.href}: ${message}`,
+      {
+        cause: error,
+      },
+    );
+  }
 }
 
 function parseJsonPayload({

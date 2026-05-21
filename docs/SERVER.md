@@ -1,6 +1,7 @@
 # Server Package
 
-`packages/server` contains the process intended to run on the Mac mini.
+`packages/server` contains the process intended to run on the Mac mini. For the
+current apartment-driving setup, it can also run on Nick's laptop.
 
 Today it owns Telegram administration primitives. Later it should become the
 coordination point that Herbert's robot process polls or connects to over a
@@ -22,6 +23,8 @@ bun herbert telegram:monitor
 tests and starts Telegram polling by default. Because Telegram polling now sends
 authorized text messages to OpenAI, `OPENAI_API_KEY` is required unless
 `--no-telegram` is used. Use `--no-telegram` only for local HTTP-only checks.
+The robot package currently uploads photos to the laptop default
+`http://Nicks-MacBook-Pro.local:8787`.
 
 `POST /robot/photos` accepts a multipart image attachment in the `image` field,
 plus an optional `sourcePath` field. The server sends the image to every chat id

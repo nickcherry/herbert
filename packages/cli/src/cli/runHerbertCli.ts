@@ -236,7 +236,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("--camera-step <1-20>")}    camera pan/tilt step per keypress (default: 5)`,
     `  ${pc.cyan("--pulse-ms <ms>")}         drive pulse duration after keypress (default: 250)`,
     `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
-    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: robotServerConfig)`,
+    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: ${robotServerConfig.baseUrl})`,
     `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
     "",
     pc.bold("Speech options"),

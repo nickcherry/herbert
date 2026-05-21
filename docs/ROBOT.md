@@ -56,7 +56,8 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 - `--pulse-ms` controls how long the car keeps moving after a drive keypress.
 - `--safety-ms` controls the Python watchdog timeout.
 - `--python` overrides the Python executable. `HERBERT_PYTHON` can also set it.
-- `--server-url` sets the Herbert server used for photo upload.
+- `--server-url` sets the Herbert server used for photo upload. The current
+  default points at Nick's laptop: `http://Nicks-MacBook-Pro.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
 
 ## Photos
@@ -64,6 +65,25 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 `p` takes a photo through the Python bridge. In hardware mode, keyboard control
 uploads the saved image to `POST /robot/photos` on the Herbert server, and the
 server relays it to the configured Telegram admin chats.
+
+To upload photos while the server is running on Nick's laptop, start the server
+there:
+
+```sh
+bun herbert server:start
+```
+
+Then run keyboard control on Herbert:
+
+```sh
+bun herbert robot:keyboard
+```
+
+If the laptop's Bonjour hostname changes, pass the LAN URL explicitly:
+
+```sh
+bun herbert robot:keyboard --server-url http://<laptop-hostname>.local:8787
+```
 
 The bridge captures photos with Picamera2 directly instead of Vilib. This avoids
 Vilib's `camera_start()` path, which can block indefinitely when the camera is
