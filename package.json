@@ -1,0 +1,31 @@
+{
+  "name": "herbert",
+  "description": "Bun/TypeScript control surface for Herbert, a SunFounder PiCar-X robot car.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "herbert": "packages/cli/src/bin/index.ts"
+  },
+  "module": "packages/cli/src/bin/index.ts",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "herbert": "bun run packages/cli/src/bin/index.ts",
+    "typecheck": "bun x --bun tsc --noEmit",
+    "test": "bun test packages",
+    "format": "prettier --write .",
+    "lint": "eslint --cache .",
+    "lint:fix": "eslint --fix --cache ."
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@types/bun": "latest",
+    "eslint": "latest",
+    "eslint-plugin-simple-import-sort": "latest",
+    "eslint-plugin-unused-imports": "latest",
+    "prettier": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest"
+  }
+}

@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.eslintcache
+node_modules
+__pycache__
+*.pyc
+dist
+build
+coverage
+tmp
+runtime

@@ -1,0 +1,630 @@
+import { CliUsageError } from "@herbert/cli/cli/CliUsageError";
+import { herbertPythonPath } from "@herbert/robot/constants/env";
+import { robotServerConfig } from "@herbert/robot/constants/server";
+import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
+import { HerbertController } from "@herbert/robot/robot/HerbertController";
+import { env } from "@herbert/server/constants/env";
+import { serverConfig } from "@herbert/server/constants/server";
+import { telegramConfig } from "@herbert/server/constants/telegram";
+import { startHerbertServer } from "@herbert/server/server/startHerbertServer";
+import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates";
+import { runTelegramMonitor } from "@herbert/server/telegram/runTelegramMonitor";
+import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
+import {
+  motorSpeedSchema,
+  speechLanguageSchema,
+  speechTextSchema,
+  steeringAngleSchema,
+} from "@herbert/shared";
+import pc from "picocolors";
+import { z } from "zod";
+
+export interface RunHerbertCliOptions {
+  readonly argv: readonly string[];
+}
+
+interface RobotFlags {
+  readonly mock: boolean;
+  readonly pythonPath: string;
+  readonly speed: number;
+  readonly turnAngle: number;
+  readonly cameraStep: number;
+  readonly pulseMs: number;
+  readonly safetyTimeoutMs: number;
+  readonly serverUrl: string;
+  readonly photoUpload: boolean;
+}
+
+interface RobotSayFlags extends RobotFlags {
+  readonly text: string;
+  readonly lang: string;
+}
+
+interface TelegramFlags {
+  readonly text: string;
+  readonly timeoutSeconds: number;
+  readonly limit: number;
+  readonly once: boolean;
+}
+
+interface ServerFlags {
+  readonly host: string;
+  readonly port: number;
+  readonly telegramPolling: boolean;
+}
+
+export async function runHerbertCli({
+  argv,
+}: RunHerbertCliOptions): Promise<void> {
+  const command = argv[0] ?? "help";
+  const rest = argv.slice(1);
+
+  if (command === "help" || command === "--help" || command === "-h") {
+    process.stdout.write(renderUsage());
+    return;
+  }
+
+  if (command === "robot:keyboard" || command === "keyboard") {
+    await runKeyboardDrive(parseRobotFlags({ argv: rest }));
+    return;
+  }
+
+  if (command === "robot:bridge-check" || command === "bridge:check") {
+    const flags = parseRobotFlags({ argv: rest });
+    const robot = await HerbertController.create({
+      mock: flags.mock,
+      pythonPath: flags.pythonPath,
+      safetyTimeoutMs: flags.safetyTimeoutMs,
+    });
+
+    try {
+      await robot.ping();
+      process.stdout.write(`${pc.bold("bridge")} ${pc.green("ok")}\n`);
+    } finally {
+      await robot.close();
+    }
+
+    return;
+  }
+
+  if (command === "robot:say" || command === "say") {
+    const flags = parseRobotSayFlags({ argv: rest });
+    const robot = await HerbertController.create({
+      mock: flags.mock,
+      pythonPath: flags.pythonPath,
+      safetyTimeoutMs: flags.safetyTimeoutMs,
+    });
+
+    try {
+      await robot.say({ text: flags.text, lang: flags.lang });
+      process.stdout.write(
+        `${pc.bold("voice")} said ${JSON.stringify(flags.text)}\n`,
+      );
+    } finally {
+      await robot.close();
+    }
+
+    return;
+  }
+
+  if (command === "server:start") {
+    const flags = parseServerFlags({ argv: rest });
+    const handle = await startHerbertServer({
+      host: flags.host,
+      port: flags.port,
+      telegramPolling: flags.telegramPolling,
+    });
+
+    process.stdout.write(
+      `${pc.bold("server")} listening ${pc.cyan(handle.url)} ${formatKeyValue({
+        key: "telegram",
+        value: handle.telegramPolling ? "on" : "off",
+      })}\n`,
+    );
+
+    await waitForShutdown(async () => {
+      await handle.stop();
+    });
+    return;
+  }
+
+  if (command === "telegram:test") {
+    const flags = parseTelegramFlags({ argv: rest });
+    const result = await sendTelegramMessage({
+      botToken: requireTelegramBotToken(),
+      chatId: requirePrimaryTelegramAdminChatId(),
+      text: flags.text,
+    });
+
+    process.stdout.write(
+      `${pc.green(pc.bold("sent"))} ${formatKeyValue({
+        key: "message_id",
+        value: String(result.messageId),
+      })}\n`,
+    );
+    return;
+  }
+
+  if (command === "telegram:updates") {
+    const flags = parseTelegramFlags({ argv: rest });
+    const result = await getTelegramUpdates({
+      botToken: requireTelegramBotToken(),
+      timeoutSeconds: flags.timeoutSeconds,
+      limit: flags.limit,
+    });
+
+    for (const update of result.updates) {
+      const message = update.message ?? update.edited_message;
+      const chatId = message === undefined ? "none" : String(message.chat.id);
+      const text = message?.text ?? "";
+      process.stdout.write(
+        `${pc.bold("update")} ${formatKeyValue({
+          key: "id",
+          value: String(update.update_id),
+        })} ${formatKeyValue({
+          key: "chat",
+          value: chatId,
+        })} ${formatKeyValue({
+          key: "text",
+          value: JSON.stringify(text),
+        })}\n`,
+      );
+    }
+
+    if (result.updates.length === 0) {
+      process.stdout.write(`${pc.dim("no updates")}\n`);
+    }
+
+    return;
+  }
+
+  if (command === "telegram:monitor") {
+    const flags = parseTelegramFlags({ argv: rest });
+    await runTelegramMonitor({
+      botToken: requireTelegramBotToken(),
+      adminChatIds: requireTelegramAdminChatIds(),
+      timeoutSeconds: flags.timeoutSeconds,
+      limit: flags.limit,
+      coldPollIntervalMs: telegramConfig.coldPollIntervalMs,
+      activePollIntervalMs: telegramConfig.activePollIntervalMs,
+      activePollWindowMs: telegramConfig.activePollWindowMs,
+      once: flags.once,
+    });
+    return;
+  }
+
+  throw new CliUsageError(`Unknown command: ${command}`);
+}
+
+export function renderUsage(): string {
+  return [
+    pc.bold("Usage"),
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:keyboard")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:say")} <text> [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("server:start")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:updates")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:monitor")} [options]`,
+    "",
+    pc.bold("Robot options"),
+    `  ${pc.cyan("--mock")}                  use the mock Python bridge`,
+    `  ${pc.cyan("--python <path>")}         Python executable (default: HERBERT_PYTHON or python3)`,
+    `  ${pc.cyan("--speed <1-100>")}         drive motor speed (default: 35)`,
+    `  ${pc.cyan("--turn-angle <0-35>")}     steering angle for left/right arrows (default: 25)`,
+    `  ${pc.cyan("--camera-step <1-20>")}    camera pan/tilt step per keypress (default: 5)`,
+    `  ${pc.cyan("--pulse-ms <ms>")}         drive pulse duration after keypress (default: 250)`,
+    `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
+    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: robotServerConfig)`,
+    `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
+    "",
+    pc.bold("Speech options"),
+    `  ${pc.cyan("--text <text>")}           text for robot:say`,
+    `  ${pc.cyan("--lang <lang>")}           TTS language (default: en-US)`,
+    "",
+    pc.bold("Server options"),
+    `  ${pc.cyan("--host <host>")}           listen host (default: serverConfig)`,
+    `  ${pc.cyan("--port <port>")}           listen port (default: serverConfig)`,
+    `  ${pc.cyan("--no-telegram")}           start HTTP server without Telegram polling`,
+    "",
+    pc.bold("Telegram options"),
+    `  ${pc.cyan("--text <text>")}           message for telegram:test`,
+    `  ${pc.cyan("--timeout-seconds <n>")}   Telegram getUpdates timeout (default: telegramConfig)`,
+    `  ${pc.cyan("--limit <n>")}             update batch limit (default: telegramConfig)`,
+    `  ${pc.cyan("--once")}                  poll one batch and exit`,
+    "",
+  ].join("\n");
+}
+
+function formatKeyValue({
+  key,
+  value,
+}: {
+  readonly key: string;
+  readonly value: string;
+}): string {
+  return `${pc.dim(`${key}=`)}${value}`;
+}
+
+function parseRobotFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): RobotFlags {
+  const raw = defaultRobotFlags();
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    const nextIndex = readRobotOption({ argv, index, raw });
+    if (nextIndex !== undefined) {
+      index = nextIndex;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown robot option: ${token}`);
+  }
+
+  return robotFlagsSchema.parse(raw);
+}
+
+function parseRobotSayFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): RobotSayFlags {
+  const raw: Record<string, string | boolean | number | undefined> = {
+    ...defaultRobotFlags(),
+    lang: "en-US",
+  };
+  const textParts: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    const nextIndex = readRobotOption({ argv, index, raw });
+    if (nextIndex !== undefined) {
+      index = nextIndex;
+      continue;
+    }
+
+    if (token === "--text") {
+      raw.text = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--lang") {
+      raw.lang = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token.startsWith("--")) {
+      throw new CliUsageError(`Unknown robot:say option: ${token}`);
+    }
+
+    textParts.push(token);
+  }
+
+  if (raw.text === undefined && textParts.length > 0) {
+    raw.text = textParts.join(" ");
+  }
+
+  return robotSayFlagsSchema.parse(raw);
+}
+
+function defaultRobotFlags(): Record<string, string | boolean | number> {
+  return {
+    mock: false,
+    pythonPath: herbertPythonPath,
+    speed: 35,
+    turnAngle: 25,
+    cameraStep: 5,
+    pulseMs: 250,
+    safetyTimeoutMs: 750,
+    serverUrl: robotServerConfig.baseUrl,
+    photoUpload: true,
+  };
+}
+
+function readRobotOption({
+  argv,
+  index,
+  raw,
+}: {
+  readonly argv: readonly string[];
+  readonly index: number;
+  readonly raw: Record<string, string | boolean | number | undefined>;
+}): number | undefined {
+  const token = argv[index];
+
+  if (token === "--mock") {
+    raw.mock = true;
+    return index;
+  }
+
+  if (token === "--no-photo-upload") {
+    raw.photoUpload = false;
+    return index;
+  }
+
+  if (token === "--python") {
+    raw.pythonPath = readFlagValue({ argv, index, flag: token });
+    return index + 1;
+  }
+
+  if (token === "--speed") {
+    raw.speed = parseNumberFlag({
+      value: readFlagValue({ argv, index, flag: token }),
+      flag: token,
+    });
+    return index + 1;
+  }
+
+  if (token === "--turn-angle") {
+    raw.turnAngle = parseNumberFlag({
+      value: readFlagValue({ argv, index, flag: token }),
+      flag: token,
+    });
+    return index + 1;
+  }
+
+  if (token === "--camera-step") {
+    raw.cameraStep = parseNumberFlag({
+      value: readFlagValue({ argv, index, flag: token }),
+      flag: token,
+    });
+    return index + 1;
+  }
+
+  if (token === "--pulse-ms") {
+    raw.pulseMs = parseNumberFlag({
+      value: readFlagValue({ argv, index, flag: token }),
+      flag: token,
+    });
+    return index + 1;
+  }
+
+  if (token === "--safety-ms") {
+    raw.safetyTimeoutMs = parseNumberFlag({
+      value: readFlagValue({ argv, index, flag: token }),
+      flag: token,
+    });
+    return index + 1;
+  }
+
+  if (token === "--server-url") {
+    raw.serverUrl = readFlagValue({ argv, index, flag: token });
+    return index + 1;
+  }
+
+  return undefined;
+}
+
+function parseServerFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): ServerFlags {
+  const raw: Record<string, string | boolean | number> = {
+    host: serverConfig.host,
+    port: serverConfig.port,
+    telegramPolling: true,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    if (token === "--no-telegram") {
+      raw.telegramPolling = false;
+      continue;
+    }
+
+    if (token === "--host") {
+      raw.host = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--port") {
+      raw.port = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown server option: ${token}`);
+  }
+
+  return serverFlagsSchema.parse(raw);
+}
+
+function parseTelegramFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): TelegramFlags {
+  const raw: Record<string, string | number | boolean> = {
+    text: telegramConfig.testMessageText,
+    timeoutSeconds: telegramConfig.longPollTimeoutSeconds,
+    limit: telegramConfig.pollLimit,
+    once: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    if (token === "--once") {
+      raw.once = true;
+      continue;
+    }
+
+    if (token === "--text") {
+      raw.text = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--timeout-seconds") {
+      raw.timeoutSeconds = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--limit") {
+      raw.limit = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown telegram option: ${token}`);
+  }
+
+  return telegramFlagsSchema.parse(raw);
+}
+
+function requireTelegramBotToken(): string {
+  const botToken = env.telegramBotToken;
+
+  if (botToken === undefined) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not set in the environment.");
+  }
+
+  return botToken;
+}
+
+function requireTelegramAdminChatIds(): readonly string[] {
+  const chatIds = env.telegramAdminChatIds;
+
+  if (chatIds.length === 0) {
+    throw new Error("TELEGRAM_ADMIN_CHAT_IDS is not set in the environment.");
+  }
+
+  return chatIds;
+}
+
+function requirePrimaryTelegramAdminChatId(): string {
+  const chatId = requireTelegramAdminChatIds()[0];
+
+  if (chatId === undefined) {
+    throw new Error("TELEGRAM_ADMIN_CHAT_IDS is not set in the environment.");
+  }
+
+  return chatId;
+}
+
+async function waitForShutdown(stop: () => Promise<void>): Promise<void> {
+  let stopping = false;
+  let resolveStopped: (() => void) | undefined;
+  const stopped = new Promise<void>((resolve) => {
+    resolveStopped = resolve;
+  });
+
+  const onSignal = (): void => {
+    if (stopping) {
+      return;
+    }
+
+    stopping = true;
+    void stop().finally(() => {
+      resolveStopped?.();
+    });
+  };
+
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+
+  await stopped;
+
+  process.off("SIGINT", onSignal);
+  process.off("SIGTERM", onSignal);
+}
+
+function readFlagValue({
+  argv,
+  index,
+  flag,
+}: {
+  readonly argv: readonly string[];
+  readonly index: number;
+  readonly flag: string;
+}): string {
+  const value = argv[index + 1];
+
+  if (value === undefined || value.startsWith("--")) {
+    throw new CliUsageError(`Missing value for ${flag}`);
+  }
+
+  return value;
+}
+
+function parseNumberFlag({
+  value,
+  flag,
+}: {
+  readonly value: string;
+  readonly flag: string;
+}): number {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    throw new CliUsageError(`Expected a number for ${flag}`);
+  }
+
+  return parsed;
+}
+
+const robotFlagsSchema = z.object({
+  mock: z.boolean(),
+  pythonPath: z.string().min(1),
+  speed: motorSpeedSchema.refine((speed) => speed > 0),
+  turnAngle: steeringAngleSchema.refine((angle) => angle >= 0),
+  cameraStep: z.number().int().min(1).max(20),
+  pulseMs: z.number().int().min(50).max(5_000),
+  safetyTimeoutMs: z.number().int().min(100).max(10_000),
+  serverUrl: z.string().url(),
+  photoUpload: z.boolean(),
+});
+
+const robotSayFlagsSchema = robotFlagsSchema.extend({
+  text: speechTextSchema,
+  lang: speechLanguageSchema,
+});
+
+const serverFlagsSchema = z.object({
+  host: z.string().min(1),
+  port: z.number().int().min(0).max(65_535),
+  telegramPolling: z.boolean(),
+});
+
+const telegramFlagsSchema = z.object({
+  text: z.string().min(1),
+  timeoutSeconds: z.number().int().min(1).max(50),
+  limit: z.number().int().min(1).max(100),
+  once: z.boolean(),
+});

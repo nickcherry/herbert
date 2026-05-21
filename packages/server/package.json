@@ -1,0 +1,21 @@
+{
+  "name": "@herbert/server",
+  "description": "Mac mini server package for Herbert command coordination and Telegram administration.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./env": "./src/constants/env.ts",
+    "./openai": "./src/openai/index.ts",
+    "./server": "./src/server/index.ts",
+    "./telegram": "./src/telegram/index.ts"
+  },
+  "scripts": {
+    "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "openai": "latest",
+    "picocolors": "latest",
+    "zod": "latest"
+  }
+}

@@ -1,0 +1,105 @@
+import { env } from "@herbert/server/constants/env";
+import { serverConfig } from "@herbert/server/constants/server";
+import { telegramConfig } from "@herbert/server/constants/telegram";
+import { createServerFetch } from "@herbert/server/server/createServerFetch";
+import { startTelegramPolling } from "@herbert/server/telegram/runTelegramMonitor";
+import pc from "picocolors";
+
+export interface StartHerbertServerOptions {
+  readonly host?: string;
+  readonly port?: number;
+  readonly telegramPolling?: boolean;
+}
+
+export interface HerbertServerHandle {
+  readonly server: Bun.Server<undefined>;
+  readonly url: string;
+  readonly telegramPolling: boolean;
+  readonly stop: () => Promise<void>;
+}
+
+export async function startHerbertServer({
+  host = serverConfig.host,
+  port = serverConfig.port,
+  telegramPolling = true,
+}: StartHerbertServerOptions = {}): Promise<HerbertServerHandle> {
+  const telegramHandle = telegramPolling
+    ? startTelegramPolling({
+        botToken: requireTelegramBotToken(),
+        adminChatIds: requireTelegramAdminChatIds(),
+        timeoutSeconds: telegramConfig.longPollTimeoutSeconds,
+        limit: telegramConfig.pollLimit,
+        coldPollIntervalMs: telegramConfig.coldPollIntervalMs,
+        activePollIntervalMs: telegramConfig.activePollIntervalMs,
+        activePollWindowMs: telegramConfig.activePollWindowMs,
+        once: false,
+      })
+    : undefined;
+
+  telegramHandle?.done.catch((error: unknown) => {
+    process.stderr.write(
+      `${pc.red(pc.bold("telegram"))} polling stopped: ${formatError(error)}\n`,
+    );
+  });
+
+  const server = Bun.serve({
+    hostname: host,
+    port,
+    fetch: createServerFetch({
+      telegramBotToken: env.telegramBotToken,
+      telegramAdminChatIds: env.telegramAdminChatIds,
+    }),
+  });
+
+  return {
+    server,
+    url: localUrlForServer({ server }),
+    telegramPolling,
+    async stop() {
+      await telegramHandle?.stop();
+      await server.stop(true);
+    },
+  };
+}
+
+function requireTelegramBotToken(): string {
+  const botToken = env.telegramBotToken;
+
+  if (botToken === undefined) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not set in the environment.");
+  }
+
+  return botToken;
+}
+
+function requireTelegramAdminChatIds(): readonly string[] {
+  const chatIds = env.telegramAdminChatIds;
+
+  if (chatIds.length === 0) {
+    throw new Error("TELEGRAM_ADMIN_CHAT_IDS is not set in the environment.");
+  }
+
+  return chatIds;
+}
+
+function localUrlForServer({
+  server,
+}: {
+  readonly server: Bun.Server<undefined>;
+}): string {
+  const port = server.port;
+
+  if (port === undefined) {
+    return server.url.href;
+  }
+
+  return `http://127.0.0.1:${port}`;
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+}

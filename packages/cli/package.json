@@ -1,0 +1,20 @@
+{
+  "name": "@herbert/cli",
+  "description": "Single operator CLI for Herbert.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "herbert": "src/bin/index.ts"
+  },
+  "scripts": {
+    "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@herbert/robot": "workspace:*",
+    "@herbert/server": "workspace:*",
+    "@herbert/shared": "workspace:*",
+    "picocolors": "latest",
+    "zod": "latest"
+  }
+}

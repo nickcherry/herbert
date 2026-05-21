@@ -1,0 +1,17 @@
+{
+  "name": "@herbert/shared",
+  "description": "Shared TypeScript schemas and types for Herbert command boundaries.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./commands": "./src/commands.ts"
+  },
+  "scripts": {
+    "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "zod": "latest"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@herbert/robot",
+  "description": "Local robot process and CLI for Herbert.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./keyboard": "./src/keyboard/runKeyboardDrive.ts",
+    "./robot": "./src/robot/HerbertController.ts"
+  },
+  "scripts": {
+    "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@herbert/shared": "workspace:*",
+    "picocolors": "latest",
+    "zod": "latest"
+  }
+}
