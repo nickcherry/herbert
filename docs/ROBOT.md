@@ -86,10 +86,11 @@ bun herbert robot:say "hello from Herbert"
 bun herbert robot:say --lang en-GB "hello from Herbert"
 ```
 
-`robot:say` uses the Robot HAT TTS speaker. Keyboard mode also maps `v` to a
-small speaker test phrase. Herbert does not run privileged setup commands from
-the app. If audio is not configured at the OS image level, `robot:say` should
-fail or be silent rather than asking for a root password.
+`robot:say` uses the Robot HAT or SunFounder voice-assistant Pico2Wave TTS
+engine. Keyboard mode also maps `v` to a small speaker test phrase. Herbert
+does not run privileged setup commands from the app. If audio is not configured
+at the OS image level, `robot:say` should fail or be silent rather than asking
+for a root password.
 
 ## PiCar-X Startup
 
@@ -112,8 +113,9 @@ raises a bridge error instead of prompting for a password.
 
 The bridge is based on SunFounder PiCar-X Python examples that use
 `Picarx().forward(speed)`, `backward(speed)`, `set_dir_servo_angle(angle)`, and
-camera servo setters. Photos use Picamera2 directly. Speech uses Robot HAT
-`TTS.say`.
+camera servo setters. Photos use Picamera2 directly. Speech prefers older Robot
+HAT `TTS`, then newer Robot HAT `Pico2Wave`, then SunFounder voice-assistant
+`Pico2Wave`, then a direct local `pico2wave`/`aplay` fallback.
 
 Sources:
 

@@ -10,6 +10,7 @@ import shutil
 import shlex
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -42,6 +43,44 @@ _ORIGINAL_SUBPROCESS_POPEN = subprocess.Popen
 
 class BridgeError(Exception):
     pass
+
+
+class DirectPico2Wave:
+    def __init__(self, *, lang: str | None) -> None:
+        self._lang = lang or "en-US"
+
+    def set_lang(self, lang: str) -> None:
+        self._lang = lang
+
+    def say(self, text: str) -> None:
+        pico2wave = shutil.which("pico2wave")
+        aplay = shutil.which("aplay")
+
+        if pico2wave is None:
+            raise BridgeError("pico2wave is not installed or not on PATH.")
+
+        if aplay is None:
+            raise BridgeError("aplay is not installed or not on PATH.")
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as wav_file:
+            wav_path = Path(wav_file.name)
+
+        try:
+            run_checked_command(
+                [
+                    pico2wave,
+                    "-l",
+                    self._lang,
+                    "-w",
+                    str(wav_path),
+                    text,
+                ],
+                context="pico2wave",
+            )
+            run_checked_command([aplay, str(wav_path)], context="aplay")
+        finally:
+            with contextlib.suppress(OSError):
+                wav_path.unlink()
 
 
 class Hardware:
@@ -229,12 +268,10 @@ class Hardware:
 
             with contextlib.redirect_stdout(sys.stderr):
                 if self._tts is None:
-                    from robot_hat import TTS
-
-                    self._tts = TTS()
+                    self._tts = create_tts(lang=lang)
 
                 if lang is not None:
-                    self._tts.lang(lang)
+                    set_tts_language(tts=self._tts, lang=lang)
 
                 self._tts.say(text)
 
@@ -533,6 +570,82 @@ def rpicam_hello_check() -> dict[str, Any]:
         "stdout": truncate_text(completed.stdout),
         "stderr": truncate_text(completed.stderr),
     }
+
+
+def create_tts(*, lang: str | None) -> Any:
+    try:
+        from robot_hat import TTS
+
+        return TTS(lang=lang)
+    except ImportError:
+        pass
+    except TypeError:
+        try:
+            from robot_hat import TTS
+
+            tts = TTS()
+            if lang is not None:
+                set_tts_language(tts=tts, lang=lang)
+            return tts
+        except ImportError:
+            pass
+
+    for module_name, class_name in [
+        ("robot_hat.tts", "Pico2Wave"),
+        ("sunfounder_voice_assistant.tts", "Pico2Wave"),
+    ]:
+        tts_class = import_tts_class(module_name=module_name, class_name=class_name)
+
+        if tts_class is None:
+            continue
+
+        return tts_class(lang=lang)
+
+    return DirectPico2Wave(lang=lang)
+
+
+def import_tts_class(*, module_name: str, class_name: str) -> Any | None:
+    try:
+        module = __import__(module_name, fromlist=[class_name])
+    except ImportError:
+        return None
+
+    tts_class = getattr(module, class_name, None)
+
+    if tts_class is None:
+        return None
+
+    return tts_class
+
+
+def set_tts_language(*, tts: Any, lang: str) -> None:
+    if hasattr(tts, "lang"):
+        tts.lang(lang)
+        return
+
+    if hasattr(tts, "set_lang"):
+        tts.set_lang(lang)
+        return
+
+    raise BridgeError("The active TTS engine does not support language changes.")
+
+
+def run_checked_command(command: list[str], *, context: str) -> None:
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=20,
+    )
+
+    if completed.returncode == 0:
+        return
+
+    stderr = completed.stderr.strip()
+    stdout = completed.stdout.strip()
+    detail = stderr or stdout or f"exit code {completed.returncode}"
+    raise BridgeError(f"{context} failed: {detail}")
 
 
 def camera_check_summary(result: dict[str, Any]) -> str:

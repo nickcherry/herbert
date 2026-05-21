@@ -74,8 +74,10 @@ Photo response:
 Positive motor speed means forward. Negative motor speed means backward. Zero
 or `stop` stops the drive motors.
 
-`say` uses Robot HAT TTS. The TypeScript side validates supported languages and
-keeps speech text short before sending it over the bridge.
+`say` uses the first available local TTS backend in this order: older Robot HAT
+`TTS`, newer Robot HAT `Pico2Wave`, SunFounder voice-assistant `Pico2Wave`, then
+direct `pico2wave` plus `aplay`. The TypeScript side validates supported
+languages and keeps speech text short before sending it over the bridge.
 
 `take_photo` uses Picamera2 still capture directly and returns the exact file
 path that was written. The TypeScript side gives this command a longer timeout
