@@ -19,8 +19,9 @@ bun herbert telegram:monitor
 ```
 
 `server:start` starts the Bun HTTP server. It exposes `GET /ping` for smoke
-tests and starts Telegram polling by default. Use `--no-telegram` only for local
-HTTP-only checks.
+tests and starts Telegram polling by default. Because Telegram polling now sends
+authorized text messages to OpenAI, `OPENAI_API_KEY` is required unless
+`--no-telegram` is used. Use `--no-telegram` only for local HTTP-only checks.
 
 `POST /robot/photos` accepts a multipart image attachment in the `image` field,
 plus an optional `sourcePath` field. The server sends the image to every chat id
@@ -34,8 +35,10 @@ discover the chat id after sending a message to the bot. This command only needs
 `TELEGRAM_ADMIN_CHAT_IDS`.
 
 `telegram:monitor` long-polls Telegram, ignores non-admin chats, logs
-authorized text messages, and replies to `/ping`. It does not yet enqueue robot
-commands.
+authorized text messages, sends each authorized text message plus recent context
+to OpenAI, and replies with the structured OpenAI response's `message`. Planned
+robot `actions` are parsed and logged, but they are not executed yet because the
+server-to-robot command transport is not implemented.
 
 When `server:start` exits from `SIGINT` or `SIGTERM`, it aborts Telegram polling
 and then stops the HTTP server.
@@ -48,6 +51,8 @@ in typed constants.
 - `TELEGRAM_BOT_TOKEN` is read from env.
 - `TELEGRAM_ADMIN_CHAT_IDS` is a comma-separated env list of authorized admin
   chat ids.
+- `OPENAI_API_KEY` is read from env when authorized Telegram messages are sent
+  through the OpenAI response helper.
 - Server-side persistence uses Bun's built-in SQL client with a local SQLite
   file at `data/herbert.sqlite`.
 - Telegram polling defaults also live in `telegramConfig`.

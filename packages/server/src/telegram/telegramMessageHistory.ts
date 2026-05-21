@@ -1,0 +1,93 @@
+import { telegramConfig } from "@herbert/server/constants/telegram";
+import { defaultDocumentStore } from "@herbert/server/persistence/defaultDocumentStore";
+import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import type { TelegramMessage } from "@herbert/server/telegram/schemas";
+import { z } from "zod";
+
+export const telegramHistoryMessageSchema = z.object({
+  messageId: z.number().int(),
+  date: z.number().int().nonnegative(),
+  text: z.string(),
+});
+
+export const telegramMessageHistorySchema = z.object({
+  messages: z
+    .array(telegramHistoryMessageSchema)
+    .max(telegramConfig.openAIContextMessageLimit),
+});
+
+export type TelegramHistoryMessage = z.infer<
+  typeof telegramHistoryMessageSchema
+>;
+
+export interface ReadTelegramMessageHistoryOptions {
+  readonly chatId: string;
+  readonly store?: DocumentStore;
+}
+
+export interface AppendTelegramMessageHistoryOptions {
+  readonly chatId: string;
+  readonly message: TelegramHistoryMessage;
+  readonly store?: DocumentStore;
+}
+
+export async function readTelegramMessageHistory({
+  chatId,
+  store = defaultDocumentStore(),
+}: ReadTelegramMessageHistoryOptions): Promise<
+  readonly TelegramHistoryMessage[]
+> {
+  const history = await store.read({
+    ...telegramMessageHistoryDocument({ chatId }),
+    schema: telegramMessageHistorySchema,
+  });
+
+  return history?.messages ?? [];
+}
+
+export async function appendTelegramMessageHistory({
+  chatId,
+  message,
+  store = defaultDocumentStore(),
+}: AppendTelegramMessageHistoryOptions): Promise<void> {
+  const messages = await readTelegramMessageHistory({ chatId, store });
+  const nextMessages = [...messages, message].slice(
+    -telegramConfig.openAIContextMessageLimit,
+  );
+
+  await store.write({
+    ...telegramMessageHistoryDocument({ chatId }),
+    schema: telegramMessageHistorySchema,
+    value: {
+      messages: nextMessages,
+    },
+  });
+}
+
+export function telegramHistoryMessageFromTelegram({
+  message,
+  text,
+}: {
+  readonly message: TelegramMessage;
+  readonly text: string;
+}): TelegramHistoryMessage {
+  return telegramHistoryMessageSchema.parse({
+    messageId: message.message_id,
+    date: message.date,
+    text,
+  });
+}
+
+function telegramMessageHistoryDocument({
+  chatId,
+}: {
+  readonly chatId: string;
+}): {
+  readonly collection: string;
+  readonly key: string;
+} {
+  return {
+    collection: "telegram_message_history",
+    key: chatId,
+  };
+}

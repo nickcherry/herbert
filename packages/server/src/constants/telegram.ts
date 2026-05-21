@@ -4,6 +4,7 @@ export const telegramConfig = {
   coldPollIntervalMs: 10_000,
   activePollIntervalMs: 2_000,
   activePollWindowMs: 30_000,
+  openAIContextMessageLimit: 10,
   testMessageText: "herbert server telegram test",
   pingResponseText: "herbert server: pong",
 } satisfies {
@@ -12,6 +13,7 @@ export const telegramConfig = {
   readonly coldPollIntervalMs: number;
   readonly activePollIntervalMs: number;
   readonly activePollWindowMs: number;
+  readonly openAIContextMessageLimit: number;
   readonly testMessageText: string;
   readonly pingResponseText: string;
 };

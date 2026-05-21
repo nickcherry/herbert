@@ -60,6 +60,19 @@ The cursor stores `nextUpdateOffset`, derived from Telegram's monotonic
 the Telegram `getUpdates` API uses `offset` to skip already processed updates.
 On restart, Herbert can resume at the next update without scanning old messages.
 
+## Telegram Message History
+
+Telegram OpenAI context stores authorized text history as:
+
+```text
+collection: telegram_message_history
+key: <admin chat id>
+```
+
+Each document stores only the most recent 10 authorized text messages for that
+chat id. This keeps prompt context bounded and preserves useful continuity
+across server restarts.
+
 Sources:
 
 - [Bun SQL documentation](https://bun.com/docs/runtime/sql)

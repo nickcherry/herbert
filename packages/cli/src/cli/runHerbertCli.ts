@@ -199,6 +199,7 @@ export async function runHerbertCli({
 
   if (command === "telegram:monitor") {
     const flags = parseTelegramFlags({ argv: rest });
+    requireOpenAIApiKey();
     await runTelegramMonitor({
       botToken: requireTelegramBotToken(),
       adminChatIds: requireTelegramAdminChatIds(),
@@ -616,6 +617,16 @@ function requireTelegramAdminChatIds(): readonly string[] {
   }
 
   return chatIds;
+}
+
+function requireOpenAIApiKey(): string {
+  const apiKey = env.openaiApiKey;
+
+  if (apiKey === undefined) {
+    throw new Error("OPENAI_API_KEY is not set in the environment.");
+  }
+
+  return apiKey;
 }
 
 function requirePrimaryTelegramAdminChatId(): string {

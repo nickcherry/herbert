@@ -23,6 +23,10 @@ export async function startHerbertServer({
   port = serverConfig.port,
   telegramPolling = true,
 }: StartHerbertServerOptions = {}): Promise<HerbertServerHandle> {
+  if (telegramPolling) {
+    requireOpenAIApiKey();
+  }
+
   const telegramHandle = telegramPolling
     ? startTelegramPolling({
         botToken: requireTelegramBotToken(),
@@ -80,6 +84,16 @@ function requireTelegramAdminChatIds(): readonly string[] {
   }
 
   return chatIds;
+}
+
+function requireOpenAIApiKey(): string {
+  const apiKey = env.openaiApiKey;
+
+  if (apiKey === undefined) {
+    throw new Error("OPENAI_API_KEY is not set in the environment.");
+  }
+
+  return apiKey;
 }
 
 function localUrlForServer({

@@ -46,6 +46,38 @@ Structured Outputs schemas should be compatible with OpenAI's supported subset.
 In practice, use a root `z.object(...)` and keep fields required unless there is
 a specific reason to model nullability.
 
+## Telegram Admin Response
+
+Telegram admin messages use Structured Outputs with this root shape:
+
+```ts
+{
+  message: string;
+  actions: Action[];
+}
+```
+
+The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
+It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
+which is supported by Structured Outputs. Do not replace it with
+`z.discriminatedUnion` unless the emitted JSON Schema is checked again; the
+current SDK emits `oneOf` for discriminated unions.
+
+The OpenAI schema only includes constraints supported by Structured Outputs.
+Telegram reply length and speech text length are validated after parsing before
+the response is used.
+
+Movement action parameters are bounded more narrowly than the low-level robot
+bridge:
+
+- speed: `1..50`
+- drive duration: `100..1000` ms
+- steering angle: `-30..30`
+- camera deltas: `-10..10`
+
+The `-30..30` steering bound follows the PiCar-X v2.0 SDK direction servo
+constants, even though Herbert's low-level bridge currently accepts `-35..35`.
+
 ## Images
 
 `imagePaths` accepts local image paths. The helper reads each file and sends it
@@ -63,3 +95,5 @@ Sources:
 
 - [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses&lang=javascript)
 - [OpenAI GPT-5.4 mini model](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+- [SunFounder PiCar-X movement docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_move.html)
+- [SunFounder PiCar-X SDK source](https://github.com/sunfounder/picar-x/blob/v2.0/picarx/picarx.py)

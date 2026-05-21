@@ -1,15 +1,41 @@
 import { env } from "@herbert/server/constants/env";
 import { telegramConfig } from "@herbert/server/constants/telegram";
+import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import { authorizeTelegramMessage } from "@herbert/server/telegram/authorizeTelegramMessage";
 import { extractTelegramMessages } from "@herbert/server/telegram/extractTelegramMessages";
-import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates";
-import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
+import {
+  getTelegramUpdates,
+  type GetTelegramUpdatesParams,
+  type GetTelegramUpdatesResult,
+} from "@herbert/server/telegram/getTelegramUpdates";
+import { promptTelegramOpenAI } from "@herbert/server/telegram/promptTelegramOpenAI";
+import {
+  sendTelegramMessage,
+  type SendTelegramMessageParams,
+  type SendTelegramMessageResult,
+} from "@herbert/server/telegram/sendTelegramMessage";
 import type { TelegramState } from "@herbert/server/telegram/state/telegramState";
 import {
   readTelegramState,
   writeTelegramState,
 } from "@herbert/server/telegram/state/telegramStateStore";
+import {
+  appendTelegramMessageHistory,
+  readTelegramMessageHistory,
+  telegramHistoryMessageFromTelegram,
+} from "@herbert/server/telegram/telegramMessageHistory";
+import type { TelegramOpenAIResponse } from "@herbert/server/telegram/telegramOpenAIResponse";
 import pc from "picocolors";
+
+export type GetTelegramUpdates = (
+  options: GetTelegramUpdatesParams,
+) => Promise<GetTelegramUpdatesResult>;
+
+export type SendTelegramMessage = (
+  options: SendTelegramMessageParams,
+) => Promise<SendTelegramMessageResult>;
+
+export type RespondToTelegramMessage = typeof promptTelegramOpenAI;
 
 export interface TelegramMonitorOptions {
   readonly botToken: string;
@@ -20,6 +46,10 @@ export interface TelegramMonitorOptions {
   readonly activePollIntervalMs: number;
   readonly activePollWindowMs: number;
   readonly once: boolean;
+  readonly store?: DocumentStore;
+  readonly getUpdates?: GetTelegramUpdates;
+  readonly sendMessage?: SendTelegramMessage;
+  readonly respondToMessage?: RespondToTelegramMessage;
 }
 
 export interface TelegramPollingHandle {
@@ -36,6 +66,10 @@ export function startTelegramPolling({
   activePollIntervalMs,
   activePollWindowMs,
   once,
+  store,
+  getUpdates = getTelegramUpdates,
+  sendMessage = sendTelegramMessage,
+  respondToMessage = promptTelegramOpenAI,
 }: TelegramMonitorOptions): TelegramPollingHandle {
   if (adminChatIds.length === 0) {
     throw new Error("TELEGRAM_ADMIN_CHAT_IDS is not set in the environment.");
@@ -56,12 +90,12 @@ export function startTelegramPolling({
   };
 
   async function runLoop(): Promise<void> {
-    let state = await readTelegramState();
+    let state = await readTelegramState({ store });
     let offset = state.nextUpdateOffset;
 
     do {
       try {
-        const result = await getTelegramUpdates({
+        const result = await getUpdates({
           botToken,
           offset,
           timeoutSeconds,
@@ -104,13 +138,31 @@ export function startTelegramPolling({
             })}\n`,
           );
 
-          if (authorization.text === "/ping") {
-            await sendTelegramMessage({
-              botToken,
-              chatId: authorization.chatId,
-              text: telegramConfig.pingResponseText,
-            });
-          }
+          const currentMessage = telegramHistoryMessageFromTelegram({
+            message: authorization.message,
+            text: authorization.text,
+          });
+          const recentMessages = await readTelegramMessageHistory({
+            chatId: authorization.chatId,
+            store,
+          });
+          const response = await respondToMessage({
+            currentMessage,
+            recentMessages,
+          });
+
+          logTelegramOpenAIResponse({ response });
+
+          await sendMessage({
+            botToken,
+            chatId: authorization.chatId,
+            text: response.message,
+          });
+          await appendTelegramMessageHistory({
+            chatId: authorization.chatId,
+            message: currentMessage,
+            store,
+          });
         }
 
         if (result.updates.length > 0) {
@@ -120,7 +172,7 @@ export function startTelegramPolling({
               ? Date.now()
               : state.lastReceivedAtMs,
           };
-          await writeTelegramState({ state });
+          await writeTelegramState({ state, store });
         }
 
         if (once || shouldStop) {
@@ -205,6 +257,23 @@ function formatKeyValue({
   readonly value: string;
 }): string {
   return `${pc.dim(`${key}=`)}${value}`;
+}
+
+function logTelegramOpenAIResponse({
+  response,
+}: {
+  readonly response: TelegramOpenAIResponse;
+}): void {
+  if (response.actions.length === 0) {
+    return;
+  }
+
+  process.stdout.write(
+    `${pc.bold("telegram")} ${formatKeyValue({
+      key: "actions",
+      value: JSON.stringify(response.actions),
+    })}\n`,
+  );
 }
 
 function isAbortError({ error }: { readonly error: unknown }): boolean {
