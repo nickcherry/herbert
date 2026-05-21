@@ -1,19 +1,15 @@
 import type { SqlClient } from "@herbert/server/persistence/sqlTypes";
 
-export function createMysqlSqlClient({
-  url,
-}: {
-  readonly url: string;
-}): SqlClient {
-  const SqlConstructor = (Bun as unknown as BunSqlRuntime).SQL;
+export function createMysqlSqlClient(): SqlClient {
+  const createSql = (Bun as unknown as BunSqlRuntime).SQL;
 
-  if (SqlConstructor === undefined) {
+  if (createSql === undefined) {
     throw new Error("This Bun runtime does not expose Bun.SQL.");
   }
 
-  return new SqlConstructor(url);
+  return createSql({ adapter: "mysql" });
 }
 
 interface BunSqlRuntime {
-  readonly SQL?: new (url: string) => SqlClient;
+  readonly SQL?: (options: { readonly adapter: "mysql" }) => SqlClient;
 }

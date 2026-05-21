@@ -48,7 +48,9 @@ in typed constants.
 - `TELEGRAM_BOT_TOKEN` is read from env.
 - `TELEGRAM_ADMIN_CHAT_IDS` is a comma-separated env list of authorized admin
   chat ids.
-- `MYSQL_URL` is read from env for server-side persistence.
+- MySQL connection settings are resolved by Bun's built-in SQL client for
+  server-side persistence. `MYSQL_URL`, `DATABASE_URL` with a MySQL URL, or the
+  individual `MYSQL_*` variables are all valid.
 - Telegram polling defaults also live in `telegramConfig`.
 
 ## Boundary

@@ -6,17 +6,25 @@ coordination point.
 
 ## Configuration
 
-Set `MYSQL_URL` in the server environment:
+Herbert does not read a custom database URL itself. It creates the client with
+`Bun.SQL({ adapter: "mysql" })` and lets Bun's built-in SQL runtime resolve
+connection settings.
+
+For local setup, use any MySQL configuration shape Bun supports:
 
 ```sh
 MYSQL_URL="mysql://user:password@localhost:3306/herbert"
+# or
+DATABASE_URL="mysql://user:password@localhost:3306/herbert"
+# or MYSQL_HOST / MYSQL_PORT / MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE
 ```
 
-`MYSQL_URL` is allowed as an environment variable because it contains database
-credentials. Normal persistence behavior and table names should stay in code.
+Database connection settings are allowed in environment variables because they
+contain credentials and deployment-local connection details. Normal persistence
+behavior and table names should stay in code.
 
-The implementation uses Bun's native `Bun.SQL` client. MySQL URLs such as
-`mysql://...` and `mysql2://...` are auto-detected by Bun's SQL runtime.
+Bun's SQL runtime also auto-detects MySQL URLs such as `mysql://...` and
+`mysql2://...`.
 
 ## Schema
 
