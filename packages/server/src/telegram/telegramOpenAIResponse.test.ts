@@ -82,21 +82,23 @@ describe("telegramOpenAIResponseSchema", () => {
     ).toThrow();
   });
 
-  test("post-validates Telegram and speech text limits", () => {
+  test("post-validates Telegram reply text limits", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
         message: "",
         actions: [],
       }),
     ).toThrow();
+  });
 
+  test("rejects speech actions from Telegram", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
-        message: "I will say it.",
+        message: "Speech is not a Telegram action.",
         actions: [
           {
             type: "say",
-            text: "x".repeat(301),
+            text: "hello",
           },
         ],
       }),
@@ -111,6 +113,7 @@ describe("telegramOpenAIResponseSchema", () => {
     const schemaJson = JSON.stringify(textFormat.schema);
 
     expect(schemaJson).toContain('"anyOf"');
+    expect(schemaJson).not.toContain('"say"');
     expect(schemaJson).not.toContain('"oneOf"');
     expect(schemaJson).not.toContain('"minLength"');
     expect(schemaJson).not.toContain('"maxLength"');

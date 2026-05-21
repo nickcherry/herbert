@@ -64,8 +64,8 @@ which is supported by Structured Outputs. Do not replace it with
 current SDK emits `oneOf` for discriminated unions.
 
 The OpenAI schema only includes constraints supported by Structured Outputs.
-Telegram reply length and speech text length are validated after parsing before
-the response is used.
+Telegram reply length is validated after parsing before the response is used.
+Robot speech is intentionally not part of the Telegram action contract.
 
 Movement action parameters are bounded more narrowly than the low-level robot
 bridge:

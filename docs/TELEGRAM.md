@@ -98,9 +98,8 @@ Python bridge:
 - `set_steering`: `angle` from `-30..30`.
 - `look`: `panDelta` and `tiltDelta` from `-10..10`.
 - `take_photo`
-- `say`: `text` must pass Herbert's speech text validation before execution is
-  allowed.
-- `stop`
+- `stop`: emergency or cancel semantic; keep it available even though normal
+  drive actions are short finite pulses.
 
 Steering is capped at `-30..30` because the PiCar-X v2.0 SDK clamps direction
 servo input to that range. Camera deltas are narrower than the bridge's absolute

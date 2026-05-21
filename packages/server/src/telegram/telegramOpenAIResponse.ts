@@ -1,4 +1,3 @@
-import { speechTextSchema } from "@herbert/shared";
 import { z } from "zod";
 
 export const telegramOpenAIActionLimits = {
@@ -87,15 +86,6 @@ const takePhotoActionSchema = z.object({
   type: z.enum(["take_photo"]),
 });
 
-const openAISayActionSchema = z.object({
-  type: z.enum(["say"]),
-  text: z.string().trim(),
-});
-
-const executableSayActionSchema = openAISayActionSchema.extend({
-  text: speechTextSchema,
-});
-
 const stopActionSchema = z.object({
   type: z.enum(["stop"]),
 });
@@ -110,7 +100,6 @@ export const telegramOpenAIActionSchema = z.union([
   setSteeringActionSchema,
   lookActionSchema,
   takePhotoActionSchema,
-  openAISayActionSchema,
   stopActionSchema,
 ]);
 
@@ -120,7 +109,6 @@ export const executableTelegramOpenAIActionSchema = z.union([
   setSteeringActionSchema,
   lookActionSchema,
   takePhotoActionSchema,
-  executableSayActionSchema,
   stopActionSchema,
 ]);
 

@@ -33,6 +33,7 @@ export const telegramOpenAIInstructions = [
   "Return the Telegram reply in `message` and zero or more bounded robot action plans in `actions`.",
   "`message` must be non-empty, concise, and suitable to send as plain Telegram text.",
   "`actions` may be empty. Use empty actions for conversation, status questions, unclear requests, or anything that does not clearly ask Herbert to act.",
+  "Robot speech is not an available Telegram action; put text for the admin in `message` instead.",
   "Do not move Herbert unless the current admin message clearly asks for movement.",
   `Return at most ${telegramOpenAIActionLimits.maxActions} actions.`,
   `Drive speed must be ${telegramOpenAIActionLimits.speed.min}-${telegramOpenAIActionLimits.speed.max}.`,
