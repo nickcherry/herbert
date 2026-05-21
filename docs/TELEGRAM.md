@@ -73,9 +73,10 @@ interpreting a message as an admin command.
 
 ## OpenAI Replies
 
-Every authorized Telegram text message is sent to OpenAI with that message plus
-up to the 10 most recent authorized text messages from the same admin chat id.
-OpenAI must return:
+Every polling response is grouped by admin chat id before contacting OpenAI. If
+Telegram returns multiple unseen messages for the same admin chat, the server
+sends them together in one OpenAI request with up to the 10 most recent
+previously handled messages from that chat. OpenAI must return:
 
 ```ts
 {
@@ -87,6 +88,21 @@ OpenAI must return:
 `message` is sent back to Telegram as plain text. `actions` are parsed and
 logged, but they are not executed yet because the server-to-robot command
 transport is not implemented.
+
+User message context is formatted as XML:
+
+```xml
+<user_messages>
+  <message>
+    <text>hi</text>
+    <timestamp>2026-05-21 17:39:56</timestamp>
+    <is_new>1</is_new>
+  </message>
+</user_messages>
+```
+
+Messages are oldest first. Prior context has `is_new` set to `0`; messages from
+the current polling response have `is_new` set to `1`.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:

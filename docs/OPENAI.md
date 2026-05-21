@@ -57,6 +57,21 @@ Telegram admin messages use Structured Outputs with this root shape:
 }
 ```
 
+The user-message prompt content is XML. It contains prior same-chat context and
+all newly received messages from the current Telegram polling response:
+
+```xml
+<user_messages>
+  <message>
+    <text>drive forward</text>
+    <timestamp>2026-05-21 17:39:56</timestamp>
+    <is_new>1</is_new>
+  </message>
+</user_messages>
+```
+
+Messages with `is_new=1` are the unseen messages the response should handle.
+
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
 which is supported by Structured Outputs. Do not replace it with

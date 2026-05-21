@@ -31,6 +31,12 @@ export interface AppendTelegramMessageHistoryOptions {
   readonly store?: DocumentStore;
 }
 
+export interface AppendTelegramMessageHistoryBatchOptions {
+  readonly chatId: string;
+  readonly messages: readonly TelegramHistoryMessage[];
+  readonly store?: DocumentStore;
+}
+
 export async function readTelegramMessageHistory({
   chatId,
   store = defaultDocumentStore(),
@@ -50,8 +56,20 @@ export async function appendTelegramMessageHistory({
   message,
   store = defaultDocumentStore(),
 }: AppendTelegramMessageHistoryOptions): Promise<void> {
-  const messages = await readTelegramMessageHistory({ chatId, store });
-  const nextMessages = [...messages, message].slice(
+  await appendTelegramMessageHistoryBatch({
+    chatId,
+    messages: [message],
+    store,
+  });
+}
+
+export async function appendTelegramMessageHistoryBatch({
+  chatId,
+  messages,
+  store = defaultDocumentStore(),
+}: AppendTelegramMessageHistoryBatchOptions): Promise<void> {
+  const existingMessages = await readTelegramMessageHistory({ chatId, store });
+  const nextMessages = [...existingMessages, ...messages].slice(
     -telegramConfig.openAIContextMessageLimit,
   );
 

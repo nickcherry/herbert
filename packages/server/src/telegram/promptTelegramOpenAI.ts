@@ -10,16 +10,16 @@ import {
 } from "@herbert/server/telegram/telegramOpenAIResponse";
 
 export interface PromptTelegramOpenAIOptions {
-  readonly currentMessage: TelegramHistoryMessage;
   readonly recentMessages: readonly TelegramHistoryMessage[];
+  readonly newMessages: readonly TelegramHistoryMessage[];
 }
 
 export async function promptTelegramOpenAI({
-  currentMessage,
   recentMessages,
+  newMessages,
 }: PromptTelegramOpenAIOptions): Promise<TelegramOpenAIResponse> {
   const response = await promptOpenAI({
-    prompt: buildTelegramOpenAIPrompt({ currentMessage, recentMessages }),
+    prompt: buildTelegramOpenAIPrompt({ recentMessages, newMessages }),
     schema: telegramOpenAIResponseSchema,
     schemaName: "telegram_robot_response",
     instructions: telegramOpenAIInstructions,

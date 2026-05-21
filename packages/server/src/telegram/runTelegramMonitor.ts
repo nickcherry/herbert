@@ -20,8 +20,9 @@ import {
   writeTelegramState,
 } from "@herbert/server/telegram/state/telegramStateStore";
 import {
-  appendTelegramMessageHistory,
+  appendTelegramMessageHistoryBatch,
   readTelegramMessageHistory,
+  type TelegramHistoryMessage,
   telegramHistoryMessageFromTelegram,
 } from "@herbert/server/telegram/telegramMessageHistory";
 import type { TelegramOpenAIResponse } from "@herbert/server/telegram/telegramOpenAIResponse";
@@ -109,6 +110,8 @@ export function startTelegramPolling({
           offset = update.update_id + 1;
         }
 
+        const newMessagesByChatId = new Map<string, TelegramHistoryMessage[]>();
+
         for (const message of extractTelegramMessages({
           updates: result.updates,
         })) {
@@ -142,25 +145,32 @@ export function startTelegramPolling({
             message: authorization.message,
             text: authorization.text,
           });
+          const newMessages =
+            newMessagesByChatId.get(authorization.chatId) ?? [];
+          newMessages.push(currentMessage);
+          newMessagesByChatId.set(authorization.chatId, newMessages);
+        }
+
+        for (const [chatId, newMessages] of newMessagesByChatId) {
           const recentMessages = await readTelegramMessageHistory({
-            chatId: authorization.chatId,
+            chatId,
             store,
           });
           const response = await respondToMessage({
-            currentMessage,
             recentMessages,
+            newMessages,
           });
 
           logTelegramOpenAIResponse({ response });
 
           await sendMessage({
             botToken,
-            chatId: authorization.chatId,
+            chatId,
             text: response.message,
           });
-          await appendTelegramMessageHistory({
-            chatId: authorization.chatId,
-            message: currentMessage,
+          await appendTelegramMessageHistoryBatch({
+            chatId,
+            messages: newMessages,
             store,
           });
         }

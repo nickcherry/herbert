@@ -54,7 +54,7 @@ describe("pollIntervalForState", () => {
 });
 
 describe("startTelegramPolling", () => {
-  test("sends authorized admin messages with recent context to OpenAI", async () => {
+  test("sends authorized admin message batches with recent context to OpenAI", async () => {
     const store = createMemoryDocumentStore();
 
     for (let index = 1; index <= 10; index += 1) {
@@ -69,8 +69,8 @@ describe("startTelegramPolling", () => {
       });
     }
 
-    let openAIRequest: PromptTelegramOpenAIOptions | undefined;
-    let sentMessage: SendTelegramMessageParams | undefined;
+    const openAIRequests: PromptTelegramOpenAIOptions[] = [];
+    const sentMessages: SendTelegramMessageParams[] = [];
 
     const handle = startTelegramPolling({
       botToken: "token",
@@ -97,19 +97,43 @@ describe("startTelegramPolling", () => {
                 text: "drive forward a little",
               },
             },
+            {
+              update_id: 11,
+              message: {
+                message_id: 12,
+                date: 1_800_000_012,
+                chat: {
+                  id: 123,
+                  type: "private",
+                },
+                text: "then take a photo",
+              },
+            },
+            {
+              update_id: 12,
+              message: {
+                message_id: 13,
+                date: 1_800_000_013,
+                chat: {
+                  id: 123,
+                  type: "private",
+                },
+                text: "thanks",
+              },
+            },
           ],
         };
       },
       async respondToMessage(options) {
-        openAIRequest = options;
+        openAIRequests.push(options);
 
         return {
-          message: "Driving forward.",
+          message: "Driving forward and taking a photo.",
           actions: [],
         };
       },
       async sendMessage(options) {
-        sentMessage = options;
+        sentMessages.push(options);
 
         return {
           messageId: 99,
@@ -119,26 +143,44 @@ describe("startTelegramPolling", () => {
 
     await handle.done;
 
-    expect(requireDefined(openAIRequest).recentMessages).toHaveLength(10);
-    expect(requireDefined(openAIRequest).currentMessage).toEqual({
-      messageId: 11,
-      date: 1_800_000_011,
-      text: "drive forward a little",
-    });
-    expect(requireDefined(sentMessage)).toMatchObject({
+    expect(openAIRequests).toHaveLength(1);
+    expect(openAIRequests[0]?.recentMessages).toHaveLength(10);
+    expect(openAIRequests[0]?.newMessages).toEqual([
+      {
+        messageId: 11,
+        date: 1_800_000_011,
+        text: "drive forward a little",
+      },
+      {
+        messageId: 12,
+        date: 1_800_000_012,
+        text: "then take a photo",
+      },
+      {
+        messageId: 13,
+        date: 1_800_000_013,
+        text: "thanks",
+      },
+    ]);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toMatchObject({
       botToken: "token",
       chatId: "123",
-      text: "Driving forward.",
+      text: "Driving forward and taking a photo.",
     });
     expect(await readTelegramMessageHistory({ chatId: "123", store })).toEqual(
       Array.from({ length: 10 }, (_value, index) => {
-        const messageId = index + 2;
+        const messageId = index + 4;
 
         return {
           messageId,
           date: 1_800_000_000 + messageId,
           text:
-            messageId === 11 ? "drive forward a little" : `prior ${messageId}`,
+            new Map([
+              [11, "drive forward a little"],
+              [12, "then take a photo"],
+              [13, "thanks"],
+            ]).get(messageId) ?? `prior ${messageId}`,
         };
       }),
     );
@@ -157,12 +199,4 @@ function createMemoryDocumentStore(): DocumentStore {
       documents.set(`${collection}:${key}`, schema.parse(value));
     },
   } satisfies DocumentStore;
-}
-
-function requireDefined<T>(value: T | undefined): T {
-  if (value === undefined) {
-    throw new Error("Expected value to be defined.");
-  }
-
-  return value;
 }
