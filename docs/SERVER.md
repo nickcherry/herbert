@@ -48,6 +48,7 @@ in typed constants.
 - `TELEGRAM_BOT_TOKEN` is read from env.
 - `TELEGRAM_ADMIN_CHAT_IDS` is a comma-separated env list of authorized admin
   chat ids.
+- `MYSQL_URL` is read from env for server-side persistence.
 - Telegram polling defaults also live in `telegramConfig`.
 
 ## Boundary
@@ -56,6 +57,7 @@ The server package should own:
 
 - Telegram Bot API calls
 - OpenAI API calls
+- MySQL-backed persistence
 - administrator authentication
 - future command broker behavior
 - future server-side command persistence

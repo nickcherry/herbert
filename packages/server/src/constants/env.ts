@@ -7,6 +7,9 @@ export const env = {
   get openaiApiKey(): string | undefined {
     return optionalEnv("OPENAI_API_KEY");
   },
+  get mysqlUrl(): string | undefined {
+    return optionalEnv("MYSQL_URL");
+  },
   get telegramBotToken(): string | undefined {
     return optionalEnv("TELEGRAM_BOT_TOKEN");
   },

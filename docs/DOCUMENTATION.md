@@ -24,7 +24,7 @@ Update docs when changing:
 - Telegram admin command contracts
 - server-to-robot command broker behavior
 - OpenAI prompt contracts, schemas, model defaults, or image input handling
-- persistence file layout, event schemas, or migration assumptions
+- persistence table layout, event schemas, or migration assumptions
 
 When implementation relies on SunFounder behavior, link the relevant official
 docs from the subsystem doc.

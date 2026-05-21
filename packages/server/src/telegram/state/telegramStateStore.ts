@@ -1,20 +1,23 @@
-import { collectionPath } from "@herbert/server/persistence/collectionPath";
-import { readJsonFile } from "@herbert/server/persistence/readJsonFile";
-import { writeJsonFile } from "@herbert/server/persistence/writeJsonFile";
+import { defaultDocumentStore } from "@herbert/server/persistence/defaultDocumentStore";
+import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   type TelegramState,
   telegramStateSchema,
 } from "@herbert/server/telegram/state/telegramState";
 
-const telegramStatePath = collectionPath({
+const telegramStateDocument = {
   collection: "telegram_state",
-  filename: "cursor.json",
-});
+  key: "cursor",
+} as const;
 
-export async function readTelegramState(): Promise<TelegramState> {
+export async function readTelegramState({
+  store = defaultDocumentStore(),
+}: {
+  readonly store?: DocumentStore;
+} = {}): Promise<TelegramState> {
   return (
-    (await readJsonFile({
-      path: telegramStatePath,
+    (await store.read({
+      ...telegramStateDocument,
       schema: telegramStateSchema,
     })) ?? {}
   );
@@ -22,11 +25,13 @@ export async function readTelegramState(): Promise<TelegramState> {
 
 export async function writeTelegramState({
   state,
+  store = defaultDocumentStore(),
 }: {
   readonly state: TelegramState;
+  readonly store?: DocumentStore;
 }): Promise<void> {
-  await writeJsonFile({
-    path: telegramStatePath,
+  await store.write({
+    ...telegramStateDocument,
     schema: telegramStateSchema,
     value: state,
   });

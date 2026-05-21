@@ -68,8 +68,12 @@ interpreting a message as an admin command.
 
 ## Cursor State
 
-Telegram cursor state is stored in
-`runtime/collections/telegram_state/cursor.json`.
+Telegram cursor state is stored in MySQL through the server document store:
+
+```text
+collection: telegram_state
+key: cursor
+```
 
 The stored cursor is Telegram's next `update_id` offset, not a message timestamp.
 This keeps restart behavior efficient even after hundreds or thousands of

@@ -72,3 +72,5 @@
 - Keep constants near the package or subsystem that owns them.
 - Do not add env vars for tuning values such as polling intervals, batch sizes,
   or command defaults.
+- Database connection URLs are environment variables because they contain
+  credentials and deployment-local connection details.

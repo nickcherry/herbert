@@ -1,71 +1,65 @@
 # Persistence
 
-Herbert needs lightweight persistence, but not a database server yet.
+Herbert uses MySQL for server-side persistence. Persistence belongs only in
+`packages/server`; the robot package should treat the server as the durable
+coordination point.
 
-Recommendation: start with repo-local filesystem persistence under the
-gitignored `runtime/` directory, using typed collections. A collection is a
-directory of records or state files owned by one subsystem.
+## Configuration
 
-Why:
+Set `MYSQL_URL` in the server environment:
 
-- The first server is a single Mac mini process.
-- Early data is operational: Telegram messages, command requests, robot status,
-  photo metadata, and audit events.
-- JSON and JSONL files are easy to inspect, back up, replay, and migrate.
-- It keeps the first command broker simple.
-
-Do not start with MySQL unless we need multi-process writes, relational queries,
-or remote clients writing directly to storage. When that pressure appears, the
-event log can be migrated into a database with a clear schema because every
-record will already have a typed event shape.
-
-Current layout:
-
-```text
-runtime/
-  collections/
-    telegram_state/
-      cursor.json
+```sh
+MYSQL_URL="mysql://user:password@localhost:3306/herbert"
 ```
 
-Likely future layout:
+`MYSQL_URL` is allowed as an environment variable because it contains database
+credentials. Normal persistence behavior and table names should stay in code.
 
-```text
-runtime/
-  collections/
-    telegram_state/
-      cursor.json
-    telegram_events/
-      events.jsonl
-    command_events/
-      events.jsonl
-    robot_state/
-      latest.json
-  photos/
-    ...
+The implementation uses Bun's native `Bun.SQL` client. MySQL URLs such as
+`mysql://...` and `mysql2://...` are auto-detected by Bun's SQL runtime.
+
+## Schema
+
+The generic document table is created on first persistence access:
+
+```sql
+CREATE TABLE IF NOT EXISTS herbert_documents (
+  collection VARCHAR(128) NOT NULL,
+  document_key VARCHAR(191) NOT NULL,
+  document_json JSON NOT NULL,
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+    ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (collection, document_key)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
+
+This keeps the early persistence model close to the old typed collection model
+while moving durability into MySQL. If a subsystem later needs relational
+queries, it should get its own purpose-built table and migration.
 
 ## Rules
 
-- Every filesystem read must parse through a Zod schema before application code
-  uses the value.
-- Every filesystem write must validate through the same schema before bytes hit
-  disk.
-- Collection helpers live under `packages/server/src/persistence`.
+- Every persisted document must parse through a Zod schema on read.
+- Every write must validate through the same schema before hitting MySQL.
+- Collection/key names must be narrow and stable.
 - Subsystem-specific schemas live near the subsystem that owns the data.
 - Broadly shared persisted record types should move to `packages/shared`.
-- Prefer small JSON state files for cursors and snapshots.
-- Prefer append-only JSONL for event streams and audit trails.
+- Do not add filesystem persistence under `runtime/`.
 
 ## Telegram Cursor
 
-Telegram polling stores cursor state in:
+Telegram polling stores cursor state as:
 
 ```text
-runtime/collections/telegram_state/cursor.json
+collection: telegram_state
+key: cursor
 ```
 
 The cursor stores `nextUpdateOffset`, derived from Telegram's monotonic
 `update_id`. This is better than message timestamp for resume behavior because
 the Telegram `getUpdates` API uses `offset` to skip already processed updates.
 On restart, Herbert can resume at the next update without scanning old messages.
+
+Sources:
+
+- [Bun SQL documentation](https://bun.com/docs/runtime/sql)
