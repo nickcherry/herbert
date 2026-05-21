@@ -82,8 +82,10 @@ languages and keeps speech text short before sending it over the bridge.
 `take_photo` uses Picamera2 still capture directly and returns the exact file
 path that was written. The TypeScript side gives this command a longer timeout
 than normal motor and servo commands because the camera has to initialize and
-warm up. Camera detection failures are returned as bridge errors rather than
-letting the command hang.
+warm up. The bridge does not apply an image orientation transform; Herbert's
+current camera mount produces upright stills from Picamera2's default still
+configuration. Camera detection failures are returned as bridge errors rather
+than letting the command hang.
 
 `camera_check` returns Picamera2 camera enumeration and
 `rpicam-hello --list-cameras` output for no-sudo diagnostics.

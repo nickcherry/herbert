@@ -491,14 +491,7 @@ def normalize_photo_stem(name: str | None) -> str:
 
 
 def create_still_configuration(picam2: Any) -> Any:
-    try:
-        from libcamera import Transform
-
-        return picam2.create_still_configuration(
-            transform=Transform(hflip=True, vflip=True)
-        )
-    except TypeError:
-        return picam2.create_still_configuration()
+    return picam2.create_still_configuration()
 
 
 def camera_detection_error_message() -> str:

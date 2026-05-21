@@ -87,8 +87,10 @@ bun herbert robot:keyboard --server-url http://<laptop-hostname>.local:8787
 
 The bridge captures photos with Picamera2 directly instead of Vilib. This avoids
 Vilib's `camera_start()` path, which can block indefinitely when the camera is
-not detected. If capture fails with a camera-detection error, check the camera
-cable and run `rpicam-hello` on Herbert.
+not detected. Herbert's current camera mount uses Picamera2's default still
+orientation without an extra flip or rotation. If capture fails with a
+camera-detection error, check the camera cable and run `rpicam-hello` on
+Herbert.
 
 For camera diagnostics from Herbert's runtime environment, run:
 
