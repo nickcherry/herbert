@@ -76,6 +76,15 @@ or `stop` stops the drive motors.
 `say` uses Robot HAT TTS. The TypeScript side validates supported languages and
 keeps speech text short before sending it over the bridge.
 
+`take_photo` uses Picamera2 still capture directly and returns the exact file
+path that was written. The TypeScript side gives this command a longer timeout
+than normal motor and servo commands because the camera has to initialize and
+warm up. Camera detection failures are returned as bridge errors rather than
+letting the command hang.
+
+`shutdown` stops the drive motors. Keyboard mode also centers steering before
+closing, but it does not send camera pan or tilt commands during shutdown.
+
 ## Isolation Rule
 
 Do not import Python from TypeScript except through `PythonBridgeClient`.

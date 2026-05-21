@@ -8,32 +8,38 @@ const defaults = {
 } as const;
 
 describe("parseKeyboardInput", () => {
-  test("maps arrow keys to drive pulses", () => {
+  test("maps up and down arrows to motor pulses", () => {
     expect(
       parseKeyboardInput({
-        input: "\u001b[A\u001b[D\u001b[B\u001b[C",
+        input: "\u001b[A\u001b[B",
         ...defaults,
       }),
     ).toEqual([
       {
-        type: "drive",
+        type: "motor",
         motorSpeed: 35,
-        steeringAngle: 0,
       },
       {
-        type: "drive",
-        motorSpeed: 35,
-        steeringAngle: -25,
-      },
-      {
-        type: "drive",
+        type: "motor",
         motorSpeed: -35,
-        steeringAngle: 0,
+      },
+    ]);
+  });
+
+  test("maps left and right arrows to steering only", () => {
+    expect(
+      parseKeyboardInput({
+        input: "\u001b[D\u001b[C",
+        ...defaults,
+      }),
+    ).toEqual([
+      {
+        type: "steering",
+        angle: -25,
       },
       {
-        type: "drive",
-        motorSpeed: 35,
-        steeringAngle: 25,
+        type: "steering",
+        angle: 25,
       },
     ]);
   });

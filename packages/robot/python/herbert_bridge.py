@@ -19,6 +19,7 @@ CAMERA_MIN = -35
 CAMERA_MAX = 35
 SPEECH_TEXT_MAX = 300
 SPEECH_LANGUAGES = {"en-US", "en-GB", "zh-CN", "de-DE", "es-ES"}
+PHOTO_WARMUP_S = 1.5
 
 
 class BridgeError(Exception):
@@ -33,10 +34,8 @@ class Hardware:
         self._closed = False
         self._motor_active = False
         self._last_motor_command_at = time.monotonic()
-        self._camera_started = False
         self._px: Any | None = None
         self._tts: Any | None = None
-        self._vilib: Any | None = None
 
         if not self.mock:
             with contextlib.redirect_stdout(sys.stderr):
@@ -138,20 +137,40 @@ class Hardware:
             return {"path": str(photo_path)}
 
         with self._lock:
-            with contextlib.redirect_stdout(sys.stderr):
-                from vilib import Vilib
-
-                self._vilib = Vilib
-                photo_dir.mkdir(parents=True, exist_ok=True)
-
-                if not self._camera_started:
-                    Vilib.camera_start(vflip=True, hflip=True)
-                    self._camera_started = True
-                    time.sleep(0.5)
-
-                Vilib.take_photo(photo_name=photo_stem, path=str(photo_dir) + "/")
+            self._capture_photo(photo_path)
 
         return {"path": str(photo_path)}
+
+    def _capture_photo(self, photo_path: Path) -> None:
+        picam2: Any | None = None
+
+        try:
+            with contextlib.redirect_stdout(sys.stderr):
+                from picamera2 import Picamera2
+
+                picam2 = Picamera2()
+                capture_config = create_still_configuration(picam2)
+                photo_path.parent.mkdir(parents=True, exist_ok=True)
+
+                picam2.configure(capture_config)
+                picam2.start()
+                time.sleep(PHOTO_WARMUP_S)
+                picam2.capture_file(str(photo_path))
+        except IndexError as error:
+            raise BridgeError(
+                "No Raspberry Pi camera was detected. Check the camera cable and run rpicam-hello."
+            ) from error
+        except BridgeError:
+            raise
+        except Exception as error:  # noqa: BLE001
+            raise BridgeError(f"Camera capture failed: {error}") from error
+        finally:
+            if picam2 is not None:
+                with contextlib.suppress(Exception), contextlib.redirect_stdout(sys.stderr):
+                    picam2.close()
+
+        if not photo_path.is_file() or photo_path.stat().st_size == 0:
+            raise BridgeError(f"Camera did not write a non-empty photo: {photo_path}")
 
     def say(self, *, text: str, lang: str | None) -> None:
         text = require_string(text, name="text")
@@ -191,9 +210,6 @@ class Hardware:
 
             with contextlib.redirect_stdout(sys.stderr):
                 self._stop_locked()
-
-                if self._camera_started and self._vilib is not None:
-                    self._vilib.camera_close()
 
     def _require_px(self) -> Any:
         if self._px is None:
@@ -389,9 +405,22 @@ def require_int(*, value: Any, name: str, minimum: int, maximum: int) -> int:
 
 def normalize_photo_stem(name: str | None) -> str:
     if name is None:
-        return time.strftime("herbert_%Y-%m-%d_%H-%M-%S", time.localtime())
+        timestamp = time.strftime("herbert_%Y-%m-%d_%H-%M-%S", time.localtime())
+        milliseconds = int((time.time() % 1) * 1000)
+        return f"{timestamp}_{milliseconds:03d}"
 
     return name[:-4] if name.lower().endswith(".jpg") else name
+
+
+def create_still_configuration(picam2: Any) -> Any:
+    try:
+        from libcamera import Transform
+
+        return picam2.create_still_configuration(
+            transform=Transform(hflip=True, vflip=True)
+        )
+    except TypeError:
+        return picam2.create_still_configuration()
 
 
 def extract_command_id(line: str) -> str | None:

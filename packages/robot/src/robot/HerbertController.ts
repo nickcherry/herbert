@@ -150,10 +150,13 @@ export class HerbertController {
   public async takePhoto(
     options: TakePhotoOptions = {},
   ): Promise<TakePhotoResult> {
-    const response = await this.bridge.send({
-      type: "take_photo",
-      ...options,
-    });
+    const response = await this.bridge.send(
+      {
+        type: "take_photo",
+        ...options,
+      },
+      { timeoutMs: photoTimeoutMs },
+    );
 
     return takePhotoResultSchema.parse(response.result);
   }
@@ -183,3 +186,5 @@ export class HerbertController {
 function speechTimeoutMs({ text }: { readonly text: string }): number {
   return Math.min(60_000, Math.max(10_000, text.length * 250));
 }
+
+const photoTimeoutMs = 30_000;

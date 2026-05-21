@@ -32,9 +32,10 @@ commands such as `set_motor`, `set_steering`, `set_camera_pan`,
 `set_camera_tilt`, `take_photo`, `say`, and `stop`. Python validates and
 executes those commands against the PiCar-X SDK and Robot HAT APIs.
 
-Higher-level behavior belongs in TypeScript. Driving pulses, keyboard mapping,
-future phone commands, network reconnects, and policy decisions should compose
-the atomic commands rather than expanding the Python bridge.
+Higher-level behavior belongs in TypeScript. Driving pulses, steering holds,
+keyboard mapping, future phone commands, network reconnects, and policy
+decisions should compose the atomic commands rather than expanding the Python
+bridge.
 
 ## Runtime Shape
 

@@ -20,8 +20,8 @@ Herbert's Raspberry Pi.
 ```text
 ↑       drive forward pulse
 ↓       drive backward pulse
-←       forward-left arc pulse
-→       forward-right arc pulse
+←       steer wheels left
+→       steer wheels right
 
 w       camera tilt up
 s       camera tilt down
@@ -34,9 +34,10 @@ space   stop and center steering
 q       stop and quit
 ```
 
-The PiCar-X steers like a car. Left and right do not spin in place; they set the
-front wheel angle and drive forward briefly. Drive pulses stop and center
-steering when the pulse ends.
+The PiCar-X steers like a car. Left and right do not spin in place and do not
+drive the motors. They turn the front wheels briefly, then steering
+auto-centers. Hold left or right while pressing up or down to drive in an arc.
+Motor pulses stop when the pulse ends; space stops motors and centers steering.
 
 Keyboard mode runs the terminal in raw mode, so typed keys do not echo as
 characters. Each recognized keypress prints a status line instead.
@@ -61,6 +62,11 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 uploads the saved image to `POST /robot/photos` on the Herbert server, and the
 server relays it to the configured Telegram admin chats.
 
+The bridge captures photos with Picamera2 directly instead of Vilib. This avoids
+Vilib's `camera_start()` path, which can block indefinitely when the camera is
+not detected. If capture fails with a camera-detection error, check the camera
+cable and run `rpicam-hello` on Herbert.
+
 ## Speaker
 
 ```sh
@@ -84,13 +90,13 @@ compatible with Robot HAT audio.
 
 The bridge is based on SunFounder PiCar-X Python examples that use
 `Picarx().forward(speed)`, `backward(speed)`, `set_dir_servo_angle(angle)`, and
-camera servo setters. Photos use SunFounder's `vilib.Vilib.take_photo`.
-Speech uses Robot HAT `TTS.say`.
+camera servo setters. Photos use Picamera2 directly. Speech uses Robot HAT
+`TTS.say`.
 
 Sources:
 
 - [PiCar-X movement docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_move.html)
 - [PiCar-X keyboard control docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_keyboard.html)
-- [SunFounder Vilib photo example](https://docs.sunfounder.com/projects/pantilt-v3/en/latest/python/python_take_photo.html)
+- [Picamera2 manual](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf)
 - [PiCar-X text-to-speech docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_tts.html)
 - [Robot HAT TTS API](https://docs.sunfounder.com/projects/robot-hat/en/latest/pythonApi/TTS.html)
