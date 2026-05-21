@@ -68,7 +68,7 @@ interpreting a message as an admin command.
 
 ## Cursor State
 
-Telegram cursor state is stored in MySQL through the server document store:
+Telegram cursor state is stored in SQLite through the server document store:
 
 ```text
 collection: telegram_state

@@ -1,6 +1,6 @@
-import { createMysqlSqlClient } from "@herbert/server/persistence/createMysqlSqlClient";
+import { createSqliteSqlClient } from "@herbert/server/persistence/createSqliteSqlClient";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { MySqlDocumentStore } from "@herbert/server/persistence/MySqlDocumentStore";
+import { SqliteDocumentStore } from "@herbert/server/persistence/SqliteDocumentStore";
 
 let documentStore: DocumentStore | undefined;
 
@@ -9,6 +9,6 @@ export function defaultDocumentStore(): DocumentStore {
     return documentStore;
   }
 
-  documentStore = new MySqlDocumentStore(createMysqlSqlClient());
+  documentStore = new SqliteDocumentStore(createSqliteSqlClient());
   return documentStore;
 }

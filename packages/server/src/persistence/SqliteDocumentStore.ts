@@ -7,7 +7,7 @@ import {
 import type { SqlClient } from "@herbert/server/persistence/sqlTypes";
 import { type z } from "zod";
 
-export class MySqlDocumentStore implements DocumentStore {
+export class SqliteDocumentStore implements DocumentStore {
   private initialized = false;
 
   public constructor(private readonly sql: SqlClient) {}
@@ -50,7 +50,9 @@ export class MySqlDocumentStore implements DocumentStore {
     await this.sql`
       INSERT INTO herbert_documents (collection, document_key, document_json)
       VALUES (${identity.collection}, ${identity.key}, ${documentJson})
-      ON DUPLICATE KEY UPDATE document_json = ${documentJson}
+      ON CONFLICT(collection, document_key) DO UPDATE SET
+        document_json = excluded.document_json,
+        updated_at = CURRENT_TIMESTAMP
     `;
   }
 
@@ -61,12 +63,12 @@ export class MySqlDocumentStore implements DocumentStore {
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS herbert_documents (
-        collection VARCHAR(128) NOT NULL,
-        document_key VARCHAR(191) NOT NULL,
-        document_json JSON NOT NULL,
-        updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        collection TEXT NOT NULL,
+        document_key TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (collection, document_key)
-      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+      )
     `;
     this.initialized = true;
   }

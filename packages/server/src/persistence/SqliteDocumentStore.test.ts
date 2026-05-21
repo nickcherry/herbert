@@ -1,4 +1,4 @@
-import { MySqlDocumentStore } from "@herbert/server/persistence/MySqlDocumentStore";
+import { SqliteDocumentStore } from "@herbert/server/persistence/SqliteDocumentStore";
 import type {
   SqlClient,
   SqlRow,
@@ -12,10 +12,10 @@ const TestSchema = z.object({
   name: z.string(),
 });
 
-describe("MySqlDocumentStore", () => {
+describe("SqliteDocumentStore", () => {
   test("round trips typed JSON documents", async () => {
     const sql = createFakeSqlClient();
-    const store = new MySqlDocumentStore(sql);
+    const store = new SqliteDocumentStore(sql);
 
     await store.write({
       collection: "telegram_state",
@@ -41,7 +41,7 @@ describe("MySqlDocumentStore", () => {
   });
 
   test("returns undefined for missing documents", async () => {
-    const store = new MySqlDocumentStore(createFakeSqlClient());
+    const store = new SqliteDocumentStore(createFakeSqlClient());
 
     const value = await store.read({
       collection: "telegram_state",
@@ -58,7 +58,7 @@ describe("MySqlDocumentStore", () => {
       "telegram_state:cursor",
       JSON.stringify({ count: "bad" }),
     );
-    const store = new MySqlDocumentStore(sql);
+    const store = new SqliteDocumentStore(sql);
 
     let caughtError: unknown;
 

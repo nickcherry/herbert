@@ -72,7 +72,6 @@
 - Keep constants near the package or subsystem that owns them.
 - Do not add env vars for tuning values such as polling intervals, batch sizes,
   or command defaults.
-- Database connection settings are environment variables because they contain
-  credentials and deployment-local connection details. Prefer the runtime's
-  native database env handling when it exists, such as Bun SQL's MySQL env
-  resolution, instead of wrapping those variables manually.
+- The local persistence database path is normal config and belongs in a typed
+  constants file, not env. Only move database settings into env when they are
+  credentials or deployment-local identities.
