@@ -22,7 +22,7 @@ packages/cli
 
 packages/robot/python
   persistent Python subprocess
-  owns Picarx() and Vilib calls
+  owns Picarx(), Picamera2, and Robot HAT calls
   JSONL stdin/stdout protocol
   motor safety watchdog
 ```

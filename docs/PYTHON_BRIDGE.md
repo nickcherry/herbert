@@ -85,6 +85,11 @@ letting the command hang.
 `shutdown` stops the drive motors. Keyboard mode also centers steering before
 closing, but it does not send camera pan or tilt commands during shutdown.
 
+On hardware startup, the bridge passes `Picarx()` a local config path at
+`~/.config/herbert/picar-x.conf` and patches Robot HAT's config-file helper to
+skip its upstream `sudo chmod` and `sudo chown` calls. This avoids a root
+password prompt before keyboard control starts.
+
 ## Isolation Rule
 
 Do not import Python from TypeScript except through `PythonBridgeClient`.

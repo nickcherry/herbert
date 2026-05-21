@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import getpass
 import json
+import shutil
 import sys
 import threading
 import time
@@ -20,6 +22,8 @@ CAMERA_MAX = 35
 SPEECH_TEXT_MAX = 300
 SPEECH_LANGUAGES = {"en-US", "en-GB", "zh-CN", "de-DE", "es-ES"}
 PHOTO_WARMUP_S = 1.5
+DEFAULT_PICARX_CONFIG_PATH = Path("/opt/picar-x/picar-x.conf")
+HERBERT_PICARX_CONFIG_PATH = Path.home() / ".config" / "herbert" / "picar-x.conf"
 
 
 class BridgeError(Exception):
@@ -41,7 +45,8 @@ class Hardware:
             with contextlib.redirect_stdout(sys.stderr):
                 from picarx import Picarx
 
-                self._px = Picarx()
+                patch_picarx_startup(Picarx)
+                self._px = Picarx(config=str(prepare_picarx_config()))
 
         self._watchdog = threading.Thread(target=self._watchdog_loop, daemon=True)
         self._watchdog.start()
@@ -421,6 +426,58 @@ def create_still_configuration(picam2: Any) -> Any:
         )
     except TypeError:
         return picam2.create_still_configuration()
+
+
+def prepare_picarx_config() -> Path:
+    HERBERT_PICARX_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if HERBERT_PICARX_CONFIG_PATH.exists():
+        return HERBERT_PICARX_CONFIG_PATH
+
+    if DEFAULT_PICARX_CONFIG_PATH.is_file():
+        try:
+            shutil.copyfile(DEFAULT_PICARX_CONFIG_PATH, HERBERT_PICARX_CONFIG_PATH)
+            return HERBERT_PICARX_CONFIG_PATH
+        except OSError:
+            pass
+
+    HERBERT_PICARX_CONFIG_PATH.write_text("# Herbert PiCar-X config\n\n")
+    return HERBERT_PICARX_CONFIG_PATH
+
+
+def patch_picarx_startup(Picarx: Any) -> None:
+    globals_ = Picarx.__init__.__globals__
+    module_os = globals_.get("os")
+
+    if module_os is not None:
+        module_os.getlogin = getpass.getuser
+
+    file_db = globals_.get("fileDB")
+
+    if file_db is not None:
+        file_db.file_check_create = herbert_file_check_create
+
+
+def herbert_file_check_create(
+    self: Any,
+    file_path: str,
+    mode: int | None = None,
+    owner: str | None = None,
+) -> None:
+    del mode, owner
+    path = Path(file_path)
+
+    if path.exists():
+        if not path.is_file():
+            print(f"{path} exists but is not a file.", file=sys.stderr)
+        return
+
+    if path.parent.exists() and not path.parent.is_dir():
+        print(f"{path.parent} exists but is not a directory.", file=sys.stderr)
+        return
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# Herbert PiCar-X config\n\n")
 
 
 def extract_command_id(line: str) -> str | None:

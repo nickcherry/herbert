@@ -46,7 +46,6 @@ export async function runKeyboardDrive(
   const wasRaw = input.isRaw;
   let cameraPosition = robot.getCameraPosition();
   let motorStopTimer: ReturnType<typeof setTimeout> | undefined;
-  let steeringCenterTimer: ReturnType<typeof setTimeout> | undefined;
   let commandChain = Promise.resolve();
   let shutdownStarted = false;
   let resolveShutdown: (() => void) | undefined;
@@ -69,15 +68,6 @@ export async function runKeyboardDrive(
     motorStopTimer = undefined;
   };
 
-  const clearSteeringCenterTimer = (): void => {
-    if (steeringCenterTimer === undefined) {
-      return;
-    }
-
-    clearTimeout(steeringCenterTimer);
-    steeringCenterTimer = undefined;
-  };
-
   const scheduleMotorStop = (): void => {
     if (shutdownStarted) {
       return;
@@ -93,25 +83,6 @@ export async function runKeyboardDrive(
 
       enqueue(async () => {
         await robot.stop();
-      });
-    }, options.pulseMs);
-  };
-
-  const scheduleSteeringCenter = (): void => {
-    if (shutdownStarted) {
-      return;
-    }
-
-    clearSteeringCenterTimer();
-    steeringCenterTimer = setTimeout(() => {
-      steeringCenterTimer = undefined;
-
-      if (shutdownStarted) {
-        return;
-      }
-
-      enqueue(async () => {
-        await robot.setSteering({ angle: 0 });
       });
     }, options.pulseMs);
   };
@@ -132,11 +103,10 @@ export async function runKeyboardDrive(
     if (action.type === "steering") {
       writeStatus({
         label: "steer",
-        detail: formatSteeringAction({ action, pulseMs: options.pulseMs }),
+        detail: formatSteeringAction({ action }),
       });
       enqueue(async () => {
         await robot.setSteering({ angle: action.angle });
-        scheduleSteeringCenter();
       });
       return;
     }
@@ -204,7 +174,6 @@ export async function runKeyboardDrive(
 
     if (action.type === "stop") {
       clearMotorStopTimer();
-      clearSteeringCenterTimer();
       writeStatus({
         label: "stop",
         detail: "motors stopped, steering centered",
@@ -243,7 +212,6 @@ export async function runKeyboardDrive(
 
     shutdownStarted = true;
     clearMotorStopTimer();
-    clearSteeringCenterTimer();
     input.off("data", onData);
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);
@@ -282,7 +250,7 @@ function renderKeyboardHelp({ mock }: { readonly mock: boolean }): string {
     `${pc.bold("Herbert keyboard control")} ${pc.dim(`(${mode})`)}`,
     "",
     `${pc.bold("Drive")}   ↑/↓     forward/reverse pulse`,
-    `${pc.bold("Steer")}   ←/→     turn wheels without motor power`,
+    `${pc.bold("Steer")}   ←/→     set wheel angle without motor power`,
     `${pc.bold("Camera")}  wasd    pan/tilt`,
     `${pc.bold("Photo")}   p       take photo`,
     `${pc.bold("Voice")}   v       say hello`,
@@ -318,15 +286,13 @@ function formatMotorAction({
 
 function formatSteeringAction({
   action,
-  pulseMs,
 }: {
   readonly action: Extract<KeyboardAction, { readonly type: "steering" }>;
-  readonly pulseMs: number;
 }): string {
   const direction =
     action.angle < 0 ? "left" : action.angle > 0 ? "right" : "center";
 
-  return `${direction} angle=${action.angle} hold=${pulseMs}ms`;
+  return `${direction} angle=${action.angle}`;
 }
 
 function motorDirectionForAction({
