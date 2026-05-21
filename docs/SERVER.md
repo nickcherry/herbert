@@ -27,8 +27,9 @@ The robot package currently uploads photos to the laptop default
 `http://Nicks-MacBook-Pro.local:8787`.
 
 `POST /robot/photos` accepts a multipart image attachment in the `image` field,
-plus an optional `sourcePath` field. The server sends the image to every chat id
-in `TELEGRAM_ADMIN_CHAT_IDS` through Telegram `sendPhoto`.
+plus an optional `sourcePath` field for request metadata. The server sends the
+image to every chat id in `TELEGRAM_ADMIN_CHAT_IDS` through Telegram
+`sendPhoto` without adding a caption.
 
 `telegram:updates` reads one batch of updates and prints chat ids. Use this to
 discover the chat id after sending a message to the bot. This command only needs

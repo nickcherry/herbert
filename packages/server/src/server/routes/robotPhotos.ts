@@ -63,8 +63,6 @@ export async function handleRobotPhotosRoute({
     });
   }
 
-  const sourcePath = optionalString(formDataResult.get("sourcePath"));
-  const caption = sourcePath ? `Herbert photo\n${sourcePath}` : "Herbert photo";
   const filename = filenameForBlob({ blob: image });
 
   try {
@@ -75,7 +73,6 @@ export async function handleRobotPhotosRoute({
           chatId,
           photo: image,
           filename,
-          caption,
         }),
       ),
     );
@@ -112,15 +109,6 @@ function filenameForBlob({ blob }: { readonly blob: Blob }): string {
   }
 
   return "herbert-photo.jpg";
-}
-
-function optionalString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
 }
 
 function errorResponse({

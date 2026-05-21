@@ -76,12 +76,12 @@ describe("createServerFetch", () => {
       {
         chatId: "101",
         filename: "herbert.jpg",
-        caption: "Herbert photo\n/tmp/herbert.jpg",
+        caption: undefined,
       },
       {
         chatId: "202",
         filename: "herbert.jpg",
-        caption: "Herbert photo\n/tmp/herbert.jpg",
+        caption: undefined,
       },
     ]);
   });
