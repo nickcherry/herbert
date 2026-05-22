@@ -23,8 +23,12 @@ OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 - `defaultSpeechInstructions`: voice direction based on Herbert's Telegram
   personality: an adult British male take on a tiny British chauffeur who is
   polite, warm, deferential, mildly flustered when confused, and eager to be
-  useful without becoming pompous, cartoonish, or theatrical.
+  useful, with lightly funny delivery that avoids theatricality.
 - `defaultSpeechFormat`: `mp3` — output container for synthesized audio.
+- `defaultSpeechSpeed`: `1.0` — OpenAI's default speech speed. The API accepts
+  `0.25..4.0`.
+- `defaultSpeechRequestTimeoutMs`: `30000` — timeout for a single OpenAI speech
+  generation request.
 - `includedCommentaryPhotoLimit`: maximum number of commentary photos the
   server attaches to a Telegram OpenAI turn (1 latest at full detail + up to
   `limit-1` earlier photos at lower detail).
@@ -141,8 +145,8 @@ Server flow when `spokenMessage` is non-null:
 1. `handleRobotTaskResponse` calls `synthesizeSpeech` with the text.
 2. `synthesizeSpeech` calls `client.audio.speech.create` against
    `openaiConfig.defaultSpeechModel` with `openaiConfig.defaultSpeechVoice` and
-   `openaiConfig.defaultSpeechInstructions`, then writes the audio to a temp
-   file.
+   `openaiConfig.defaultSpeechInstructions`, `openaiConfig.defaultSpeechSpeed`,
+   then writes the audio to a temp file.
 3. `playAudioFile` invokes the platform audio player (`afplay` on macOS,
    `aplay` on Linux) as a fire-and-forget child process so it doesn't block
    the next Telegram turn.
@@ -156,15 +160,23 @@ operator CLI:
 ```sh
 bun herbert audio:test "Testing Herbert audio."
 bun herbert audio:test "Testing Marin." --voice marin
+bun herbert audio:test "Testing Alloy." --voice=alloy
+bun herbert audio:test "Testing speed." --speech-speed 1.15
 bun herbert audio:test "Testing custom direction." --instructions "Sound like a calm British man, warm and deferential."
+bun herbert audio:test "Testing a short generation timeout." --generate-timeout-ms 10000
+bun herbert audio:test "Testing a short playback timeout." --play-timeout-ms 10000
 bun herbert audio:test --text "Generate only." --output tmp/audio-test.mp3 --no-play
 ```
 
 The command defaults to `openaiConfig.defaultSpeechModel`,
 `openaiConfig.defaultSpeechVoice`, `openaiConfig.defaultSpeechInstructions`,
-and `openaiConfig.defaultSpeechFormat`. Use `--model`, `--voice`,
-`--instructions`, `--no-instructions`, `--format`, `--output`, `--player`, and
-`--no-play` to override those values for a local test run.
+`openaiConfig.defaultSpeechSpeed`, and `openaiConfig.defaultSpeechFormat`. Use
+`--model`, `--voice`, `--instructions`, `--no-instructions`, `--speech-speed`,
+`--format`, `--output`, `--player`, `--generate-timeout-ms`,
+`--play-timeout-ms`, and `--no-play` to override those values for a local test
+run. Value options accept either `--flag value` or `--flag=value`. The command
+prints separate `generating`, `generated`, `playing`, and `played` lines so slow
+OpenAI generation or a stuck audio player is visible.
 
 ## Images
 

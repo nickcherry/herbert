@@ -12,6 +12,8 @@ export interface SynthesizeSpeechOptions {
   readonly voice?: string;
   readonly instructions?: string;
   readonly format?: "mp3" | "wav" | "opus" | "aac" | "flac";
+  readonly speed?: number;
+  readonly requestTimeoutMs?: number;
   readonly outputPath?: string;
   readonly client?: OpenAI;
 }
@@ -27,6 +29,8 @@ export async function synthesizeSpeech({
   voice = openaiConfig.defaultSpeechVoice,
   instructions = openaiConfig.defaultSpeechInstructions,
   format = openaiConfig.defaultSpeechFormat,
+  speed = openaiConfig.defaultSpeechSpeed,
+  requestTimeoutMs = openaiConfig.defaultSpeechRequestTimeoutMs,
   outputPath,
   client = createOpenAIClient(),
 }: SynthesizeSpeechOptions): Promise<SynthesizeSpeechResult> {
@@ -37,15 +41,20 @@ export async function synthesizeSpeech({
 
   const path = outputPath ?? (await defaultSpeechOutputPath({ format }));
   const trimmedInstructions = instructions.trim();
-  const response = await client.audio.speech.create({
-    model,
-    voice,
-    input: trimmed,
-    response_format: format,
-    ...(supportsSpeechInstructions({ model }) && trimmedInstructions.length > 0
-      ? { instructions: trimmedInstructions }
-      : {}),
-  });
+  const response = await client.audio.speech.create(
+    {
+      model,
+      voice,
+      input: trimmed,
+      response_format: format,
+      speed,
+      ...(supportsSpeechInstructions({ model }) &&
+      trimmedInstructions.length > 0
+        ? { instructions: trimmedInstructions }
+        : {}),
+    },
+    { maxRetries: 0, timeout: requestTimeoutMs },
+  );
   const bytes = Buffer.from(await response.arrayBuffer());
   await Bun.write(path, bytes);
 

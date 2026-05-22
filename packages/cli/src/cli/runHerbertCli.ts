@@ -63,8 +63,11 @@ interface AudioTestFlags {
   readonly voice: string;
   readonly instructions?: string;
   readonly format: SpeechAudioFormat;
+  readonly speechSpeed: number;
   readonly outputPath?: string;
   readonly player?: string;
+  readonly generationTimeoutMs: number;
+  readonly playbackTimeoutMs: number;
   readonly playback: boolean;
 }
 
@@ -242,6 +245,25 @@ export async function runHerbertCli({
     const flags = parseAudioTestFlags({ argv: rest });
     requireOpenAIApiKey();
 
+    process.stdout.write(
+      `${pc.bold("generating")} ${formatKeyValue({
+        key: "model",
+        value: flags.model,
+      })} ${formatKeyValue({
+        key: "voice",
+        value: flags.voice,
+      })} ${formatKeyValue({
+        key: "instructions",
+        value: flags.instructions === undefined ? "off" : "on",
+      })} ${formatKeyValue({
+        key: "speed",
+        value: String(flags.speechSpeed),
+      })} ${formatKeyValue({
+        key: "timeoutMs",
+        value: String(flags.generationTimeoutMs),
+      })}\n`,
+    );
+
     const speech = await synthesizeSpeech({
       text: flags.text,
       model: flags.model,
@@ -250,6 +272,8 @@ export async function runHerbertCli({
         ? {}
         : { instructions: flags.instructions }),
       format: flags.format,
+      speed: flags.speechSpeed,
+      requestTimeoutMs: flags.generationTimeoutMs,
       ...(flags.outputPath === undefined
         ? {}
         : { outputPath: flags.outputPath }),
@@ -269,6 +293,9 @@ export async function runHerbertCli({
         key: "instructions",
         value: flags.instructions === undefined ? "off" : "on",
       })} ${formatKeyValue({
+        key: "speed",
+        value: String(flags.speechSpeed),
+      })} ${formatKeyValue({
         key: "format",
         value: speech.format,
       })}\n`,
@@ -278,10 +305,30 @@ export async function runHerbertCli({
       return;
     }
 
+    process.stdout.write(
+      `${pc.bold("playing")} ${formatKeyValue({
+        key: "path",
+        value: speech.path,
+      })} ${formatKeyValue({
+        key: "player",
+        value: flags.player ?? "default",
+      })} ${formatKeyValue({
+        key: "timeoutMs",
+        value: String(flags.playbackTimeoutMs),
+      })}\n`,
+    );
+
     if (flags.player === undefined) {
-      await playAudioFile({ path: speech.path });
+      await playAudioFile({
+        path: speech.path,
+        timeoutMs: flags.playbackTimeoutMs,
+      });
     } else {
-      await playAudioFile({ path: speech.path, player: flags.player });
+      await playAudioFile({
+        path: speech.path,
+        player: flags.player,
+        timeoutMs: flags.playbackTimeoutMs,
+      });
     }
 
     process.stdout.write(`${pc.green(pc.bold("played"))} ${speech.path}\n`);
@@ -339,9 +386,12 @@ export function renderUsage(): string {
     `  ${pc.cyan("--model <model>")}         OpenAI speech model (default: ${openaiConfig.defaultSpeechModel})`,
     `  ${pc.cyan("--instructions <text>")}   TTS voice direction (default: Herbert personality)`,
     `  ${pc.cyan("--no-instructions")}       omit TTS voice direction`,
+    `  ${pc.cyan("--speech-speed <n>")}      speech speed from 0.25 to 4.0 (default: ${openaiConfig.defaultSpeechSpeed})`,
     `  ${pc.cyan("--format <format>")}       audio format: mp3, wav, opus, aac, flac (default: ${openaiConfig.defaultSpeechFormat})`,
     `  ${pc.cyan("--output <path>")}         write the generated audio to a specific file`,
     `  ${pc.cyan("--player <cmd>")}          playback command (default: afplay on macOS, aplay on Linux)`,
+    `  ${pc.cyan("--generate-timeout-ms <ms>")} fail if OpenAI generation does not finish (default: ${openaiConfig.defaultSpeechRequestTimeoutMs})`,
+    `  ${pc.cyan("--play-timeout-ms <ms>")}  fail if playback does not finish (default: 30000)`,
     `  ${pc.cyan("--no-play")}               generate the file without playing it`,
     "",
   ].join("\n");
@@ -738,11 +788,14 @@ function parseAudioTestFlags({
 }: {
   readonly argv: readonly string[];
 }): AudioTestFlags {
-  const raw: Record<string, string | boolean | undefined> = {
+  const raw: Record<string, string | number | boolean | undefined> = {
     model: openaiConfig.defaultSpeechModel,
     voice: openaiConfig.defaultSpeechVoice,
     instructions: openaiConfig.defaultSpeechInstructions,
     format: openaiConfig.defaultSpeechFormat,
+    speechSpeed: openaiConfig.defaultSpeechSpeed,
+    generationTimeoutMs: openaiConfig.defaultSpeechRequestTimeoutMs,
+    playbackTimeoutMs: 30_000,
     playback: true,
   };
   const textParts: string[] = [];
@@ -754,54 +807,116 @@ function parseAudioTestFlags({
       continue;
     }
 
-    if (token === "--text") {
-      raw.text = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    const option = parseLongOption({ token });
+    const flag = option.flag;
+
+    if (flag === "--text") {
+      raw.text = readOptionValue({ argv, index, flag, value: option.value });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--voice") {
-      raw.voice = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--voice") {
+      raw.voice = readOptionValue({ argv, index, flag, value: option.value });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--model") {
-      raw.model = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--model") {
+      raw.model = readOptionValue({ argv, index, flag, value: option.value });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--instructions") {
-      raw.instructions = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--instructions") {
+      raw.instructions = readOptionValue({
+        argv,
+        index,
+        flag,
+        value: option.value,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--no-instructions") {
+    if (flag === "--no-instructions") {
+      rejectUnexpectedOptionValue({ flag, value: option.value });
       raw.instructions = undefined;
       continue;
     }
 
-    if (token === "--format") {
-      raw.format = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--format") {
+      raw.format = readOptionValue({ argv, index, flag, value: option.value });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--output") {
-      raw.outputPath = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--speech-speed") {
+      raw.speechSpeed = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--player") {
-      raw.player = readFlagValue({ argv, index, flag: token });
-      index += 1;
+    if (flag === "--output") {
+      raw.outputPath = readOptionValue({
+        argv,
+        index,
+        flag,
+        value: option.value,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
       continue;
     }
 
-    if (token === "--no-play") {
+    if (flag === "--player") {
+      raw.player = readOptionValue({ argv, index, flag, value: option.value });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--generate-timeout-ms") {
+      raw.generationTimeoutMs = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--play-timeout-ms") {
+      raw.playbackTimeoutMs = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--no-play") {
+      rejectUnexpectedOptionValue({ flag, value: option.value });
       raw.playback = false;
       continue;
     }
@@ -905,6 +1020,52 @@ function readFlagValue({
   return value;
 }
 
+function readOptionValue({
+  argv,
+  index,
+  flag,
+  value,
+}: {
+  readonly argv: readonly string[];
+  readonly index: number;
+  readonly flag: string;
+  readonly value?: string;
+}): string {
+  return value ?? readFlagValue({ argv, index, flag });
+}
+
+function parseLongOption({ token }: { readonly token: string }): {
+  readonly flag: string;
+  readonly value?: string;
+} {
+  const separatorIndex = token.indexOf("=");
+
+  if (!token.startsWith("--") || separatorIndex === -1) {
+    return { flag: token };
+  }
+
+  const flag = token.slice(0, separatorIndex);
+  const value = token.slice(separatorIndex + 1);
+
+  if (value.length === 0) {
+    throw new CliUsageError(`Missing value for ${flag}`);
+  }
+
+  return { flag, value };
+}
+
+function rejectUnexpectedOptionValue({
+  flag,
+  value,
+}: {
+  readonly flag: string;
+  readonly value?: string;
+}): void {
+  if (value !== undefined) {
+    throw new CliUsageError(`Unexpected value for ${flag}`);
+  }
+}
+
 function parseNumberFlag({
   value,
   flag,
@@ -966,7 +1127,10 @@ const audioTestFlagsSchema = z.object({
   voice: z.string().trim().min(1),
   instructions: z.string().trim().min(1).max(1_000).optional(),
   format: z.enum(speechAudioFormats),
+  speechSpeed: z.number().min(0.25).max(4.0),
   outputPath: z.string().trim().min(1).optional(),
   player: z.string().trim().min(1).optional(),
+  generationTimeoutMs: z.number().int().min(1_000).max(300_000),
+  playbackTimeoutMs: z.number().int().min(1_000).max(300_000),
   playback: z.boolean(),
 });
