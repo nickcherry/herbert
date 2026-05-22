@@ -4,8 +4,15 @@ import {
   type ReadDocumentOptions,
   type WriteDocumentOptions,
 } from "@herbert/server/persistence/documentStore";
+import { executeSql, querySql } from "@herbert/server/persistence/querySql";
 import type { SqlClient } from "@herbert/server/persistence/sqlTypes";
-import { type z } from "zod";
+import { z } from "zod";
+
+const documentJsonRowSchema = z
+  .object({
+    documentJson: z.string(),
+  })
+  .strict();
 
 export class SqliteDocumentStore implements DocumentStore {
   private initialized = false;
@@ -20,7 +27,10 @@ export class SqliteDocumentStore implements DocumentStore {
     const identity = parseDocumentIdentity({ collection, key });
     await this.ensureSchema();
 
-    const rows = await this.sql`
+    const rows = await querySql({
+      sql: this.sql,
+      rowSchema: documentJsonRowSchema,
+    })`
       SELECT document_json AS documentJson
       FROM herbert_documents
       WHERE collection = ${identity.collection}
@@ -33,7 +43,7 @@ export class SqliteDocumentStore implements DocumentStore {
       return undefined;
     }
 
-    return schema.parse(parseDocumentJson({ value: row.documentJson }));
+    return schema.parse(parseDocumentJson(row.documentJson));
   }
 
   public async write<Schema extends z.ZodType>({
@@ -47,7 +57,7 @@ export class SqliteDocumentStore implements DocumentStore {
     const documentJson = JSON.stringify(parsed);
     await this.ensureSchema();
 
-    await this.sql`
+    await executeSql({ sql: this.sql })`
       INSERT INTO herbert_documents (collection, document_key, document_json)
       VALUES (${identity.collection}, ${identity.key}, ${documentJson})
       ON CONFLICT(collection, document_key) DO UPDATE SET
@@ -61,7 +71,7 @@ export class SqliteDocumentStore implements DocumentStore {
       return;
     }
 
-    await this.sql`
+    await executeSql({ sql: this.sql })`
       CREATE TABLE IF NOT EXISTS herbert_documents (
         collection TEXT NOT NULL,
         document_key TEXT NOT NULL,
@@ -74,10 +84,6 @@ export class SqliteDocumentStore implements DocumentStore {
   }
 }
 
-function parseDocumentJson({ value }: { readonly value: unknown }): unknown {
-  if (typeof value === "string") {
-    return JSON.parse(value);
-  }
-
-  return value;
+function parseDocumentJson(value: string): unknown {
+  return JSON.parse(value);
 }

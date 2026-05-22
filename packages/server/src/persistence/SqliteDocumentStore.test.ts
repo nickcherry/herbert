@@ -54,10 +54,29 @@ describe("SqliteDocumentStore", () => {
 
   test("parses persisted data through the provided schema", async () => {
     const sql = createFakeSqlClient();
-    sql.documents.set(
-      "telegram_state:cursor",
-      JSON.stringify({ count: "bad" }),
-    );
+    sql.documents.set("telegram_state:cursor", {
+      documentJson: JSON.stringify({ count: "bad" }),
+    });
+    const store = new SqliteDocumentStore(sql);
+
+    let caughtError: unknown;
+
+    try {
+      await store.read({
+        collection: "telegram_state",
+        key: "cursor",
+        schema: TestSchema,
+      });
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(caughtError).toBeInstanceOf(Error);
+  });
+
+  test("parses SQL result rows before document parsing", async () => {
+    const sql = createFakeSqlClient();
+    sql.documents.set("telegram_state:cursor", { badAlias: "{}" });
     const store = new SqliteDocumentStore(sql);
 
     let caughtError: unknown;
@@ -77,12 +96,12 @@ describe("SqliteDocumentStore", () => {
 });
 
 interface FakeSqlClient extends SqlClient {
-  documents: Map<string, string>;
+  documents: Map<string, SqlRow>;
   createTableCount: number;
 }
 
 function createFakeSqlClient(): FakeSqlClient {
-  const documents = new Map<string, string>();
+  const documents = new Map<string, SqlRow>();
 
   const sql = (async (
     strings: TemplateStringsArray,
@@ -97,9 +116,9 @@ function createFakeSqlClient(): FakeSqlClient {
 
     if (text.includes("SELECT document_json")) {
       const key = documentKeyFromSqlValues({ values });
-      const documentJson = documents.get(key);
+      const row = documents.get(key);
 
-      return documentJson === undefined ? [] : [{ documentJson }];
+      return row === undefined ? [] : [row];
     }
 
     if (text.includes("INSERT INTO herbert_documents")) {
@@ -110,7 +129,7 @@ function createFakeSqlClient(): FakeSqlClient {
         throw new Error("Expected document JSON to be a string.");
       }
 
-      documents.set(key, documentJson);
+      documents.set(key, { documentJson });
       return [];
     }
 

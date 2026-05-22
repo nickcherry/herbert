@@ -42,6 +42,8 @@ migration.
 
 - Every persisted document must parse through a Zod schema on read.
 - Every write must validate through the same schema before hitting SQLite.
+- Every result-bearing SQL query must use `querySql` with a Zod row schema.
+- Schema/mutation SQL that does not consume rows should use `executeSql`.
 - Collection/key names must be narrow and stable.
 - Subsystem-specific schemas live near the subsystem that owns the data.
 - Broadly shared persisted record types should move to `packages/shared`.
