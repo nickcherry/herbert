@@ -2,6 +2,7 @@ import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   abandonPendingRobotTaskWork,
   claimNextRobotTaskBatch,
+  completeRobotTaskBatch,
   readRobotTaskContext,
   recordRobotTaskResponse,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
@@ -85,6 +86,42 @@ describe("robotTaskQueue operations", () => {
     const sweep = await abandonPendingRobotTaskWork({ nowMs: 1_000, store });
     expect(sweep).toEqual({ abandonedBatchCount: 0, finishedSessionCount: 0 });
   });
+
+  test("stores camera position with completed batch report", async () => {
+    const store = createMemoryDocumentStore();
+
+    await recordRobotTaskResponse({
+      chatId: "101",
+      nowMs: 1_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const batch = expectDefined(
+      await claimNextRobotTaskBatch({ nowMs: 2_000, store }),
+    );
+
+    const result = await completeRobotTaskBatch({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      photoPath: "/tmp/batch.jpg",
+      cameraPosition: { pan: -10, tilt: 25 },
+      nowMs: 3_000,
+      store,
+    });
+
+    expect(result.batchReport.cameraPosition).toEqual({ pan: -10, tilt: 25 });
+    expect(result.session.batchReports.at(-1)?.cameraPosition).toEqual({
+      pan: -10,
+      tilt: 25,
+    });
+  });
 });
 
 function createMemoryDocumentStore(): DocumentStore {
@@ -99,4 +136,10 @@ function createMemoryDocumentStore(): DocumentStore {
       documents.set(`${collection}:${key}`, schema.parse(value));
     },
   } satisfies DocumentStore;
+}
+
+function expectDefined<T>(value: T | null | undefined): T {
+  expect(value).toBeDefined();
+  expect(value).not.toBeNull();
+  return value as T;
 }

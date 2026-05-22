@@ -8,6 +8,7 @@ import {
   type RobotTaskActionBatchCompleteResponse,
   robotTaskActionBatchCompleteResponseSchema,
   robotTaskActionBatchPollResponseSchema,
+  type RobotTaskCameraPosition,
 } from "@herbert/shared";
 
 export interface PollRobotActionBatchOptions {
@@ -18,6 +19,7 @@ export interface CompleteRobotActionBatchOptions {
   readonly serverUrl: string;
   readonly batch: RobotTaskActionBatch;
   readonly photoPath: string;
+  readonly cameraPosition?: RobotTaskCameraPosition;
 }
 
 export async function pollRobotActionBatch({
@@ -43,6 +45,7 @@ export async function completeRobotActionBatch({
   serverUrl,
   batch,
   photoPath,
+  cameraPosition,
 }: CompleteRobotActionBatchOptions): Promise<RobotTaskActionBatchCompleteResponse> {
   const photo = Bun.file(photoPath);
 
@@ -53,6 +56,10 @@ export async function completeRobotActionBatch({
   const formData = new FormData();
   formData.set("batchId", batch.id);
   formData.set("taskId", batch.taskId);
+  if (cameraPosition !== undefined) {
+    formData.set("cameraPan", String(cameraPosition.pan));
+    formData.set("cameraTilt", String(cameraPosition.tilt));
+  }
   formData.append("image", photo, basename(photoPath));
 
   const response = await fetch(actionBatchCompleteUrl({ serverUrl }), {

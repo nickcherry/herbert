@@ -1,5 +1,9 @@
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
+  appendHerbertResponseHistory,
+  readHerbertResponseHistory,
+} from "@herbert/server/persistence/operations/herbertResponseHistory";
+import {
   appendTelegramMessageHistory,
   readTelegramMessageHistory,
 } from "@herbert/server/persistence/operations/telegramMessageHistory";
@@ -69,6 +73,15 @@ describe("startTelegramPolling", () => {
         },
       });
     }
+    await appendHerbertResponseHistory({
+      chatId: "123",
+      nowMs: Date.now(),
+      store,
+      response: {
+        telegramMessage: "I am near the desk.",
+        spokenMessage: "Desk-adjacent, as they say.",
+      },
+    });
 
     const openAIRequests: PromptTelegramOpenAIOptions[] = [];
     const sentMessages: SendTelegramMessageParams[] = [];
@@ -153,6 +166,13 @@ describe("startTelegramPolling", () => {
     expect(openAIRequests).toHaveLength(1);
     expect(openAIRequests[0]?.turnTrigger).toBe("telegram_messages");
     expect(openAIRequests[0]?.recentMessages).toHaveLength(10);
+    expect(openAIRequests[0]?.recentHerbertResponses).toEqual([
+      {
+        createdAtMs: expect.any(Number),
+        telegramMessage: "I am near the desk.",
+        spokenMessage: "Desk-adjacent, as they say.",
+      },
+    ]);
     expect(openAIRequests[0]?.newMessages).toEqual([
       {
         messageId: 11,
@@ -179,6 +199,18 @@ describe("startTelegramPolling", () => {
       chatId: "123",
       text: "Driving forward and taking a photo.",
     });
+    expect(await readHerbertResponseHistory({ chatId: "123", store })).toEqual([
+      {
+        createdAtMs: expect.any(Number),
+        telegramMessage: "I am near the desk.",
+        spokenMessage: "Desk-adjacent, as they say.",
+      },
+      {
+        createdAtMs: expect.any(Number),
+        telegramMessage: "Driving forward and taking a photo.",
+        spokenMessage: null,
+      },
+    ]);
     expect(await readTelegramMessageHistory({ chatId: "123", store })).toEqual(
       Array.from({ length: 10 }, (_value, index) => {
         const messageId = index + 4;

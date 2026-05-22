@@ -136,7 +136,14 @@ describe("createServerFetch", () => {
         sentMessages.push(text);
         return { messageId: 202 };
       },
-      async respondToTelegramMessage() {
+      async respondToTelegramMessage({ batchReports }) {
+        const latestBatchReport = expectDefined(
+          expectDefined(batchReports).at(-1),
+        );
+        expect(latestBatchReport.cameraPosition).toEqual({
+          pan: -10,
+          tilt: 25,
+        });
         return {
           telegramMessage: "I have the photo now.",
           spokenMessage: null,
@@ -161,10 +168,12 @@ describe("createServerFetch", () => {
     const batch = expectDefined(pollPayload.batch);
     body.set("batchId", batch.id);
     body.set("taskId", batch.taskId);
+    body.set("cameraPan", "-10");
+    body.set("cameraTilt", "25");
     body.append(
       "image",
-      new File(["image-bytes"], "commentary.jpg"),
-      "commentary.jpg",
+      new File(["image-bytes"], "batch.jpg"),
+      "batch.jpg",
     );
 
     const completeResponse = await fetch(

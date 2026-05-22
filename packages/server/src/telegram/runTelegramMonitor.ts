@@ -1,6 +1,10 @@
 import { env } from "@herbert/server/constants/env";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import {
+  filterRecentHerbertResponses,
+  readHerbertResponseHistory,
+} from "@herbert/server/persistence/operations/herbertResponseHistory";
 import { readRobotTaskContext } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
   appendTelegramMessageHistoryBatch,
@@ -165,12 +169,20 @@ export function startTelegramPolling({
             }),
             maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
           });
+          const recentHerbertResponses = filterRecentHerbertResponses({
+            responses: await readHerbertResponseHistory({
+              chatId,
+              store,
+            }),
+            maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
+          });
           const response = await respondToMessage({
             recentMessages,
             newMessages,
+            recentHerbertResponses,
             turnTrigger: "telegram_messages",
             taskState: taskContext.session?.taskState,
-            commentary: taskContext.session?.commentary,
+            batchReports: taskContext.session?.batchReports,
           });
 
           logTelegramOpenAIResponse({ response });

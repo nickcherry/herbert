@@ -5,6 +5,10 @@ import { persistenceConfig } from "@herbert/server/constants/persistence";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
+  filterRecentHerbertResponses,
+  readHerbertResponseHistory,
+} from "@herbert/server/persistence/operations/herbertResponseHistory";
+import {
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
@@ -25,6 +29,7 @@ import {
   robotActionBatchPollPath,
   robotTaskActionBatchCompleteResponseSchema,
   robotTaskActionBatchPollResponseSchema,
+  robotTaskCameraPositionSchema,
 } from "@herbert/shared";
 
 export const robotActionBatchPollRoutePath = robotActionBatchPollPath;
@@ -100,6 +105,9 @@ export async function handleRobotActionBatchCompleteRoute({
 
   const batchId = requiredString(formDataResult.get("batchId"));
   const taskId = requiredString(formDataResult.get("taskId"));
+  const cameraPositionResult = optionalCameraPosition({
+    formData: formDataResult,
+  });
   const image = formDataResult.get("image");
 
   if (batchId === undefined || taskId === undefined) {
@@ -108,6 +116,10 @@ export async function handleRobotActionBatchCompleteRoute({
       error: "missing_batch_identity",
       message: "Expected multipart fields `batchId` and `taskId`.",
     });
+  }
+
+  if (cameraPositionResult instanceof Response) {
+    return cameraPositionResult;
   }
 
   if (!(image instanceof Blob)) {
@@ -119,7 +131,7 @@ export async function handleRobotActionBatchCompleteRoute({
   }
 
   try {
-    const photoPath = await saveCommentaryImage({
+    const photoPath = await saveBatchPhoto({
       taskId,
       batchId,
       image,
@@ -128,6 +140,7 @@ export async function handleRobotActionBatchCompleteRoute({
       batchId,
       taskId,
       photoPath,
+      cameraPosition: cameraPositionResult,
       store,
     });
 
@@ -145,12 +158,20 @@ export async function handleRobotActionBatchCompleteRoute({
       }),
       maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
     });
+    const recentHerbertResponses = filterRecentHerbertResponses({
+      responses: await readHerbertResponseHistory({
+        chatId: session.chatId,
+        store,
+      }),
+      maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
+    });
     const response = await respondToMessage({
       recentMessages,
       newMessages: [],
-      turnTrigger: "robot_commentary",
+      recentHerbertResponses,
+      turnTrigger: "batch_complete",
       taskState: session.taskState,
-      commentary: session.commentary,
+      batchReports: session.batchReports,
       latestPhotoPath: photoPath,
     });
 
@@ -177,7 +198,7 @@ export async function handleRobotActionBatchCompleteRoute({
   }
 }
 
-async function saveCommentaryImage({
+async function saveBatchPhoto({
   taskId,
   batchId,
   image,
@@ -187,7 +208,7 @@ async function saveCommentaryImage({
   readonly image: Blob;
 }): Promise<string> {
   const directory = join(
-    persistenceConfig.commentaryImageDirectory,
+    persistenceConfig.batchPhotoDirectory,
     safePathSegment(taskId),
   );
   const path = join(
@@ -217,13 +238,50 @@ function filenameForBlob({ blob }: { readonly blob: Blob }): string {
     return safePathSegment(basename(blob.name));
   }
 
-  return "herbert-commentary.jpg";
+  return "herbert-batch.jpg";
 }
 
 function requiredString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+function optionalCameraPosition({
+  formData,
+}: {
+  readonly formData: { get: (name: string) => unknown };
+}): { readonly pan: number; readonly tilt: number } | Response | undefined {
+  const pan = formData.get("cameraPan");
+  const tilt = formData.get("cameraTilt");
+
+  if (pan === null && tilt === null) {
+    return undefined;
+  }
+
+  if (typeof pan !== "string" || typeof tilt !== "string") {
+    return errorResponse({
+      status: 400,
+      error: "invalid_camera_position",
+      message:
+        "Expected `cameraPan` and `cameraTilt` multipart fields to be numeric strings when either is provided.",
+    });
+  }
+
+  const result = robotTaskCameraPositionSchema.safeParse({
+    pan: Number(pan),
+    tilt: Number(tilt),
+  });
+
+  if (!result.success) {
+    return errorResponse({
+      status: 400,
+      error: "invalid_camera_position",
+      message: "Expected camera position angles within the supported range.",
+    });
+  }
+
+  return result.data;
 }
 
 function safePathSegment(value: string): string {

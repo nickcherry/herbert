@@ -131,8 +131,8 @@ function createRobotTaskSession({
     status: "active",
     createdAtMs: nowMs,
     updatedAtMs: nowMs,
-    taskState: "New task started from Telegram. No robot commentary yet.",
-    commentary: [],
+    taskState: "New task started from Telegram. No batch reports yet.",
+    batchReports: [],
   });
 }
 

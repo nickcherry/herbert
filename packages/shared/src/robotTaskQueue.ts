@@ -1,27 +1,38 @@
+import { cameraAngleSchema } from "@herbert/shared/commands";
 import {
   robotTaskActionBatchSchema,
   robotTaskActionSchema,
 } from "@herbert/shared/robotTasks";
 import { z } from "zod";
 
+export const robotTaskCameraPositionSchema = z.object({
+  pan: cameraAngleSchema,
+  tilt: cameraAngleSchema,
+});
+
+export type RobotTaskCameraPosition = z.infer<
+  typeof robotTaskCameraPositionSchema
+>;
+
 /**
- * Single robot-commentary entry persisted on a task session: the actions the
- * robot just completed plus the on-disk path of the photo it captured at the
- * end of the batch. Each commentary entry corresponds to one completed batch.
+ * Single batch-report entry persisted on a task session: the actions the robot
+ * just completed plus the on-disk path of the photo it captured at the end of
+ * the batch. Each batch report corresponds to one completed action batch.
  */
-export const robotTaskCommentarySchema = z.object({
+export const robotTaskBatchReportSchema = z.object({
   batchId: z.string().min(1),
   completedAtMs: z.number().int().nonnegative(),
   photoPath: z.string().min(1),
+  cameraPosition: robotTaskCameraPositionSchema.optional(),
   actions: z.array(robotTaskActionSchema),
 });
 
-export type RobotTaskCommentary = z.infer<typeof robotTaskCommentarySchema>;
+export type RobotTaskBatchReport = z.infer<typeof robotTaskBatchReportSchema>;
 
 /**
  * Persisted task session. One active session per admin chat id at a time; the
- * `commentary` array is the recent commentary log (the slice cap is enforced
- * by the operation that writes the session).
+ * `batchReports` array is the recent batch-report log (the slice cap is
+ * enforced by the operation that writes the session).
  */
 export const robotTaskSessionSchema = z.object({
   id: z.string().min(1),
@@ -30,7 +41,7 @@ export const robotTaskSessionSchema = z.object({
   createdAtMs: z.number().int().nonnegative(),
   updatedAtMs: z.number().int().nonnegative(),
   taskState: z.string().min(1),
-  commentary: z.array(robotTaskCommentarySchema).max(20),
+  batchReports: z.array(robotTaskBatchReportSchema).max(20),
 });
 
 export type RobotTaskSession = z.infer<typeof robotTaskSessionSchema>;

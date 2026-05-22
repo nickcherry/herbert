@@ -59,20 +59,20 @@ describe("buildPromptInputContent", () => {
       const content = await buildPromptInputContent({
         prompt: "describe the scene",
         images: [
-          { path: older, detail: "low", label: "Older commentary photo" },
-          { path: latest, detail: "high", label: "Latest commentary photo" },
+          { path: older, detail: "low", label: "Older batch report photo" },
+          { path: latest, detail: "high", label: "Latest batch report photo" },
         ],
       });
 
       expect(content).toEqual([
         { type: "input_text", text: "describe the scene" },
-        { type: "input_text", text: "Older commentary photo" },
+        { type: "input_text", text: "Older batch report photo" },
         {
           type: "input_image",
           image_url: "data:image/jpeg;base64,AQID",
           detail: "low",
         },
-        { type: "input_text", text: "Latest commentary photo" },
+        { type: "input_text", text: "Latest batch report photo" },
         {
           type: "input_image",
           image_url: "data:image/jpeg;base64,BwgJ",

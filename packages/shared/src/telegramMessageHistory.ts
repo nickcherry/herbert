@@ -28,3 +28,30 @@ export const telegramMessageHistorySchema = z.object({
 export type TelegramMessageHistory = z.infer<
   typeof telegramMessageHistorySchema
 >;
+
+/**
+ * Persisted entry shape for Herbert's own outward text. `telegramMessage` is
+ * what Herbert sent to the admin chat; `spokenMessage` is what Herbert played
+ * aloud near the robot.
+ */
+export const herbertHistoryResponseSchema = z.object({
+  createdAtMs: z.number().int().nonnegative(),
+  telegramMessage: z.string().min(1).nullable(),
+  spokenMessage: z.string().min(1).nullable(),
+});
+
+export type HerbertHistoryResponse = z.infer<
+  typeof herbertHistoryResponseSchema
+>;
+
+/**
+ * Persisted shape of the per-chat Herbert response history document. Stored
+ * under `collection: herbert_response_history, key: <admin chat id>`.
+ */
+export const herbertResponseHistorySchema = z.object({
+  responses: z.array(herbertHistoryResponseSchema),
+});
+
+export type HerbertResponseHistory = z.infer<
+  typeof herbertResponseHistorySchema
+>;

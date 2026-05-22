@@ -74,8 +74,9 @@ bun herbert robot:worker
 
 `robot:worker` polls the server for queued action batches. For each batch it
 executes the actions in order, captures an end-of-turn photo, and reports
-completion back to the server. If the batch already included `take_photo`, that
-photo is reused as the completion photo.
+completion back to the server with the current camera pan/tilt. If the batch
+ended with `take_photo`, that photo is reused as the completion photo; otherwise
+the worker takes a fresh final photo after movement or camera changes.
 
 The server-side grouping for one user request is called a task session. Before
 the first action batch it sees for a task session, `robot:worker` tilts the

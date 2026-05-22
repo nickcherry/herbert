@@ -55,8 +55,8 @@ server. It is useful for testing the Telegram/OpenAI path in isolation.
 `GET /robot/action-batches/next` lets Herbert claim the next queued action
 batch. `POST /robot/action-batches/complete` accepts `batchId`, `taskId`, and an
 `image` attachment from the robot after it executes a batch. The server stores
-the image under `data/robot-commentary`, sends the photo to Telegram, and
-sends the resulting commentary turn back to OpenAI to decide whether to
+the image under `data/robot-batch-photos`, sends the photo to Telegram, and
+sends the resulting `batch_complete` turn back to OpenAI to decide whether to
 continue.
 
 When `server:start` exits from `SIGINT` or `SIGTERM`, it stops Telegram polling
@@ -80,7 +80,7 @@ in typed constants.
   file at `data/herbert.sqlite`.
 - Telegram polling defaults (including the context message age cutoff
   `openAIContextMessageMaxAgeMs`) live in `telegramConfig`.
-- OpenAI defaults (prompt model and commentary photo cap) live in
+- OpenAI defaults (prompt model and batch report photo cap) live in
   `openaiConfig`. Text generation routes through `gpt-5.5` by default.
 - ElevenLabs defaults (TTS model, voice id, output format, voice settings, and
   request timeout) live in `elevenLabsConfig`.

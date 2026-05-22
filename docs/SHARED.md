@@ -23,10 +23,11 @@ It defines:
 - `@herbert/shared/commands` — JSONL command + bridge response shapes.
 - `@herbert/shared/robotTasks` — robot action contract used by the queue API
   and the OpenAI structured response.
-- `@herbert/shared/robotTaskQueue` — persisted task sessions, commentary
-  entries, queued batches, and the top-level queue document.
-- `@herbert/shared/telegramMessageHistory` — persisted Telegram history
-  message + per-chat history document.
+- `@herbert/shared/robotTaskQueue` — persisted task sessions, batch reports
+  (each with optional camera position), queued batches, and the top-level
+  queue document.
+- `@herbert/shared/telegramMessageHistory` — persisted Telegram user message
+  history and Herbert Telegram/spoken response history documents.
 - `@herbert/shared/telegramState` — persisted Telegram polling cursor.
 - `@herbert/shared/serverApi` — HTTP path constants and response shapes used
   by both server and robot packages.

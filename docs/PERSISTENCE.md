@@ -10,7 +10,7 @@ The database path is normal config, not an environment variable:
 ```ts
 export const persistenceConfig = {
   sqlitePath: "data/herbert.sqlite",
-  commentaryImageDirectory: "data/robot-commentary",
+  batchPhotoDirectory: "data/robot-batch-photos",
 } as const;
 ```
 
@@ -84,6 +84,10 @@ Public ops by domain today:
   - `appendTelegramMessageHistoryBatch`
   - `filterRecentTelegramMessages` (pure scope-style helper)
   - `telegramHistoryMessageFromTelegram` (constructor from raw API shape)
+- `operations/herbertResponseHistory/`
+  - `readHerbertResponseHistory`
+  - `appendHerbertResponseHistory`
+  - `filterRecentHerbertResponses` (pure scope-style helper)
 - `operations/telegramState/`
   - `readTelegramState`
   - `writeTelegramState`
@@ -144,10 +148,12 @@ key: default
 
 The queue document stores active/finished task sessions plus queued, claimed,
 completed, and abandoned action batches. A task session carries `taskState`
-and recent robot commentary entries so subsequent OpenAI turns know the
-original request and what has happened since. The robot worker treats the first
-batch it sees for a task session as the session start and tilts the camera fully
-up before executing that batch.
+and recent batch report entries so subsequent OpenAI turns know the original
+request and what has happened since. Each batch report signals that a batch
+finished and includes the completed actions, the completion photo path, and
+the robot's absolute camera pan/tilt when the worker reported it. The robot
+worker treats the first batch it sees for a task session as the session start
+and tilts the camera fully up before executing that batch.
 
 `server:start` runs `abandonPendingRobotTaskWork` on boot. Any batch still in
 `queued` or `claimed` from a previous run is marked `abandoned`, and any
@@ -160,8 +166,11 @@ Queue mutations are serialized inside the server process via the
 queue as one typed document.
 
 Robot completion photos are binary files, not SQLite documents. They are
-written under `data/robot-commentary` and ignored by git. Synthesized speech
+written under `data/robot-batch-photos` and ignored by git. Synthesized speech
 MP3s are scratch files under the OS tempdir and are not persisted at all.
+The spoken text itself is persisted in `herbert_response_history` together with
+Herbert's recent Telegram reply text so later OpenAI turns know what Herbert
+already said out loud or sent to the admin chat.
 
 Sources:
 

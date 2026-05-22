@@ -90,6 +90,7 @@ export async function runRobotTaskWorker({
         serverUrl,
         batch,
         photoPath,
+        cameraPosition: robot.getCameraPosition(),
       });
       process.stdout.write(
         `${pc.bold("batch")} completed ${formatKeyValue({
@@ -137,6 +138,10 @@ export async function executeRobotTaskBatch({
       mock,
       batch,
     });
+
+    if (latestPhotoPath !== undefined && actionInvalidatesPhoto({ action })) {
+      latestPhotoPath = undefined;
+    }
   }
 
   if (latestPhotoPath !== undefined) {
@@ -148,6 +153,18 @@ export async function executeRobotTaskBatch({
   }
 
   return (await robot.takePhoto()).path;
+}
+
+function actionInvalidatesPhoto({
+  action,
+}: {
+  readonly action: RobotTaskAction;
+}): boolean {
+  return (
+    action.type === "drive" ||
+    action.type === "drive_arc" ||
+    action.type === "look"
+  );
 }
 
 async function executeAction({

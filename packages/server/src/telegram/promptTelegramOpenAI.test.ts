@@ -7,4 +7,16 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain("witticism");
     expect(telegramOpenAIInstructions).toContain("commentary on the room");
   });
+
+  test("includes approximate drive distance guidance", () => {
+    expect(telegramOpenAIInstructions).toContain("distance_cm");
+    expect(telegramOpenAIInstructions).toContain("speed 50 for 1000ms");
+  });
+
+  test("encourages useful movement instead of excessive caution", () => {
+    expect(telegramOpenAIInstructions).toContain("clear floor");
+    expect(telegramOpenAIInstructions).toContain("Avoid micro-drive pulses");
+    expect(telegramOpenAIInstructions).toContain("partly obscured");
+    expect(telegramOpenAIInstructions).toContain("absolute camera pan/tilt");
+  });
 });

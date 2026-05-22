@@ -6,18 +6,20 @@ import {
 } from "@herbert/server/persistence/operations/robotTaskQueue/queueDocument";
 import { withRobotTaskQueueLock } from "@herbert/server/persistence/operations/robotTaskQueue/queueLock";
 import {
-  type RobotTaskCommentary,
-  robotTaskCommentarySchema,
+  type RobotTaskBatchReport,
+  robotTaskBatchReportSchema,
+  type RobotTaskCameraPosition,
   type RobotTaskQueueBatch,
   type RobotTaskSession,
 } from "@herbert/shared/robotTaskQueue";
 
-const MAX_PERSISTED_COMMENTARY_ENTRIES = 20;
+const MAX_PERSISTED_BATCH_REPORTS = 20;
 
 export interface CompleteRobotTaskBatchOptions {
   readonly batchId: string;
   readonly taskId: string;
   readonly photoPath: string;
+  readonly cameraPosition?: RobotTaskCameraPosition;
   readonly nowMs?: number;
   readonly store?: DocumentStore;
 }
@@ -25,19 +27,20 @@ export interface CompleteRobotTaskBatchOptions {
 export interface CompleteRobotTaskBatchResult {
   readonly batch: RobotTaskQueueBatch;
   readonly session: RobotTaskSession;
-  readonly commentary: RobotTaskCommentary;
+  readonly batchReport: RobotTaskBatchReport;
 }
 
 /**
- * Marks a claimed batch as completed, appends a new commentary entry to the
- * owning session, and returns the completed batch and updated session.
- * Throws if the batch or session can't be found, or if the batch is already
- * marked completed.
+ * Marks a claimed batch as completed, appends a new batch report to the owning
+ * session, and returns the completed batch and updated session. Throws if the
+ * batch or session can't be found, or if the batch is already marked
+ * completed.
  */
 export async function completeRobotTaskBatch({
   batchId,
   taskId,
   photoPath,
+  cameraPosition,
   nowMs = Date.now(),
   store = defaultDocumentStore(),
 }: CompleteRobotTaskBatchOptions): Promise<CompleteRobotTaskBatchResult> {
@@ -46,6 +49,7 @@ export async function completeRobotTaskBatch({
       batchId,
       taskId,
       photoPath,
+      cameraPosition,
       nowMs,
       store,
     });
@@ -56,9 +60,17 @@ async function completeRobotTaskBatchUnlocked({
   batchId,
   taskId,
   photoPath,
+  cameraPosition,
   nowMs,
   store,
-}: Required<CompleteRobotTaskBatchOptions>): Promise<CompleteRobotTaskBatchResult> {
+}: {
+  readonly batchId: string;
+  readonly taskId: string;
+  readonly photoPath: string;
+  readonly cameraPosition: RobotTaskCameraPosition | undefined;
+  readonly nowMs: number;
+  readonly store: DocumentStore;
+}): Promise<CompleteRobotTaskBatchResult> {
   const queue = await readQueueDocument({ store });
   const batchIndex = queue.batches.findIndex(
     (batch) => batch.id === batchId && batch.taskId === taskId,
@@ -88,17 +100,18 @@ async function completeRobotTaskBatchUnlocked({
     status: "completed",
     completedAtMs: nowMs,
   };
-  const commentary: RobotTaskCommentary = robotTaskCommentarySchema.parse({
+  const batchReport: RobotTaskBatchReport = robotTaskBatchReportSchema.parse({
     batchId,
     completedAtMs: nowMs,
     photoPath,
+    ...(cameraPosition === undefined ? {} : { cameraPosition }),
     actions: batch.actions,
   });
   const updatedSession: RobotTaskSession = {
     ...session,
     updatedAtMs: nowMs,
-    commentary: [...session.commentary, commentary].slice(
-      -MAX_PERSISTED_COMMENTARY_ENTRIES,
+    batchReports: [...session.batchReports, batchReport].slice(
+      -MAX_PERSISTED_BATCH_REPORTS,
     ),
   };
 
@@ -117,6 +130,6 @@ async function completeRobotTaskBatchUnlocked({
   return {
     batch: completedBatch,
     session: updatedSession,
-    commentary,
+    batchReport,
   };
 }

@@ -68,7 +68,8 @@ Telegram admin message
 ```
 
 Each queued action batch is deliberately small. After a batch runs, the robot
-captures a photo and the server uses that commentary to decide the next turn.
+captures a photo and the server uses that batch report to decide the next
+turn.
 
 On `server:start`, any robot action batches still in `queued` or `claimed`
 state from a previous run are marked `abandoned` and their owning sessions

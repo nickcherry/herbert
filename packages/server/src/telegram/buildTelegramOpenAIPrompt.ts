@@ -1,21 +1,28 @@
-import type { RobotTaskAction, TelegramHistoryMessage } from "@herbert/shared";
+import type {
+  HerbertHistoryResponse,
+  RobotTaskAction,
+  RobotTaskCameraPosition,
+  TelegramHistoryMessage,
+} from "@herbert/shared";
 
 export type TelegramPromptTurnTrigger =
   | "telegram_messages"
-  | "robot_commentary";
+  | "batch_complete";
 
-export interface TelegramPromptCommentary {
+export interface TelegramPromptBatchReport {
   readonly completedAtMs: number;
   readonly photoPath: string;
+  readonly cameraPosition?: RobotTaskCameraPosition;
   readonly actions: readonly RobotTaskAction[];
 }
 
 export interface BuildTelegramOpenAIPromptOptions {
   readonly recentMessages: readonly TelegramHistoryMessage[];
   readonly newMessages: readonly TelegramHistoryMessage[];
+  readonly recentHerbertResponses?: readonly HerbertHistoryResponse[];
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly taskState?: string;
-  readonly commentary?: readonly TelegramPromptCommentary[];
+  readonly batchReports?: readonly TelegramPromptBatchReport[];
   readonly hasAttachedImages?: boolean;
   readonly attachedImageCount?: number;
   readonly nowMs?: number;
@@ -24,9 +31,10 @@ export interface BuildTelegramOpenAIPromptOptions {
 export function buildTelegramOpenAIPrompt({
   recentMessages,
   newMessages,
+  recentHerbertResponses = [],
   turnTrigger,
   taskState,
-  commentary = [],
+  batchReports = [],
   hasAttachedImages = false,
   attachedImageCount,
   nowMs: _nowMs = Date.now(),
@@ -37,39 +45,41 @@ export function buildTelegramOpenAIPrompt({
     formatTurnContextXml({
       turnTrigger,
       newMessageCount: newMessages.length,
-      commentaryCount: commentary.length,
+      batchReportCount: batchReports.length,
       attachedImageCount: resolvedAttachedCount,
     }),
-    "Authorized Telegram user messages from this admin chat, oldest first.",
-    "Messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to them together as one combined admin request.",
-    "Messages with <is_new>0</is_new> are prior context that has already been handled; do not re-respond to them.",
-    "Older messages outside the recent context window are dropped before this prompt is built, so only the freshest authorized history is shown.",
-    "If there are no new messages and the trigger is robot_commentary, continue the active task from the current task state and the latest robot commentary entry.",
+    "Recent conversation history for this admin chat, oldest first.",
+    "User messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to them together as one combined admin request.",
+    "User messages with <is_new>0</is_new> are prior context that has already been handled; do not re-respond to them.",
+    "Herbert responses are prior text Herbert already sent to Telegram and/or spoke out loud; use them for continuity, and do not repeat them unless useful.",
+    "Older user messages and Herbert responses outside the recent context window are dropped before this prompt is built, so only the freshest authorized history is shown.",
+    "If there are no new messages and the trigger is batch_complete, continue the active task from the current task state and the latest batch report entry.",
     "All timestamps are UTC.",
     formatTelegramMessagesXml({ recentMessages, newMessages }),
+    formatHerbertResponsesXml({ responses: recentHerbertResponses }),
     'Current task state (Herbert\'s durable memory carried over from the previous turn; "none" if no task is active):',
     taskState?.trim() ?? "none",
-    "Robot commentary from this task so far, oldest first. Each entry reports the actions Herbert just completed at the end of a batch and the path to the photo Herbert captured immediately after. The most recent commentary photos are attached to this prompt as image inputs (the LAST attached image is the latest; earlier attached images come from earlier commentary entries and are downsampled). Commentary entries with no matching attached image are text-only on this turn.",
-    formatRobotCommentariesXml({ commentary }),
+    "Batch reports from this task so far, oldest first. Each batch report signals that a batch finished and lists the actions Herbert just completed, the camera pan/tilt after the batch when available, and the path to the photo Herbert captured immediately after. The most recent batch report photos are attached to this prompt as image inputs (the LAST attached image is the latest; earlier attached images come from earlier batch reports and are downsampled). Batch reports with no matching attached image are text-only on this turn.",
+    formatBatchReportsXml({ batchReports }),
   ].join("\n\n");
 }
 
 function formatTurnContextXml({
   turnTrigger,
   newMessageCount,
-  commentaryCount,
+  batchReportCount,
   attachedImageCount,
 }: {
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly newMessageCount: number;
-  readonly commentaryCount: number;
+  readonly batchReportCount: number;
   readonly attachedImageCount: number;
 }): string {
   return [
     "<turn_context>",
     `  <trigger>${turnTrigger}</trigger>`,
     `  <new_message_count>${newMessageCount}</new_message_count>`,
-    `  <robot_commentary_count>${commentaryCount}</robot_commentary_count>`,
+    `  <batch_report_count>${batchReportCount}</batch_report_count>`,
     `  <attached_image_count>${attachedImageCount}</attached_image_count>`,
     "</turn_context>",
   ].join("\n");
@@ -113,30 +123,82 @@ function formatTelegramHistoryMessageXml({
   ].join("\n");
 }
 
-function formatRobotCommentariesXml({
-  commentary,
+function formatHerbertResponsesXml({
+  responses,
 }: {
-  readonly commentary: readonly TelegramPromptCommentary[];
+  readonly responses: readonly HerbertHistoryResponse[];
 }): string {
   return [
-    "<robot_commentaries>",
-    ...commentary.map((entry) => formatCommentaryXml({ entry })),
-    "</robot_commentaries>",
+    "<herbert_responses>",
+    ...responses.map((response) => formatHerbertResponseXml({ response })),
+    "</herbert_responses>",
   ].join("\n");
 }
 
-function formatCommentaryXml({
-  entry,
+function formatHerbertResponseXml({
+  response,
 }: {
-  readonly entry: TelegramPromptCommentary;
+  readonly response: HerbertHistoryResponse;
+}): string {
+  const lines = [
+    "  <response>",
+    `    <timestamp>${formatMillisecondsTimestamp({ milliseconds: response.createdAtMs })}</timestamp>`,
+  ];
+
+  if (response.telegramMessage !== null) {
+    lines.push(
+      `    <telegram_message>${escapeXmlText(response.telegramMessage)}</telegram_message>`,
+    );
+  }
+
+  if (response.spokenMessage !== null) {
+    lines.push(
+      `    <spoken_message>${escapeXmlText(response.spokenMessage)}</spoken_message>`,
+    );
+  }
+
+  lines.push("  </response>");
+  return lines.join("\n");
+}
+
+function formatBatchReportsXml({
+  batchReports,
+}: {
+  readonly batchReports: readonly TelegramPromptBatchReport[];
 }): string {
   return [
-    "  <commentary>",
+    "<batch_reports>",
+    ...batchReports.map((entry) => formatBatchReportXml({ entry })),
+    "</batch_reports>",
+  ].join("\n");
+}
+
+function formatBatchReportXml({
+  entry,
+}: {
+  readonly entry: TelegramPromptBatchReport;
+}): string {
+  const lines = [
+    "  <batch_report>",
     `    <timestamp>${formatMillisecondsTimestamp({ milliseconds: entry.completedAtMs })}</timestamp>`,
     `    <completed_actions>${escapeXmlText(JSON.stringify(entry.actions))}</completed_actions>`,
+  ];
+
+  if (entry.cameraPosition !== undefined) {
+    lines.push(
+      "    <camera_position>",
+      `      <pan>${entry.cameraPosition.pan}</pan>`,
+      `      <tilt>${entry.cameraPosition.tilt}</tilt>`,
+      "    </camera_position>",
+    );
+  }
+
+  lines.push(
     `    <photo_path>${escapeXmlText(entry.photoPath)}</photo_path>`,
-    "  </commentary>",
-  ].join("\n");
+    "  </batch_report>",
+  );
+
+  return lines.join("\n");
 }
 
 function formatTelegramTimestamp({

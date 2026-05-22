@@ -101,7 +101,7 @@ with an empty action list.
 When actions are returned, the server queues them as a robot action batch in
 SQLite. Herbert's robot process polls the queue, executes the batch, captures an
 end-of-batch photo, and reports completion back to the server. That photo and
-the completed actions become the next OpenAI turn's robot commentary entry.
+the completed actions become the next OpenAI turn's latest batch report.
 
 User message context is formatted as XML:
 
@@ -109,7 +109,7 @@ User message context is formatted as XML:
 <turn_context>
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
-  <robot_commentary_count>0</robot_commentary_count>
+  <batch_report_count>0</batch_report_count>
   <attached_image_count>0</attached_image_count>
 </turn_context>
 ```
@@ -128,16 +128,34 @@ User message context is formatted as XML:
 Messages are oldest first. Prior context has `is_new` set to `0`; messages from
 the current polling response have `is_new` set to `1`.
 
-Robot commentary entries are also formatted as XML. When the turn trigger is
-`robot_commentary`, there are usually no new Telegram messages; OpenAI should
-continue from `taskState`, the commentary XML, and the attached photos. The
-latest commentary photo is attached at `detail: "high"` (Herbert's current
-view) and up to `openaiConfig.includedCommentaryPhotoLimit - 1` earlier
-commentary photos are attached at `detail: "low"` (downsampled by OpenAI for
+Herbert's own recent outputs are included separately so the model knows what
+Herbert already sent to Telegram and what he already spoke aloud:
+
+```xml
+<herbert_responses>
+  <response>
+    <timestamp>2026-05-21 17:40:02</timestamp>
+    <telegram_message>Driving forward.</telegram_message>
+    <spoken_message>A modest reconnaissance, then.</spoken_message>
+  </response>
+</herbert_responses>
+```
+
+Batch reports are also formatted as XML. When the turn trigger is
+`batch_complete`, there are usually no new Telegram messages; OpenAI should
+continue from `taskState`, the batch report XML, and the attached photos. The
+latest batch report photo is attached at `detail: "high"` (Herbert's current
+view) and up to `openaiConfig.includedBatchPhotoLimit - 1` earlier batch
+report photos are attached at `detail: "low"` (downsampled by OpenAI for
 continuity at lower token cost). Each attached image is preceded by a label
-identifying which commentary entry it belongs to. Commentary entries beyond
-the photo cap are still listed in the XML with their `photo_path` but have no
-attached image on that turn.
+identifying which batch report it belongs to. Batch reports beyond the photo
+cap are still listed in the XML with their `photo_path` but have no attached
+image on that turn.
+
+When the robot worker completes a batch, it also reports Herbert's current
+absolute camera pan/tilt when available. That position is persisted on the
+batch report and rendered as `<camera_position>` so OpenAI can tell when a
+series of `look` actions has already pushed the camera toward a limit.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
@@ -158,6 +176,11 @@ Steering is capped at `-30..30` because the PiCar-X v2.0 SDK clamps direction
 servo input to that range. Camera deltas are narrower than the bridge's absolute
 camera range so one model response cannot swing the head from one extreme to the
 other.
+
+Drive distance is not measured directly. `speed` is approximate motor power, and
+the prompt gives OpenAI the rough straight-line heuristic
+`distance_cm ~= 50 * (speed / 100) * (durationMs / 1000)`, so `speed=50` for
+`1000ms` is about `25cm` before floor, battery, traction, and steering effects.
 
 `taskState` is the durable memory between turns. It should be self-contained
 enough for a later OpenAI request to know the user's goal, what Herbert has

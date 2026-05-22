@@ -1,6 +1,7 @@
 import { playAudioFile } from "@herbert/server/audio/playAudioFile";
 import { synthesizeSpeech } from "@herbert/server/elevenlabs/synthesizeSpeech";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import { appendHerbertResponseHistory } from "@herbert/server/persistence/operations/herbertResponseHistory";
 import { recordRobotTaskResponse } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
   sendTelegramMessage,
@@ -63,6 +64,11 @@ export async function handleRobotTaskResponse({
   }
 
   await recordRobotTaskResponse({
+    chatId,
+    response,
+    store,
+  });
+  await appendHerbertResponseHistory({
     chatId,
     response,
     store,

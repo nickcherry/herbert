@@ -16,8 +16,8 @@ OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 
 - `defaultModel`: `gpt-5.5` — used for every chat/Responses-API call (Telegram
   task loop, structured prompts, anything that calls `promptOpenAI`).
-- `includedCommentaryPhotoLimit`: maximum number of commentary photos the
-  server attaches to a Telegram OpenAI turn (1 latest at full detail + up to
+- `includedBatchPhotoLimit`: maximum number of batch report photos the server
+  attaches to a Telegram OpenAI turn (1 latest at full detail + up to
   `limit-1` earlier photos at lower detail).
 
 Text generation runs on `gpt-5.5`. Speech synthesis is handled by ElevenLabs;
@@ -71,13 +71,14 @@ Telegram admin messages use Structured Outputs with this root shape:
 ```
 
 The prompt content includes turn metadata, prior same-chat context, newly
-received messages, task state, and robot commentary:
+received messages, Herbert's recent Telegram/spoken outputs, task state, and
+batch reports:
 
 ```xml
 <turn_context>
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
-  <robot_commentary_count>0</robot_commentary_count>
+  <batch_report_count>0</batch_report_count>
   <attached_image_count>0</attached_image_count>
 </turn_context>
 ```
@@ -93,10 +94,20 @@ received messages, task state, and robot commentary:
 </user_messages>
 ```
 
+```xml
+<herbert_responses>
+  <response>
+    <timestamp>2026-05-21 17:40:02</timestamp>
+    <telegram_message>Driving forward.</telegram_message>
+    <spoken_message>A modest reconnaissance, then.</spoken_message>
+  </response>
+</herbert_responses>
+```
+
 `trigger` is `telegram_messages` when a poll delivered new admin messages and
-`robot_commentary` when Herbert has just completed an action batch and returned
-a photo. On robot commentary turns, there are usually no new Telegram messages;
-the model must continue from `taskState` and the latest commentary entry.
+`batch_complete` when Herbert has just completed an action batch and returned
+a photo. On `batch_complete` turns, there are usually no new Telegram messages;
+the model must continue from `taskState` and the latest batch report.
 
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
@@ -121,6 +132,12 @@ constants, even though Herbert's low-level bridge currently accepts `-35..35`.
 `drive` is straight; use `drive_arc` to move while steering. `set_steering`
 turns the front wheels in place without moving the robot.
 
+Drive distance is open-loop, not measured. The prompt gives the model a rough
+straight-line estimate of `distance_cm ~= 50 * (speed / 100) * seconds` so it
+does not choose movement pulses too small to matter. Batch reports can also
+include absolute camera pan/tilt after a batch, which helps the model avoid
+repeating `look` actions into the same camera limit.
+
 ## Spoken Commentary
 
 `spokenMessage` is selected by OpenAI but synthesized by ElevenLabs server-side
@@ -139,7 +156,7 @@ OpenAI prompt guidance for `spokenMessage`:
   task.
 - Keep it at or under 800 characters.
 - Keep all operational information in `telegramMessage`.
-- Avoid urgent, time-sensitive, or frame-perfect commentary because audio is
+- Avoid urgent, time-sensitive, or frame-perfect remarks because audio is
   based on a completed action batch/photo and usually plays 5-10 seconds after
   Herbert's last physical action.
 
@@ -155,14 +172,14 @@ See [ElevenLabs](./ELEVENLABS.md) for speech synthesis configuration and
   `{ path, detail?, label? }`. The label is emitted as an `input_text` block
   immediately before the image so the model can attribute each picture.
 
-The Telegram task loop uses the `images` form. On a `robot_commentary` turn it
-sends the latest commentary photo at `detail: "high"` and up to
-`includedCommentaryPhotoLimit - 1` earlier commentary photos at `detail:
-"low"`. OpenAI processes `low`-detail images at a fixed lower resolution, so
-older photos cost far fewer tokens than the current view while still giving
-the model continuity across batches. Each image's label identifies its
-commentary entry so the model knows which photo is the current view and which
-are older.
+The Telegram task loop uses the `images` form. On a `batch_complete` turn it
+sends the latest batch report photo at `detail: "high"` and up to
+`includedBatchPhotoLimit - 1` earlier batch report photos at `detail: "low"`.
+OpenAI processes `low`-detail images at a fixed lower resolution, so older
+photos cost far fewer tokens than the current view while still giving the
+model continuity across batches. Each image's label identifies its batch
+report so the model knows which photo is the current view and which are
+older.
 
 Supported extensions:
 

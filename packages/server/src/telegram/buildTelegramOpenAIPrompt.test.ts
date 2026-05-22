@@ -27,11 +27,19 @@ describe("buildTelegramOpenAIPrompt", () => {
           sender: "Frances",
         },
       ],
+      recentHerbertResponses: [
+        {
+          createdAtMs: 1_800_000_005_000,
+          telegramMessage: "I can scoot forward and inspect.",
+          spokenMessage: "A modest reconnaissance, then.",
+        },
+      ],
       taskState: "Checking whether the stove is on.",
-      commentary: [
+      batchReports: [
         {
           completedAtMs: 1_800_000_012_000,
-          photoPath: "data/robot-commentary/task/batch.jpg",
+          photoPath: "data/robot-batch-photos/task/batch.jpg",
+          cameraPosition: { pan: -10, tilt: 25 },
           actions: [{ type: "take_photo" }],
         },
       ],
@@ -42,7 +50,7 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<trigger>telegram_messages</trigger>");
     expect(prompt).toContain("<new_message_count>2</new_message_count>");
     expect(prompt).toContain(
-      "<robot_commentary_count>1</robot_commentary_count>",
+      "<batch_report_count>1</batch_report_count>",
     );
     expect(prompt).toContain("<attached_image_count>1</attached_image_count>");
     expect(prompt).toContain("<user_messages>");
@@ -54,29 +62,37 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<text>drive forward a little</text>");
     expect(prompt).toContain("<text>then take a photo</text>");
     expect(prompt).toContain("<is_new>1</is_new>");
+    expect(prompt).toContain("<herbert_responses>");
+    expect(prompt).toContain("<telegram_message>");
+    expect(prompt).toContain("I can scoot forward and inspect.");
+    expect(prompt).toContain("<spoken_message>");
+    expect(prompt).toContain("A modest reconnaissance, then.");
     expect(prompt).toContain("Checking whether the stove is on.");
-    expect(prompt).toContain("<robot_commentaries>");
-    expect(prompt).toContain("<commentary>");
+    expect(prompt).toContain("<batch_reports>");
+    expect(prompt).toContain("<batch_report>");
     expect(prompt).toContain("<completed_actions>");
+    expect(prompt).toContain("<camera_position>");
+    expect(prompt).toContain("<pan>-10</pan>");
+    expect(prompt).toContain("<tilt>25</tilt>");
     expect(prompt).toContain(
-      "<photo_path>data/robot-commentary/task/batch.jpg</photo_path>",
+      "<photo_path>data/robot-batch-photos/task/batch.jpg</photo_path>",
     );
   });
 
-  test("marks robot commentary turns that have no new messages", () => {
+  test("marks batch_complete turns that have no new messages", () => {
     const prompt = buildTelegramOpenAIPrompt({
-      turnTrigger: "robot_commentary",
+      turnTrigger: "batch_complete",
       recentMessages: [],
       newMessages: [],
       taskState: "Checking the stove from the kitchen doorway.",
-      commentary: [],
+      batchReports: [],
       attachedImageCount: 1,
     });
 
-    expect(prompt).toContain("<trigger>robot_commentary</trigger>");
+    expect(prompt).toContain("<trigger>batch_complete</trigger>");
     expect(prompt).toContain("<new_message_count>0</new_message_count>");
     expect(prompt).toContain(
-      "If there are no new messages and the trigger is robot_commentary",
+      "If there are no new messages and the trigger is batch_complete",
     );
   });
 });
