@@ -4,10 +4,10 @@ import {
   appendTelegramMessageHistoryBatch,
   filterRecentTelegramMessages,
   readTelegramMessageHistory,
-} from "@herbert/server/telegram/telegramMessageHistory";
+} from "@herbert/server/persistence/operations/telegramMessageHistory";
 import { describe, expect, test } from "bun:test";
 
-describe("telegramMessageHistory", () => {
+describe("telegramMessageHistory operations", () => {
   test("keeps only the most recent Telegram context messages per chat", async () => {
     const store = createMemoryDocumentStore();
 

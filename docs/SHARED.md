@@ -3,8 +3,11 @@
 `packages/shared` contains Zod schemas and TypeScript types for boundaries
 crossed by more than one package.
 
-It currently defines the JSONL protocol between TypeScript and Python, plus the
-HTTP contracts shared by `packages/robot` and `packages/server`.
+It defines:
+
+- the JSONL protocol between TypeScript and Python,
+- the HTTP contracts shared by `packages/robot` and `packages/server`,
+- every persisted document shape stored in the server's SQLite database.
 
 ## Rules
 
@@ -12,21 +15,18 @@ HTTP contracts shared by `packages/robot` and `packages/server`.
 - Export the TypeScript type from the schema.
 - Keep domain behavior out of `packages/shared`.
 - Prefer narrow command unions over broad records or stringly typed payloads.
+- Any schema/value that gets serialized to the server's SQLite store lives
+  here, so the persisted shape is the same artifact every package sees.
 
-The package currently exports:
+## Subpath Exports
 
-- `robotCommandPayloadSchema`
-- `robotCommandSchema`
-- `bridgeResponseSchema`
-- `takePhotoResultSchema`
-- `cameraCheckResultSchema`
-- `robotPhotoUploadResponseSchema`
-- `robotTaskActionSchema`
-- `robotTaskActionBatchSchema`
-- `robotTaskActionBatchPollResponseSchema`
-- `robotTaskActionBatchCompleteResponseSchema`
-- robot HTTP path constants
-- `speechTextSchema`
-- `speechLanguageSchema`
-- command limit constants
-- inferred TypeScript types for those schemas
+- `@herbert/shared/commands` — JSONL command + bridge response shapes.
+- `@herbert/shared/robotTasks` — robot action contract used by the queue API
+  and the OpenAI structured response.
+- `@herbert/shared/robotTaskQueue` — persisted task sessions, commentary
+  entries, queued batches, and the top-level queue document.
+- `@herbert/shared/telegramMessageHistory` — persisted Telegram history
+  message + per-chat history document.
+- `@herbert/shared/telegramState` — persisted Telegram polling cursor.
+- `@herbert/shared/serverApi` — HTTP path constants and response shapes used
+  by both server and robot packages.

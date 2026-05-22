@@ -1,14 +1,14 @@
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import {
+  appendTelegramMessageHistory,
+  readTelegramMessageHistory,
+} from "@herbert/server/persistence/operations/telegramMessageHistory";
 import type { PromptTelegramOpenAIOptions } from "@herbert/server/telegram/promptTelegramOpenAI";
 import {
   pollIntervalForState,
   startTelegramPolling,
 } from "@herbert/server/telegram/runTelegramMonitor";
 import type { SendTelegramMessageParams } from "@herbert/server/telegram/sendTelegramMessage";
-import {
-  appendTelegramMessageHistory,
-  readTelegramMessageHistory,
-} from "@herbert/server/telegram/telegramMessageHistory";
 import { describe, expect, test } from "bun:test";
 
 describe("pollIntervalForState", () => {

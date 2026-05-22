@@ -2,10 +2,10 @@ import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   readTelegramState,
   writeTelegramState,
-} from "@herbert/server/telegram/state/telegramStateStore";
+} from "@herbert/server/persistence/operations/telegramState";
 import { describe, expect, test } from "bun:test";
 
-describe("telegramStateStore", () => {
+describe("telegramState operations", () => {
   test("uses the server document store for cursor state", async () => {
     const store = createMemoryDocumentStore();
 

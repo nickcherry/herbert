@@ -7,7 +7,6 @@ import {
   type TelegramPromptCommentary,
   type TelegramPromptTurnTrigger,
 } from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
-import type { TelegramHistoryMessage } from "@herbert/server/telegram/telegramMessageHistory";
 import {
   parseExecutableTelegramOpenAIResponse,
   telegramOpenAIActionLimits,
@@ -15,6 +14,7 @@ import {
   telegramOpenAIResponseLimits,
   telegramOpenAIResponseSchema,
 } from "@herbert/server/telegram/telegramOpenAIResponse";
+import type { TelegramHistoryMessage } from "@herbert/shared";
 
 export interface PromptTelegramOpenAIOptions {
   readonly recentMessages: readonly TelegramHistoryMessage[];

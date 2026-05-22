@@ -1,7 +1,7 @@
 # Persistence
 
-Herbert uses local SQLite for server-side persistence. The robot package should
-treat the server as the durable coordination point.
+Herbert uses local SQLite for every persisted document on the server. The
+robot package treats the server as the durable coordination point.
 
 ## Configuration
 
@@ -36,15 +36,72 @@ This keeps durability simple while preserving collection-style documents. If a
 subsystem later needs relational queries, it should get its own table and
 migration.
 
+## Type Safety
+
+Reads and writes are typed end-to-end:
+
+- `DocumentStore.read<Schema>` is parameterized by the caller's Zod schema and
+  returns `z.infer<Schema> | undefined`.
+- `DocumentStore.write<Schema>` takes a `value: z.input<Schema>` so writers
+  can't pass arbitrary shapes through TypeScript.
+- `SqliteDocumentStore` runs `schema.parse(...)` on the way out (read) and on
+  the way in (write) — defense in depth even when the static types are right.
+- `querySql({ rowSchema })` parses raw SQL rows before returning them, so no
+  result row escapes the persistence layer untyped.
+- `SqlValue = string | number | boolean | null | Date | Uint8Array`. The
+  template-literal SQL signature refuses arbitrary objects, so callers can't
+  smuggle untyped values into a query.
+
+Every persisted shape lives in `@herbert/shared/*` so the schema and the
+inferred TypeScript type are the same artifact across the codebase.
+
+## Operations
+
+Persistence access goes through one named operation per file under:
+
+```text
+packages/server/src/persistence/operations/<domain>/<operation>.ts
+```
+
+Each operation file exports a single async function that returns typed data.
+Tiny domain helpers (Rails-style scopes / fat-model helpers — e.g. session
+finders, public-shape converters, the queue mutex) live alongside the queries
+that use them. Moderately-involved domain logic (orchestration of multiple
+operations + side effects like Telegram or audio) stays outside the
+persistence layer.
+
+Public ops by domain today:
+
+- `operations/robotTaskQueue/`
+  - `readRobotTaskContext`
+  - `recordRobotTaskResponse`
+  - `claimNextRobotTaskBatch`
+  - `completeRobotTaskBatch`
+  - `abandonPendingRobotTaskWork`
+- `operations/telegramMessageHistory/`
+  - `readTelegramMessageHistory`
+  - `appendTelegramMessageHistory`
+  - `appendTelegramMessageHistoryBatch`
+  - `filterRecentTelegramMessages` (pure scope-style helper)
+  - `telegramHistoryMessageFromTelegram` (constructor from raw API shape)
+- `operations/telegramState/`
+  - `readTelegramState`
+  - `writeTelegramState`
+
 ## Rules
 
-- Every persisted document must parse through a Zod schema on read.
-- Every write must validate through the same schema before hitting SQLite.
-- Every result-bearing SQL query must use `querySql` with a Zod row schema.
-- Schema/mutation SQL that does not consume rows should use `executeSql`.
-- Collection/key names must be narrow and stable.
-- Subsystem-specific schemas live near the subsystem that owns the data.
-- Broadly shared persisted record types should move to `packages/shared`.
+- Every persisted document parses through a Zod schema on read and write.
+- Persisted schemas + their persisted sub-types live in `@herbert/shared/*`
+  (`robotTaskQueue`, `telegramMessageHistory`, `telegramState`).
+- Every result-bearing SQL query uses `querySql` with a Zod row schema.
+  Schema/mutation SQL that does not consume rows uses `executeSql`.
+- Collection/key names are narrow and stable.
+- Callers reach the database **only** through a named operation under
+  `@herbert/server/persistence/operations/<domain>`. ESLint blocks direct
+  imports of `defaultDocumentStore`, `SqliteDocumentStore`, `querySql`, and
+  direct `store.read` / `store.write` calls outside the persistence folder.
+- The default singleton store is constructed lazily by `defaultDocumentStore`;
+  tests pass an in-memory `DocumentStore` impl to bypass SQLite.
 - Do not add filesystem persistence under `runtime/`.
 
 ## Telegram Cursor
@@ -72,7 +129,9 @@ key: <admin chat id>
 
 Each document stores only the most recent 10 authorized text messages for that
 chat id. This keeps prompt context bounded and preserves useful continuity
-across server restarts.
+across server restarts. Before history goes into an OpenAI prompt it is run
+through `filterRecentTelegramMessages` with
+`telegramConfig.openAIContextMessageMaxAgeMs` to drop stale entries.
 
 ## Robot Task Queue
 
@@ -94,11 +153,13 @@ original request and what has happened since.
 work was completed before shutdown or simply never ran, so it treats it as
 done either way — the queue will never replay a stale batch.
 
-Queue mutations are serialized inside the server process because the first
-implementation stores the queue as one typed document.
+Queue mutations are serialized inside the server process via the
+`withRobotTaskQueueLock` helper because the first implementation stores the
+queue as one typed document.
 
-Robot completion photos are binary files, not SQLite documents. They are written
-under `data/robot-commentary` and ignored by git.
+Robot completion photos are binary files, not SQLite documents. They are
+written under `data/robot-commentary` and ignored by git. Synthesized speech
+MP3s are scratch files under the OS tempdir and are not persisted at all.
 
 Sources:
 

@@ -4,11 +4,15 @@ import { basename, join } from "node:path";
 import { persistenceConfig } from "@herbert/server/constants/persistence";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
 import {
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
-} from "@herbert/server/robotTasks/robotTaskStore";
+} from "@herbert/server/persistence/operations/robotTaskQueue";
+import {
+  filterRecentTelegramMessages,
+  readTelegramMessageHistory,
+} from "@herbert/server/persistence/operations/telegramMessageHistory";
+import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
 import { jsonResponse } from "@herbert/server/server/jsonResponse";
 import { promptTelegramOpenAI } from "@herbert/server/telegram/promptTelegramOpenAI";
 import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
@@ -16,10 +20,6 @@ import {
   type SendTelegramPhoto,
   sendTelegramPhoto,
 } from "@herbert/server/telegram/sendTelegramPhoto";
-import {
-  filterRecentTelegramMessages,
-  readTelegramMessageHistory,
-} from "@herbert/server/telegram/telegramMessageHistory";
 import {
   robotActionBatchCompletePath,
   robotActionBatchPollPath,

@@ -1,8 +1,18 @@
 import { env } from "@herbert/server/constants/env";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import { readRobotTaskContext } from "@herbert/server/persistence/operations/robotTaskQueue";
+import {
+  appendTelegramMessageHistoryBatch,
+  filterRecentTelegramMessages,
+  readTelegramMessageHistory,
+  telegramHistoryMessageFromTelegram,
+} from "@herbert/server/persistence/operations/telegramMessageHistory";
+import {
+  readTelegramState,
+  writeTelegramState,
+} from "@herbert/server/persistence/operations/telegramState";
 import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
-import { readRobotTaskContext } from "@herbert/server/robotTasks/robotTaskStore";
 import { authorizeTelegramMessage } from "@herbert/server/telegram/authorizeTelegramMessage";
 import { extractTelegramMessages } from "@herbert/server/telegram/extractTelegramMessages";
 import {
@@ -16,19 +26,8 @@ import {
   type SendTelegramMessageParams,
   type SendTelegramMessageResult,
 } from "@herbert/server/telegram/sendTelegramMessage";
-import type { TelegramState } from "@herbert/server/telegram/state/telegramState";
-import {
-  readTelegramState,
-  writeTelegramState,
-} from "@herbert/server/telegram/state/telegramStateStore";
-import {
-  appendTelegramMessageHistoryBatch,
-  filterRecentTelegramMessages,
-  readTelegramMessageHistory,
-  type TelegramHistoryMessage,
-  telegramHistoryMessageFromTelegram,
-} from "@herbert/server/telegram/telegramMessageHistory";
 import type { TelegramOpenAIResponse } from "@herbert/server/telegram/telegramOpenAIResponse";
+import type { TelegramHistoryMessage, TelegramState } from "@herbert/shared";
 import pc from "picocolors";
 
 export type GetTelegramUpdates = (

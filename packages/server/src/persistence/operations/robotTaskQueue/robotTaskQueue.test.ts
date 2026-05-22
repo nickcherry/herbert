@@ -4,10 +4,10 @@ import {
   claimNextRobotTaskBatch,
   readRobotTaskContext,
   recordRobotTaskResponse,
-} from "@herbert/server/robotTasks/robotTaskStore";
+} from "@herbert/server/persistence/operations/robotTaskQueue";
 import { describe, expect, test } from "bun:test";
 
-describe("robotTaskStore", () => {
+describe("robotTaskQueue operations", () => {
   test("serializes concurrent queue updates for the same active task", async () => {
     const store = createMemoryDocumentStore();
 

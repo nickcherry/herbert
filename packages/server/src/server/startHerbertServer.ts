@@ -2,7 +2,7 @@ import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { abandonPendingRobotTaskWork } from "@herbert/server/robotTasks/robotTaskStore";
+import { abandonPendingRobotTaskWork } from "@herbert/server/persistence/operations/robotTaskQueue";
 import { createServerFetch } from "@herbert/server/server/createServerFetch";
 import { startTelegramPolling } from "@herbert/server/telegram/runTelegramMonitor";
 import pc from "picocolors";

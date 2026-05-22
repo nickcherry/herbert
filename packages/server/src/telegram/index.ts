@@ -7,5 +7,4 @@ export * from "@herbert/server/telegram/runTelegramMonitor";
 export * from "@herbert/server/telegram/schemas";
 export * from "@herbert/server/telegram/sendTelegramMessage";
 export * from "@herbert/server/telegram/sendTelegramPhoto";
-export * from "@herbert/server/telegram/telegramMessageHistory";
 export * from "@herbert/server/telegram/telegramOpenAIResponse";

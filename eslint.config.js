@@ -91,6 +91,49 @@ export default [
     },
   },
   {
+    files: ["packages/server/src/**/*.ts"],
+    ignores: [
+      "packages/server/src/persistence/**",
+      "packages/server/src/**/*.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["./*", "../*"],
+              message: "Use absolute imports via @herbert/*.",
+            },
+            {
+              group: ["@herbert/server/persistence/defaultDocumentStore"],
+              message:
+                "Use a named operation from @herbert/server/persistence/operations/<domain> instead of constructing the default DocumentStore directly.",
+            },
+            {
+              group: [
+                "@herbert/server/persistence/SqliteDocumentStore",
+                "@herbert/server/persistence/createSqliteSqlClient",
+                "@herbert/server/persistence/querySql",
+              ],
+              message:
+                "Raw SQL clients and the SqliteDocumentStore live behind named operations. Import from @herbert/server/persistence/operations/<domain> instead.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.type='MemberExpression'][callee.object.name='store'][callee.property.name=/^(read|write)$/]",
+          message:
+            "Persistence reads/writes must go through a named operation under @herbert/server/persistence/operations/<domain>, not direct store.read/store.write.",
+        },
+      ],
+    },
+  },
+  {
     files: ["scripts/**/*.ts"],
     rules: {
       "no-restricted-imports": "off",

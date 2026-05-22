@@ -1,7 +1,7 @@
 import { playAudioFile } from "@herbert/server/audio/playAudioFile";
 import { synthesizeSpeech } from "@herbert/server/openai/synthesizeSpeech";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { recordRobotTaskResponse } from "@herbert/server/robotTasks/robotTaskStore";
+import { recordRobotTaskResponse } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
   sendTelegramMessage,
   type SendTelegramMessageParams,

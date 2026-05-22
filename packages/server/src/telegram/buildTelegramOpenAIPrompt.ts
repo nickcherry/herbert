@@ -1,5 +1,4 @@
-import type { TelegramHistoryMessage } from "@herbert/server/telegram/telegramMessageHistory";
-import type { RobotTaskAction } from "@herbert/shared";
+import type { RobotTaskAction, TelegramHistoryMessage } from "@herbert/shared";
 
 export type TelegramPromptTurnTrigger =
   | "telegram_messages"

@@ -1,5 +1,5 @@
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { recordRobotTaskResponse } from "@herbert/server/robotTasks/robotTaskStore";
+import { recordRobotTaskResponse } from "@herbert/server/persistence/operations/robotTaskQueue";
 import { createServerFetch } from "@herbert/server/server/createServerFetch";
 import { robotTaskActionBatchPollResponseSchema } from "@herbert/shared";
 import { describe, expect, test } from "bun:test";
