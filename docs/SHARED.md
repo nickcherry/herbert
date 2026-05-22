@@ -21,6 +21,9 @@ The package currently exports:
 - `robotCommandSchema`
 - `bridgeResponseSchema`
 - `robotPhotoUploadResponseSchema`
+- `robotTaskActionSchema`
+- `robotTaskActionBatchSchema`
+- robot action batch HTTP response schemas
 - `speechTextSchema`
 - `speechLanguageSchema`
 - command limit constants

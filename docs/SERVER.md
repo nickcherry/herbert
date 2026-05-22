@@ -38,11 +38,16 @@ discover the chat id after sending a message to the bot. This command only needs
 `telegram:test` sends one message to the first chat id in
 `TELEGRAM_ADMIN_CHAT_IDS`.
 
-`telegram:monitor` long-polls Telegram, ignores non-admin chats, logs
-authorized text messages, sends each authorized text message plus recent context
-to OpenAI, and replies with the structured OpenAI response's `message`. Planned
-robot `actions` are parsed and logged, but they are not executed yet because the
-server-to-robot command transport is not implemented.
+`telegram:monitor` long-polls Telegram, ignores non-admin chats, groups
+authorized text messages by chat, sends them plus recent context and active task
+state to OpenAI, sends any returned `telegramMessage`, and queues returned robot
+actions for Herbert's robot worker.
+
+`GET /robot/action-batches/next` lets Herbert claim the next queued action
+batch. `POST /robot/action-batches/complete` accepts `batchId`, `taskId`, and an
+`image` attachment from the robot after it executes a batch. The server stores
+the image under `data/robot-observations`, sends the photo to Telegram, and
+sends the turn observation back to OpenAI to decide whether to continue.
 
 When `server:start` exits from `SIGINT` or `SIGTERM`, it aborts Telegram polling
 and then stops the HTTP server.

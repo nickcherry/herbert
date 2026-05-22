@@ -1,130 +1,39 @@
+import { robotTaskActionLimits, robotTaskActionSchema } from "@herbert/shared";
 import { z } from "zod";
 
-export const telegramOpenAIActionLimits = {
-  maxActions: 5,
-  speed: {
-    min: 1,
-    max: 50,
-  },
-  durationMs: {
-    min: 100,
-    max: 1_000,
-  },
-  steeringAngle: {
-    min: -30,
-    max: 30,
-  },
-  cameraDelta: {
-    min: -10,
-    max: 10,
-  },
-} as const;
+export const telegramOpenAIActionLimits = robotTaskActionLimits;
 
 export const telegramReplyTextSchema = z.string().trim().min(1).max(4_096);
+export const spokenTextSchema = z.string().trim().min(1).max(300);
+export const taskStateSchema = z.string().trim().min(1).max(2_000);
 
-const driveDirectionSchema = z.enum(["forward", "backward"]);
-
-const driveActionSchema = z.object({
-  type: z.enum(["drive"]),
-  direction: driveDirectionSchema,
-  speed: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.speed.min)
-    .max(telegramOpenAIActionLimits.speed.max),
-  durationMs: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.durationMs.min)
-    .max(telegramOpenAIActionLimits.durationMs.max),
-});
-
-const driveArcActionSchema = z.object({
-  type: z.enum(["drive_arc"]),
-  direction: driveDirectionSchema,
-  angle: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.steeringAngle.min)
-    .max(telegramOpenAIActionLimits.steeringAngle.max),
-  speed: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.speed.min)
-    .max(telegramOpenAIActionLimits.speed.max),
-  durationMs: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.durationMs.min)
-    .max(telegramOpenAIActionLimits.durationMs.max),
-});
-
-const setSteeringActionSchema = z.object({
-  type: z.enum(["set_steering"]),
-  angle: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.steeringAngle.min)
-    .max(telegramOpenAIActionLimits.steeringAngle.max),
-});
-
-const lookActionSchema = z.object({
-  type: z.enum(["look"]),
-  panDelta: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.cameraDelta.min)
-    .max(telegramOpenAIActionLimits.cameraDelta.max),
-  tiltDelta: z
-    .number()
-    .int()
-    .min(telegramOpenAIActionLimits.cameraDelta.min)
-    .max(telegramOpenAIActionLimits.cameraDelta.max),
-});
-
-const takePhotoActionSchema = z.object({
-  type: z.enum(["take_photo"]),
-});
-
-const stopActionSchema = z.object({
-  type: z.enum(["stop"]),
-});
-
-/**
- * OpenAI Structured Outputs supports nested `anyOf`; z.union emits `anyOf`,
- * while z.discriminatedUnion currently emits `oneOf`.
- */
-export const telegramOpenAIActionSchema = z.union([
-  driveActionSchema,
-  driveArcActionSchema,
-  setSteeringActionSchema,
-  lookActionSchema,
-  takePhotoActionSchema,
-  stopActionSchema,
-]);
-
-export const executableTelegramOpenAIActionSchema = z.union([
-  driveActionSchema,
-  driveArcActionSchema,
-  setSteeringActionSchema,
-  lookActionSchema,
-  takePhotoActionSchema,
-  stopActionSchema,
-]);
+const nullableTelegramMessageSchema = z.union([z.string().trim(), z.null()]);
+const nullableSpokenMessageSchema = z.union([z.string().trim(), z.null()]);
 
 export const telegramOpenAIResponseSchema = z.object({
-  message: z.string().trim(),
+  telegramMessage: nullableTelegramMessageSchema,
+  spokenMessage: nullableSpokenMessageSchema,
+  taskState: z.string().trim(),
+  isFinished: z.boolean(),
   actions: z
-    .array(telegramOpenAIActionSchema)
+    .array(robotTaskActionSchema)
     .max(telegramOpenAIActionLimits.maxActions),
 });
 
-export const executableTelegramOpenAIResponseSchema = z.object({
-  message: telegramReplyTextSchema,
-  actions: z
-    .array(executableTelegramOpenAIActionSchema)
-    .max(telegramOpenAIActionLimits.maxActions),
-});
+export const executableTelegramOpenAIResponseSchema = z
+  .object({
+    telegramMessage: telegramReplyTextSchema.nullable(),
+    spokenMessage: spokenTextSchema.nullable(),
+    taskState: taskStateSchema,
+    isFinished: z.boolean(),
+    actions: z
+      .array(robotTaskActionSchema)
+      .max(telegramOpenAIActionLimits.maxActions),
+  })
+  .refine(
+    (response) => !response.isFinished || response.actions.length === 0,
+    "isFinished responses must not include more robot actions.",
+  );
 
 export type TelegramOpenAIResponse = z.infer<
   typeof executableTelegramOpenAIResponseSchema

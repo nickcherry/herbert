@@ -65,6 +65,7 @@ describe("startTelegramPolling", () => {
           messageId: index,
           date: 1_800_000_000 + index,
           text: `prior ${index}`,
+          sender: "Nick",
         },
       });
     }
@@ -93,6 +94,7 @@ describe("startTelegramPolling", () => {
                 chat: {
                   id: 123,
                   type: "private",
+                  first_name: "Nick",
                 },
                 text: "drive forward a little",
               },
@@ -105,6 +107,7 @@ describe("startTelegramPolling", () => {
                 chat: {
                   id: 123,
                   type: "private",
+                  first_name: "Nick",
                 },
                 text: "then take a photo",
               },
@@ -117,6 +120,7 @@ describe("startTelegramPolling", () => {
                 chat: {
                   id: 123,
                   type: "private",
+                  first_name: "Nick",
                 },
                 text: "thanks",
               },
@@ -128,7 +132,10 @@ describe("startTelegramPolling", () => {
         openAIRequests.push(options);
 
         return {
-          message: "Driving forward and taking a photo.",
+          telegramMessage: "Driving forward and taking a photo.",
+          spokenMessage: null,
+          taskState: "Driving forward, then taking a photo.",
+          isFinished: false,
           actions: [],
         };
       },
@@ -150,16 +157,19 @@ describe("startTelegramPolling", () => {
         messageId: 11,
         date: 1_800_000_011,
         text: "drive forward a little",
+        sender: "Nick",
       },
       {
         messageId: 12,
         date: 1_800_000_012,
         text: "then take a photo",
+        sender: "Nick",
       },
       {
         messageId: 13,
         date: 1_800_000_013,
         text: "thanks",
+        sender: "Nick",
       },
     ]);
     expect(sentMessages).toHaveLength(1);
@@ -181,6 +191,7 @@ describe("startTelegramPolling", () => {
               [12, "then take a photo"],
               [13, "thanks"],
             ]).get(messageId) ?? `prior ${messageId}`,
+          sender: "Nick",
         };
       }),
     );

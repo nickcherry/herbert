@@ -5,7 +5,9 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./commands": "./src/commands.ts"
+    "./commands": "./src/commands.ts",
+    "./robotTasks": "./src/robotTasks.ts",
+    "./serverApi": "./src/serverApi.ts"
   },
   "scripts": {
     "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",

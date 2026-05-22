@@ -6,6 +6,7 @@
   "exports": {
     "./env": "./src/constants/env.ts",
     "./openai": "./src/openai/index.ts",
+    "./robotTasks": "./src/robotTasks/robotTaskStore.ts",
     "./server": "./src/server/index.ts",
     "./telegram": "./src/telegram/index.ts"
   },

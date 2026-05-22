@@ -18,6 +18,7 @@ describe("telegramMessageHistory", () => {
           messageId: index,
           date: 1_800_000_000 + index,
           text: `message ${index}`,
+          sender: "unknown",
         },
       });
     }
@@ -30,6 +31,7 @@ describe("telegramMessageHistory", () => {
           messageId,
           date: 1_800_000_000 + messageId,
           text: `message ${messageId}`,
+          sender: "unknown",
         };
       }),
     );
@@ -45,6 +47,7 @@ describe("telegramMessageHistory", () => {
         messageId: 1,
         date: 1_800_000_000,
         text: "one",
+        sender: "unknown",
       },
     });
     await appendTelegramMessageHistory({
@@ -54,6 +57,7 @@ describe("telegramMessageHistory", () => {
         messageId: 2,
         date: 1_800_000_001,
         text: "two",
+        sender: "unknown",
       },
     });
 
@@ -62,6 +66,7 @@ describe("telegramMessageHistory", () => {
         messageId: 1,
         date: 1_800_000_000,
         text: "one",
+        sender: "unknown",
       },
     ]);
     expect(await readTelegramMessageHistory({ chatId: "456", store })).toEqual([
@@ -69,6 +74,7 @@ describe("telegramMessageHistory", () => {
         messageId: 2,
         date: 1_800_000_001,
         text: "two",
+        sender: "unknown",
       },
     ]);
   });
@@ -84,6 +90,7 @@ describe("telegramMessageHistory", () => {
           messageId: index,
           date: 1_800_000_000 + index,
           text: `message ${index}`,
+          sender: "unknown",
         },
       });
     }
@@ -95,6 +102,7 @@ describe("telegramMessageHistory", () => {
         messageId,
         date: 1_800_000_000 + messageId,
         text: `message ${messageId}`,
+        sender: "unknown",
       })),
     });
 
@@ -106,6 +114,7 @@ describe("telegramMessageHistory", () => {
           messageId,
           date: 1_800_000_000 + messageId,
           text: `message ${messageId}`,
+          sender: "unknown",
         };
       }),
     );

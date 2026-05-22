@@ -11,6 +11,7 @@ bun herbert robot:camera-check --mock
 bun herbert robot:say --mock "hello from Herbert"
 bun herbert robot:keyboard --mock
 bun herbert robot:keyboard
+bun herbert robot:worker
 ```
 
 Use `--mock` anywhere without the PiCar-X SDK. Run without `--mock` on
@@ -59,6 +60,30 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 - `--server-url` sets the Herbert server used for photo upload. The current
   default points at Nick's laptop: `http://Nicks-MacBook-Pro.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
+- `--poll-ms` controls how often `robot:worker` checks for queued server
+  actions.
+- `--once` makes `robot:worker` poll once, execute at most one batch, and exit.
+
+## Server Action Worker
+
+```sh
+bun herbert robot:worker
+```
+
+`robot:worker` is the polling process for server-directed robot work. It asks
+the Herbert server for the next queued action batch, executes each action in
+series, captures an end-of-turn photo, and reports completion back to the server.
+If the batch already included `take_photo`, that photo is reused as the
+completion photo.
+
+Supported queued actions are:
+
+- `drive`
+- `drive_arc`
+- `set_steering`
+- `look`
+- `take_photo`
+- `stop`
 
 ## Photos
 

@@ -8,6 +8,7 @@ export const telegramHistoryMessageSchema = z.object({
   messageId: z.number().int(),
   date: z.number().int().nonnegative(),
   text: z.string(),
+  sender: z.string().min(1).default("unknown"),
 });
 
 export const telegramMessageHistorySchema = z.object({
@@ -93,7 +94,32 @@ export function telegramHistoryMessageFromTelegram({
     messageId: message.message_id,
     date: message.date,
     text,
+    sender: senderNameFromTelegramMessage({ message }),
   });
+}
+
+function senderNameFromTelegramMessage({
+  message,
+}: {
+  readonly message: TelegramMessage;
+}): string {
+  const from = message.from;
+  const candidates = [
+    from?.first_name,
+    from?.username,
+    message.chat.first_name,
+    message.chat.username,
+    message.chat.title,
+    String(message.chat.id),
+  ];
+
+  return (
+    candidates.find((candidate) => hasText(candidate))?.trim() ?? "unknown"
+  );
+}
+
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && value.trim().length > 0;
 }
 
 function telegramMessageHistoryDocument({

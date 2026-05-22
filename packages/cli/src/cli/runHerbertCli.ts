@@ -3,6 +3,7 @@ import { herbertPythonPath } from "@herbert/robot/constants/env";
 import { robotServerConfig } from "@herbert/robot/constants/server";
 import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
 import { HerbertController } from "@herbert/robot/robot/HerbertController";
+import { runRobotTaskWorker } from "@herbert/robot/tasks/runRobotTaskWorker";
 import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
@@ -39,6 +40,11 @@ interface RobotFlags {
 interface RobotSayFlags extends RobotFlags {
   readonly text: string;
   readonly lang: string;
+}
+
+interface RobotWorkerFlags extends RobotFlags {
+  readonly pollIntervalMs: number;
+  readonly once: boolean;
 }
 
 interface TelegramFlags {
@@ -123,6 +129,11 @@ export async function runHerbertCli({
       await robot.close();
     }
 
+    return;
+  }
+
+  if (command === "robot:worker" || command === "worker") {
+    await runRobotTaskWorker(parseRobotWorkerFlags({ argv: rest }));
     return;
   }
 
@@ -223,6 +234,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:say")} <text> [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:worker")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("server:start")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:updates")} [options]`,
@@ -238,6 +250,8 @@ export function renderUsage(): string {
     `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
     `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: ${robotServerConfig.baseUrl})`,
     `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
+    `  ${pc.cyan("--poll-ms <ms>")}          robot worker poll interval (default: 2000)`,
+    `  ${pc.cyan("--once")}                  robot worker polls or Telegram monitor runs one cycle`,
     "",
     pc.bold("Speech options"),
     `  ${pc.cyan("--text <text>")}           text for robot:say`,
@@ -411,6 +425,50 @@ function parseRobotSayFlags({
   }
 
   return robotSayFlagsSchema.parse(raw);
+}
+
+function parseRobotWorkerFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): RobotWorkerFlags {
+  const raw: Record<string, string | boolean | number | undefined> = {
+    ...defaultRobotFlags(),
+    pollIntervalMs: 2_000,
+    once: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    const nextIndex = readRobotOption({ argv, index, raw });
+    if (nextIndex !== undefined) {
+      index = nextIndex;
+      continue;
+    }
+
+    if (token === "--poll-ms") {
+      raw.pollIntervalMs = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--once") {
+      raw.once = true;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown robot:worker option: ${token}`);
+  }
+
+  return robotWorkerFlagsSchema.parse(raw);
 }
 
 function defaultRobotFlags(): Record<string, string | boolean | number> {
@@ -715,6 +773,11 @@ const robotFlagsSchema = z.object({
 const robotSayFlagsSchema = robotFlagsSchema.extend({
   text: speechTextSchema,
   lang: speechLanguageSchema,
+});
+
+const robotWorkerFlagsSchema = robotFlagsSchema.extend({
+  pollIntervalMs: z.number().int().min(250).max(60_000),
+  once: z.boolean(),
 });
 
 const serverFlagsSchema = z.object({

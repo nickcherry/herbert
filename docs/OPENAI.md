@@ -52,7 +52,10 @@ Telegram admin messages use Structured Outputs with this root shape:
 
 ```ts
 {
-  message: string;
+  telegramMessage: string | null;
+  spokenMessage: string | null;
+  taskState: string;
+  isFinished: boolean;
   actions: Action[];
 }
 ```
@@ -63,6 +66,7 @@ all newly received messages from the current Telegram polling response:
 ```xml
 <user_messages>
   <message>
+    <sender>Nick</sender>
     <text>drive forward</text>
     <timestamp>2026-05-21 17:39:56</timestamp>
     <is_new>1</is_new>
@@ -71,6 +75,8 @@ all newly received messages from the current Telegram polling response:
 ```
 
 Messages with `is_new=1` are the unseen messages the response should handle.
+Robot turn observations are also included in the prompt; the latest completion
+photo is attached as an image input.
 
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
@@ -79,8 +85,9 @@ which is supported by Structured Outputs. Do not replace it with
 current SDK emits `oneOf` for discriminated unions.
 
 The OpenAI schema only includes constraints supported by Structured Outputs.
-Telegram reply length is validated after parsing before the response is used.
-Robot speech is intentionally not part of the Telegram action contract.
+Telegram reply length, spoken message length, task state length, and
+`isFinished`/actions consistency are validated after parsing before the response
+is used.
 
 Movement action parameters are bounded more narrowly than the low-level robot
 bridge:

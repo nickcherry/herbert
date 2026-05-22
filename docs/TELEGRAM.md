@@ -80,20 +80,31 @@ previously handled messages from that chat. OpenAI must return:
 
 ```ts
 {
-  message: string;
+  telegramMessage: string | null;
+  spokenMessage: string | null;
+  taskState: string;
+  isFinished: boolean;
   actions: Action[];
 }
 ```
 
-`message` is sent back to Telegram as plain text. `actions` are parsed and
-logged, but they are not executed yet because the server-to-robot command
-transport is not implemented.
+`telegramMessage` is sent back to Telegram when present. `spokenMessage` is
+logged for the future physical voice path. `taskState` is persisted so
+multi-turn robot work keeps track of the original goal, what Herbert knows so
+far, and what he is trying next. `isFinished` closes the active task for that
+chat and must be paired with an empty action list.
+
+When actions are returned, the server queues them as a robot action batch in
+SQLite. Herbert's robot process polls the queue, executes the batch, captures an
+end-of-turn photo, and reports completion back to the server. That photo and the
+completed actions are included in the next OpenAI request.
 
 User message context is formatted as XML:
 
 ```xml
 <user_messages>
   <message>
+    <sender>Nick</sender>
     <text>hi</text>
     <timestamp>2026-05-21 17:39:56</timestamp>
     <is_new>1</is_new>
@@ -103,6 +114,9 @@ User message context is formatted as XML:
 
 Messages are oldest first. Prior context has `is_new` set to `0`; messages from
 the current polling response have `is_new` set to `1`.
+
+Robot turn observations are also formatted as XML in the prompt. The actual
+photo is attached to the OpenAI request as an image input.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
@@ -146,5 +160,5 @@ key: <admin chat id>
 ```
 
 Each document stores the most recent 10 authorized text messages for that chat
-id. The current message is excluded when reading history for an OpenAI request
-and appended after the OpenAI response is produced.
+id. Newly received messages are excluded when reading prior history for an
+OpenAI request and appended after the OpenAI response is produced.

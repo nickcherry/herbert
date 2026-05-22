@@ -9,5 +9,6 @@ build
 coverage
 data/*.sqlite
 data/*.sqlite-*
+data/robot-observations
 tmp
 runtime

@@ -9,7 +9,10 @@ describe("telegramOpenAIResponseSchema", () => {
   test("accepts bounded movement actions", () => {
     expect(
       executableTelegramOpenAIResponseSchema.parse({
-        message: "Driving forward.",
+        telegramMessage: "Driving forward.",
+        spokenMessage: "Careful little scoot.",
+        taskState: "Moving forward to improve Herbert's view.",
+        isFinished: false,
         actions: [
           {
             type: "drive",
@@ -31,7 +34,10 @@ describe("telegramOpenAIResponseSchema", () => {
         ],
       }),
     ).toEqual({
-      message: "Driving forward.",
+      telegramMessage: "Driving forward.",
+      spokenMessage: "Careful little scoot.",
+      taskState: "Moving forward to improve Herbert's view.",
+      isFinished: false,
       actions: [
         {
           type: "drive",
@@ -57,7 +63,10 @@ describe("telegramOpenAIResponseSchema", () => {
   test("rejects robot parameters outside the OpenAI action limits", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
-        message: "Too fast.",
+        telegramMessage: "Too fast.",
+        spokenMessage: null,
+        taskState: "Testing invalid speed.",
+        isFinished: false,
         actions: [
           {
             type: "drive",
@@ -71,7 +80,10 @@ describe("telegramOpenAIResponseSchema", () => {
 
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
-        message: "Too much steering.",
+        telegramMessage: "Too much steering.",
+        spokenMessage: null,
+        taskState: "Testing invalid steering.",
+        isFinished: false,
         actions: [
           {
             type: "set_steering",
@@ -85,8 +97,27 @@ describe("telegramOpenAIResponseSchema", () => {
   test("post-validates Telegram reply text limits", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
-        message: "",
+        telegramMessage: "",
+        spokenMessage: null,
+        taskState: "Testing empty Telegram message.",
+        isFinished: true,
         actions: [],
+      }),
+    ).toThrow();
+  });
+
+  test("rejects finished responses with more actions", () => {
+    expect(() =>
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "The task is finished.",
+        isFinished: true,
+        actions: [
+          {
+            type: "take_photo",
+          },
+        ],
       }),
     ).toThrow();
   });
@@ -94,7 +125,10 @@ describe("telegramOpenAIResponseSchema", () => {
   test("rejects speech actions from Telegram", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({
-        message: "Speech is not a Telegram action.",
+        telegramMessage: "Speech is not a Telegram action.",
+        spokenMessage: null,
+        taskState: "Testing invalid speech action.",
+        isFinished: false,
         actions: [
           {
             type: "say",

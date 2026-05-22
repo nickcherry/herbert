@@ -1,4 +1,7 @@
+import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import { recordRobotTaskResponse } from "@herbert/server/robotTasks/robotTaskStore";
 import { createServerFetch } from "@herbert/server/server/createServerFetch";
+import { robotTaskActionBatchPollResponseSchema } from "@herbert/shared";
 import { describe, expect, test } from "bun:test";
 
 describe("createServerFetch", () => {
@@ -105,6 +108,80 @@ describe("createServerFetch", () => {
       message: "Expected multipart field `image` containing a file.",
     });
   });
+
+  test("polls and completes queued robot action batches", async () => {
+    const store = createMemoryDocumentStore();
+    await recordRobotTaskResponse({
+      chatId: "101",
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const sentPhotos: string[] = [];
+    const sentMessages: string[] = [];
+    const fetch = createServerFetch({
+      telegramBotToken: "token",
+      store,
+      async sendTelegramPhoto({ chatId }) {
+        sentPhotos.push(chatId);
+        return { messageId: 201 };
+      },
+      async sendTelegramMessage({ text }) {
+        sentMessages.push(text);
+        return { messageId: 202 };
+      },
+      async respondToTelegramMessage() {
+        return {
+          telegramMessage: "I have the photo now.",
+          spokenMessage: null,
+          taskState: "Initial photo captured.",
+          isFinished: true,
+          actions: [],
+        };
+      },
+    });
+
+    const pollResponse = await fetch(
+      new Request("http://localhost/robot/action-batches/next"),
+    );
+    const pollPayload = robotTaskActionBatchPollResponseSchema.parse(
+      await pollResponse.json(),
+    );
+
+    expect(pollResponse.status).toBe(200);
+    expect(pollPayload.batch?.actions).toEqual([{ type: "take_photo" }]);
+
+    const body = new FormData();
+    const batch = expectDefined(pollPayload.batch);
+    body.set("batchId", batch.id);
+    body.set("taskId", batch.taskId);
+    body.append(
+      "image",
+      new File(["image-bytes"], "observation.jpg"),
+      "observation.jpg",
+    );
+
+    const completeResponse = await fetch(
+      new Request("http://localhost/robot/action-batches/complete", {
+        method: "POST",
+        body,
+      }),
+    );
+
+    expect(completeResponse.status).toBe(200);
+    await expectJson(completeResponse, {
+      ok: true,
+      accepted: true,
+    });
+    expect(sentPhotos).toEqual(["101"]);
+    expect(sentMessages).toEqual(["I have the photo now."]);
+  });
 });
 
 async function expectJson(
@@ -112,4 +189,24 @@ async function expectJson(
   expected: unknown,
 ): Promise<void> {
   expect(await response.json()).toEqual(expected);
+}
+
+function createMemoryDocumentStore(): DocumentStore {
+  const documents = new Map<string, unknown>();
+
+  return {
+    async read({ collection, key, schema }) {
+      const value = documents.get(`${collection}:${key}`);
+      return value === undefined ? undefined : schema.parse(value);
+    },
+    async write({ collection, key, schema, value }) {
+      documents.set(`${collection}:${key}`, schema.parse(value));
+    },
+  } satisfies DocumentStore;
+}
+
+function expectDefined<T>(value: T | null | undefined): T {
+  expect(value).toBeDefined();
+  expect(value).not.toBeNull();
+  return value as T;
 }

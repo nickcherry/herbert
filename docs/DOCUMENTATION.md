@@ -20,7 +20,7 @@ Update docs when changing:
 - Python SDK usage
 - motor or camera angle limits
 - safety timeout behavior
-- future polling or WebSocket command contracts
+- polling or WebSocket command contracts
 - Telegram admin command contracts
 - server-to-robot command broker behavior
 - OpenAI prompt contracts, schemas, model defaults, or image input handling

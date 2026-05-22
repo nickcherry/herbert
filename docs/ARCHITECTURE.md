@@ -50,10 +50,11 @@ bun herbert robot:keyboard
   -> packages/robot/python/herbert_bridge.py
 ```
 
-The future phone path should replace only the command source:
+The server-directed robot path replaces only the command source:
 
 ```text
-poll/WebSocket command source
+server action batch
+  -> packages/robot/src/tasks/runRobotTaskWorker.ts
   -> HerbertController
   -> PythonBridgeClient
   -> herbert_bridge.py
@@ -68,15 +69,19 @@ keyboard photo command
   -> packages/server Telegram sendPhoto
 ```
 
-The future administered path should add the server as the coordinator:
+The administered path uses the server as the coordinator:
 
 ```text
 Telegram admin message
   -> packages/server Telegram polling
-  -> authenticated command queue or socket
-  -> packages/robot process on Herbert
+  -> OpenAI structured response
+  -> SQLite robot task queue
+  -> packages/robot worker polls GET /robot/action-batches/next
   -> PythonBridgeClient
   -> herbert_bridge.py
+  -> end-of-turn photo
+  -> POST /robot/action-batches/complete
+  -> OpenAI follow-up turn
 ```
 
 ## CLI

@@ -11,6 +11,7 @@ The database path is normal config, not an environment variable:
 ```ts
 export const persistenceConfig = {
   sqlitePath: "data/herbert.sqlite",
+  observationImageDirectory: "data/robot-observations",
 } as const;
 ```
 
@@ -72,6 +73,23 @@ key: <admin chat id>
 Each document stores only the most recent 10 authorized text messages for that
 chat id. This keeps prompt context bounded and preserves useful continuity
 across server restarts.
+
+## Robot Task Queue
+
+Server-directed robot work is stored in SQLite through the document store:
+
+```text
+collection: robot_task_queue
+key: default
+```
+
+The queue document stores active/finished task sessions plus queued, claimed,
+and completed action batches. A task session carries `taskState` and recent
+robot observations so subsequent OpenAI turns know the original request and what
+has happened since.
+
+Robot completion photos are binary files, not SQLite documents. They are written
+under `data/robot-observations` and ignored by git.
 
 Sources:
 

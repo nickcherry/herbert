@@ -1,6 +1,8 @@
 import { env } from "@herbert/server/constants/env";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
+import { readRobotTaskContext } from "@herbert/server/robotTasks/robotTaskStore";
 import { authorizeTelegramMessage } from "@herbert/server/telegram/authorizeTelegramMessage";
 import { extractTelegramMessages } from "@herbert/server/telegram/extractTelegramMessages";
 import {
@@ -152,6 +154,10 @@ export function startTelegramPolling({
         }
 
         for (const [chatId, newMessages] of newMessagesByChatId) {
+          const taskContext = await readRobotTaskContext({
+            chatId,
+            store,
+          });
           const recentMessages = await readTelegramMessageHistory({
             chatId,
             store,
@@ -159,14 +165,18 @@ export function startTelegramPolling({
           const response = await respondToMessage({
             recentMessages,
             newMessages,
+            taskState: taskContext.session?.taskState,
+            observations: taskContext.session?.observations,
           });
 
           logTelegramOpenAIResponse({ response });
 
-          await sendMessage({
+          await handleRobotTaskResponse({
             botToken,
             chatId,
-            text: response.message,
+            response,
+            store,
+            sendMessage,
           });
           await appendTelegramMessageHistoryBatch({
             chatId,

@@ -3,6 +3,7 @@ import {
   bridgeResponseSchema,
   robotCommandPayloadSchema,
   robotCommandSchema,
+  robotTaskActionBatchSchema,
 } from "@herbert/shared";
 import { describe, expect, test } from "bun:test";
 
@@ -91,6 +92,44 @@ describe("robot command schemas", () => {
       protocolVersion: bridgeProtocolVersion,
       implementation: "mock",
       mock: true,
+    });
+  });
+
+  test("accept queued robot action batches", () => {
+    expect(
+      robotTaskActionBatchSchema.parse({
+        id: "batch-1",
+        taskId: "task-1",
+        actions: [
+          {
+            type: "drive",
+            direction: "forward",
+            speed: 25,
+            durationMs: 250,
+          },
+          {
+            type: "look",
+            panDelta: 5,
+            tiltDelta: 0,
+          },
+        ],
+      }),
+    ).toEqual({
+      id: "batch-1",
+      taskId: "task-1",
+      actions: [
+        {
+          type: "drive",
+          direction: "forward",
+          speed: 25,
+          durationMs: 250,
+        },
+        {
+          type: "look",
+          panDelta: 5,
+          tiltDelta: 0,
+        },
+      ],
     });
   });
 });
