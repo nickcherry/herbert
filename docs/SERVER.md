@@ -73,8 +73,10 @@ in typed constants.
   file at `data/herbert.sqlite`.
 - Telegram polling defaults (including the context message age cutoff
   `openAIContextMessageMaxAgeMs`) live in `telegramConfig`.
-- OpenAI defaults (prompt model, TTS model, voice, commentary photo cap) live
-  in `openaiConfig`. Every OpenAI call routes through `gpt-5.5` by default.
+- OpenAI defaults (prompt model, TTS model, TTS voice and instructions,
+  commentary photo cap) live in `openaiConfig`. Text generation routes through
+  `gpt-5.5` by default, and speech generation routes through the configured TTS
+  model.
 
 ## Boundary
 

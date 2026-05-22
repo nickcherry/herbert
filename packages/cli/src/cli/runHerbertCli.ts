@@ -4,9 +4,12 @@ import { robotServerConfig } from "@herbert/robot/constants/server";
 import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
 import { HerbertController } from "@herbert/robot/robot/HerbertController";
 import { runRobotTaskWorker } from "@herbert/robot/tasks/runRobotTaskWorker";
+import { playAudioFile } from "@herbert/server/audio/playAudioFile";
 import { env } from "@herbert/server/constants/env";
+import { openaiConfig } from "@herbert/server/constants/openai";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
+import { synthesizeSpeech } from "@herbert/server/openai/synthesizeSpeech";
 import { startHerbertServer } from "@herbert/server/server/startHerbertServer";
 import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates";
 import { runTelegramMonitor } from "@herbert/server/telegram/runTelegramMonitor";
@@ -52,6 +55,17 @@ interface TelegramFlags {
   readonly timeoutSeconds: number;
   readonly limit: number;
   readonly once: boolean;
+}
+
+interface AudioTestFlags {
+  readonly text: string;
+  readonly model: string;
+  readonly voice: string;
+  readonly instructions?: string;
+  readonly format: SpeechAudioFormat;
+  readonly outputPath?: string;
+  readonly player?: string;
+  readonly playback: boolean;
 }
 
 interface ServerFlags {
@@ -224,6 +238,56 @@ export async function runHerbertCli({
     return;
   }
 
+  if (command === "audio:test" || command === "speech:test") {
+    const flags = parseAudioTestFlags({ argv: rest });
+    requireOpenAIApiKey();
+
+    const speech = await synthesizeSpeech({
+      text: flags.text,
+      model: flags.model,
+      voice: flags.voice,
+      ...(flags.instructions === undefined
+        ? {}
+        : { instructions: flags.instructions }),
+      format: flags.format,
+      ...(flags.outputPath === undefined
+        ? {}
+        : { outputPath: flags.outputPath }),
+    });
+
+    process.stdout.write(
+      `${pc.green(pc.bold("generated"))} ${formatKeyValue({
+        key: "path",
+        value: speech.path,
+      })} ${formatKeyValue({
+        key: "model",
+        value: flags.model,
+      })} ${formatKeyValue({
+        key: "voice",
+        value: flags.voice,
+      })} ${formatKeyValue({
+        key: "instructions",
+        value: flags.instructions === undefined ? "off" : "on",
+      })} ${formatKeyValue({
+        key: "format",
+        value: speech.format,
+      })}\n`,
+    );
+
+    if (!flags.playback) {
+      return;
+    }
+
+    if (flags.player === undefined) {
+      await playAudioFile({ path: speech.path });
+    } else {
+      await playAudioFile({ path: speech.path, player: flags.player });
+    }
+
+    process.stdout.write(`${pc.green(pc.bold("played"))} ${speech.path}\n`);
+    return;
+  }
+
   throw new CliUsageError(`Unknown command: ${command}`);
 }
 
@@ -239,6 +303,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:updates")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:monitor")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("audio:test")} <text> [options]`,
     "",
     pc.bold("Robot options"),
     `  ${pc.cyan("--mock")}                  use the mock Python bridge`,
@@ -267,6 +332,17 @@ export function renderUsage(): string {
     `  ${pc.cyan("--timeout-seconds <n>")}   Telegram getUpdates timeout (default: telegramConfig)`,
     `  ${pc.cyan("--limit <n>")}             update batch limit (default: telegramConfig)`,
     `  ${pc.cyan("--once")}                  poll one batch and exit`,
+    "",
+    pc.bold("OpenAI audio options"),
+    `  ${pc.cyan("--text <text>")}           text for audio:test`,
+    `  ${pc.cyan("--voice <voice>")}         OpenAI voice selector (default: ${openaiConfig.defaultSpeechVoice})`,
+    `  ${pc.cyan("--model <model>")}         OpenAI speech model (default: ${openaiConfig.defaultSpeechModel})`,
+    `  ${pc.cyan("--instructions <text>")}   TTS voice direction (default: Herbert personality)`,
+    `  ${pc.cyan("--no-instructions")}       omit TTS voice direction`,
+    `  ${pc.cyan("--format <format>")}       audio format: mp3, wav, opus, aac, flac (default: ${openaiConfig.defaultSpeechFormat})`,
+    `  ${pc.cyan("--output <path>")}         write the generated audio to a specific file`,
+    `  ${pc.cyan("--player <cmd>")}          playback command (default: afplay on macOS, aplay on Linux)`,
+    `  ${pc.cyan("--no-play")}               generate the file without playing it`,
     "",
   ].join("\n");
 }
@@ -657,6 +733,93 @@ function parseTelegramFlags({
   return telegramFlagsSchema.parse(raw);
 }
 
+function parseAudioTestFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): AudioTestFlags {
+  const raw: Record<string, string | boolean | undefined> = {
+    model: openaiConfig.defaultSpeechModel,
+    voice: openaiConfig.defaultSpeechVoice,
+    instructions: openaiConfig.defaultSpeechInstructions,
+    format: openaiConfig.defaultSpeechFormat,
+    playback: true,
+  };
+  const textParts: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    if (token === "--text") {
+      raw.text = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--voice") {
+      raw.voice = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--model") {
+      raw.model = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--instructions") {
+      raw.instructions = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--no-instructions") {
+      raw.instructions = undefined;
+      continue;
+    }
+
+    if (token === "--format") {
+      raw.format = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--output") {
+      raw.outputPath = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--player") {
+      raw.player = readFlagValue({ argv, index, flag: token });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--no-play") {
+      raw.playback = false;
+      continue;
+    }
+
+    if (token.startsWith("--")) {
+      throw new CliUsageError(`Unknown audio:test option: ${token}`);
+    }
+
+    textParts.push(token);
+  }
+
+  if (raw.text === undefined && textParts.length > 0) {
+    raw.text = textParts.join(" ");
+  }
+
+  return audioTestFlagsSchema.parse(raw);
+}
+
 function requireTelegramBotToken(): string {
   const botToken = env.telegramBotToken;
 
@@ -791,4 +954,19 @@ const telegramFlagsSchema = z.object({
   timeoutSeconds: z.number().int().min(1).max(50),
   limit: z.number().int().min(1).max(100),
   once: z.boolean(),
+});
+
+const speechAudioFormats = ["mp3", "wav", "opus", "aac", "flac"] as const;
+
+type SpeechAudioFormat = (typeof speechAudioFormats)[number];
+
+const audioTestFlagsSchema = z.object({
+  text: z.string().trim().min(1).max(4096),
+  model: z.string().trim().min(1),
+  voice: z.string().trim().min(1),
+  instructions: z.string().trim().min(1).max(1_000).optional(),
+  format: z.enum(speechAudioFormats),
+  outputPath: z.string().trim().min(1).optional(),
+  player: z.string().trim().min(1).optional(),
+  playback: z.boolean(),
 });

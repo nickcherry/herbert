@@ -1,8 +1,10 @@
 export const openaiConfig = {
   defaultModel: "gpt-5.5",
   defaultSchemaName: "response",
-  defaultSpeechModel: "gpt-5.5-mini-tts",
-  defaultSpeechVoice: "fable",
+  defaultSpeechModel: "gpt-4o-mini-tts",
+  defaultSpeechVoice: "cedar",
+  defaultSpeechInstructions:
+    "Voice direction for Herbert's spokenMessage: sound like a tiny British chauffeur: an adult British man who is polite, warm, deferential, mildly flustered when confused, and eager to be useful. Be British without becoming a cartoon, courteous without being pompous, and lightly funny without turning every line into a bit. Avoid smugness, arrogance, meanness, overconfidence, theatrical Victorian nonsense, and generic assistant voice.",
   defaultSpeechFormat: "mp3",
   includedCommentaryPhotoLimit: 5,
 } satisfies {
@@ -10,6 +12,7 @@ export const openaiConfig = {
   readonly defaultSchemaName: string;
   readonly defaultSpeechModel: string;
   readonly defaultSpeechVoice: string;
+  readonly defaultSpeechInstructions: string;
   readonly defaultSpeechFormat: "mp3" | "wav" | "opus" | "aac" | "flac";
   readonly includedCommentaryPhotoLimit: number;
 };

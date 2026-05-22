@@ -10,6 +10,7 @@ export interface SynthesizeSpeechOptions {
   readonly text: string;
   readonly model?: string;
   readonly voice?: string;
+  readonly instructions?: string;
   readonly format?: "mp3" | "wav" | "opus" | "aac" | "flac";
   readonly outputPath?: string;
   readonly client?: OpenAI;
@@ -24,6 +25,7 @@ export async function synthesizeSpeech({
   text,
   model = openaiConfig.defaultSpeechModel,
   voice = openaiConfig.defaultSpeechVoice,
+  instructions = openaiConfig.defaultSpeechInstructions,
   format = openaiConfig.defaultSpeechFormat,
   outputPath,
   client = createOpenAIClient(),
@@ -34,16 +36,28 @@ export async function synthesizeSpeech({
   }
 
   const path = outputPath ?? (await defaultSpeechOutputPath({ format }));
+  const trimmedInstructions = instructions.trim();
   const response = await client.audio.speech.create({
     model,
     voice,
     input: trimmed,
     response_format: format,
+    ...(supportsSpeechInstructions({ model }) && trimmedInstructions.length > 0
+      ? { instructions: trimmedInstructions }
+      : {}),
   });
   const bytes = Buffer.from(await response.arrayBuffer());
   await Bun.write(path, bytes);
 
   return { path, format };
+}
+
+function supportsSpeechInstructions({
+  model,
+}: {
+  readonly model: string;
+}): boolean {
+  return model !== "tts-1" && model !== "tts-1-hd";
 }
 
 async function defaultSpeechOutputPath({
