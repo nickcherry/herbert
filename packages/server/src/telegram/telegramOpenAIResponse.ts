@@ -5,7 +5,7 @@ export const telegramOpenAIActionLimits = robotTaskActionLimits;
 
 export const telegramOpenAIResponseLimits = {
   telegramMessage: { min: 1, max: 4_096 },
-  spokenMessage: { min: 1, max: 300 },
+  spokenMessage: { min: 1, max: 800 },
   taskState: { min: 1, max: 2_000 },
 } as const;
 

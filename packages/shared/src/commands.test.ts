@@ -33,6 +33,8 @@ describe("robot command schemas", () => {
   });
 
   test("accept speech commands", () => {
+    const maxLengthSpeech = "x".repeat(800);
+
     expect(
       robotCommandPayloadSchema.parse({
         type: "say",
@@ -43,6 +45,16 @@ describe("robot command schemas", () => {
       type: "say",
       text: "hello from Herbert",
       lang: "en-US",
+    });
+
+    expect(
+      robotCommandPayloadSchema.parse({
+        type: "say",
+        text: maxLengthSpeech,
+      }),
+    ).toEqual({
+      type: "say",
+      text: maxLengthSpeech,
     });
   });
 
@@ -75,6 +87,13 @@ describe("robot command schemas", () => {
       robotCommandPayloadSchema.parse({
         type: "say",
         text: "",
+      }),
+    ).toThrow();
+
+    expect(() =>
+      robotCommandPayloadSchema.parse({
+        type: "say",
+        text: "x".repeat(801),
       }),
     ).toThrow();
   });

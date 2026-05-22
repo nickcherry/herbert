@@ -62,7 +62,7 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
   default points at Nick's laptop: `http://Nicks-MacBook-Pro.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
 - `--poll-ms` controls how often `robot:worker` checks for queued server
-  actions.
+  actions. The default is 2000 ms.
 - `--once` makes `robot:worker` poll once, execute at most one batch, and exit.
 
 ## Server Action Worker
@@ -132,10 +132,10 @@ bun herbert robot:say --lang en-GB "hello from Herbert"
 ```
 
 `robot:say` uses the Robot HAT or SunFounder voice-assistant Pico2Wave TTS
-engine. Keyboard mode also maps `v` to a small speaker test phrase. Herbert
-does not run privileged setup commands from the app. If audio is not configured
-at the OS image level, `robot:say` should fail or be silent rather than asking
-for a root password.
+engine and accepts up to 800 characters. Keyboard mode also maps `v` to a
+small speaker test phrase. Herbert does not run privileged setup commands from
+the app. If audio is not configured at the OS image level, `robot:say` should
+fail or be silent rather than asking for a root password.
 
 ## PiCar-X Startup
 

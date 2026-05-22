@@ -42,7 +42,7 @@ export const photoNameSchema = z
   .min(1)
   .regex(/^[A-Za-z0-9_.-]+$/);
 
-export const speechTextSchema = z.string().trim().min(1).max(300);
+export const speechTextSchema = z.string().trim().min(1).max(800);
 
 export const speechLanguageSchema = z.enum([
   "en-US",

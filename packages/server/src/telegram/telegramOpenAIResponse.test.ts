@@ -106,6 +106,30 @@ describe("telegramOpenAIResponseSchema", () => {
     ).toThrow();
   });
 
+  test("post-validates spoken message limits", () => {
+    const maxLengthSpeech = "x".repeat(800);
+
+    expect(
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: null,
+        spokenMessage: maxLengthSpeech,
+        taskState: "Testing maximum speech.",
+        isFinished: true,
+        actions: [],
+      }).spokenMessage,
+    ).toBe(maxLengthSpeech);
+
+    expect(() =>
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: null,
+        spokenMessage: "x".repeat(801),
+        taskState: "Testing excessive speech.",
+        isFinished: true,
+        actions: [],
+      }),
+    ).toThrow();
+  });
+
   test("rejects finished responses with more actions", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({

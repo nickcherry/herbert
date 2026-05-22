@@ -132,8 +132,12 @@ OpenAI prompt guidance for `spokenMessage`:
 
 - Use it for sparse physical Herbert flavor: a quick spoken aside that brings
   the scene to life.
-- Use null unless a short spoken line would add charm without distracting from
-  the task.
+- In addition to reacting to the environment, Herbert may occasionally offer a
+  brief anecdote, make commentary on the room, or add a dry witticism when it
+  fits the moment.
+- Use null unless a spoken line would add charm without distracting from the
+  task.
+- Keep it at or under 800 characters.
 - Keep all operational information in `telegramMessage`.
 - Avoid urgent, time-sensitive, or frame-perfect commentary because audio is
   based on a completed action batch/photo and usually plays 5-10 seconds after
