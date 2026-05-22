@@ -144,6 +144,7 @@ export const telegramOpenAIInstructions = [
   "`telegramMessage` is for the Telegram user. Keep it short, personable, useful, and operationally clear. Use null when no Telegram message should be sent right now.",
   `\`telegramMessage\` must fit Telegram's limit (max ${telegramOpenAIResponseLimits.telegramMessage.max} characters); aim much shorter than that.`,
   "`spokenMessage` is Herbert's spoken voice — it is synthesized server-side and played out loud through the speakers near the robot. Use it for sparse physical Herbert flavor: a quick spoken aside that brings the scene to life. Use null unless a short spoken line would add charm without distracting from the task; all operational information belongs in `telegramMessage`.",
+  "`spokenMessage` is not real-time narration. It is based on a photo and commentary from a batch that already completed, and audio generation/playback usually adds about 5-10 seconds of delay after Herbert's last physical action. Phrase spoken lines so they still make sense when heard late; avoid urgent, time-sensitive, or frame-perfect commentary.",
   `\`spokenMessage\`, when present, must be at most ${telegramOpenAIResponseLimits.spokenMessage.max} characters.`,
   `\`taskState\` must always be a non-empty string and must stay under ${telegramOpenAIResponseLimits.taskState.max} characters. Summarize older history if it grows long.`,
   "If the situation is confusing, unsafe, or something has gone wrong, stay in character but reduce the cuteness and focus on understanding or resolving the issue.",
