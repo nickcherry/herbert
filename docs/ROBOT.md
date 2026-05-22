@@ -8,6 +8,7 @@
 bun herbert --help
 bun herbert robot:bridge-check --mock
 bun herbert robot:camera-check --mock
+bun herbert robot:photo-check --mock
 bun herbert robot:say --mock "hello from Herbert"
 bun herbert robot:keyboard --mock
 bun herbert robot:keyboard
@@ -76,6 +77,10 @@ executes the actions in order, captures an end-of-turn photo, and reports
 completion back to the server. If the batch already included `take_photo`, that
 photo is reused as the completion photo.
 
+The server-side grouping for one user request is called a task session. Before
+the first action batch it sees for a task session, `robot:worker` tilts the
+camera fully up to the bridge maximum angle.
+
 Supported queued actions are:
 
 - `drive`: center steering, drive straight briefly, then stop.
@@ -122,7 +127,18 @@ bun herbert robot:camera-check
 ```
 
 This reports Picamera2's camera count and the output of
-`rpicam-hello --list-cameras` without using sudo.
+`rpicam-hello --list-cameras` without using sudo. It confirms camera
+enumeration, but it does not capture a frame.
+
+To test the same Picamera2 capture path used by keyboard mode and
+`robot:worker`, run:
+
+```sh
+bun herbert robot:photo-check
+```
+
+Herbert captures stills at `1296x972`, which matches a faster OV5647 camera
+mode than the full-resolution default and is sufficient for robot feedback.
 
 ## Speaker
 

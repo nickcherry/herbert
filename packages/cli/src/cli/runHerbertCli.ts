@@ -139,6 +139,29 @@ export async function runHerbertCli({
     return;
   }
 
+  if (command === "robot:photo-check" || command === "photo:check") {
+    const flags = parseRobotFlags({ argv: rest });
+    const robot = await HerbertController.create({
+      mock: flags.mock,
+      pythonPath: flags.pythonPath,
+      safetyTimeoutMs: flags.safetyTimeoutMs,
+    });
+
+    try {
+      const result = await robot.takePhoto();
+      process.stdout.write(
+        `${pc.bold("photo")} captured ${formatKeyValue({
+          key: "path",
+          value: result.path,
+        })}\n`,
+      );
+    } finally {
+      await robot.close();
+    }
+
+    return;
+  }
+
   if (command === "robot:say" || command === "say") {
     const flags = parseRobotSayFlags({ argv: rest });
     const robot = await HerbertController.create({
@@ -355,6 +378,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:keyboard")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:photo-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:say")} <text> [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:worker")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("server:start")} [options]`,

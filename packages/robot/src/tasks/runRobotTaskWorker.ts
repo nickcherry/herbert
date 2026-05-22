@@ -3,7 +3,11 @@ import {
   completeRobotActionBatch,
   pollRobotActionBatch,
 } from "@herbert/robot/server/robotActionBatches";
-import type { RobotTaskAction, RobotTaskActionBatch } from "@herbert/shared";
+import {
+  cameraAngleLimits,
+  type RobotTaskAction,
+  type RobotTaskActionBatch,
+} from "@herbert/shared";
 import pc from "picocolors";
 
 export interface RobotTaskWorkerOptions {
@@ -24,6 +28,9 @@ export interface RobotTaskExecutor {
     readonly panDelta: number;
     readonly tiltDelta: number;
   }) => Promise<unknown>;
+  readonly setCameraTilt: (options: {
+    readonly angle: number;
+  }) => Promise<unknown>;
   readonly takePhoto: () => Promise<{ readonly path: string }>;
   readonly stop: () => Promise<unknown>;
 }
@@ -43,6 +50,8 @@ export async function runRobotTaskWorker({
   });
 
   try {
+    const initializedTaskSessionIds = new Set<string>();
+
     do {
       const batch = await pollRobotActionBatch({ serverUrl });
 
@@ -66,7 +75,17 @@ export async function runRobotTaskWorker({
         })}\n`,
       );
 
-      const photoPath = await executeRobotTaskBatch({ robot, batch, mock });
+      const initializeTaskSessionCamera = !initializedTaskSessionIds.has(
+        batch.taskId,
+      );
+      initializedTaskSessionIds.add(batch.taskId);
+
+      const photoPath = await executeRobotTaskBatch({
+        robot,
+        batch,
+        mock,
+        initializeTaskSessionCamera,
+      });
       await completeRobotActionBatch({
         serverUrl,
         batch,
@@ -80,7 +99,14 @@ export async function runRobotTaskWorker({
       );
     } while (!once);
   } finally {
-    await robot.stop();
+    try {
+      await robot.stop();
+    } catch (error) {
+      process.stderr.write(
+        `${pc.red(pc.bold("robot"))} cleanup stop failed: ${formatError(error)}\n`,
+      );
+    }
+
     await robot.close();
   }
 }
@@ -89,12 +115,18 @@ export async function executeRobotTaskBatch({
   robot,
   batch,
   mock,
+  initializeTaskSessionCamera = false,
 }: {
   readonly robot: RobotTaskExecutor;
   readonly batch: RobotTaskActionBatch;
   readonly mock: boolean;
+  readonly initializeTaskSessionCamera?: boolean;
 }): Promise<string> {
   let latestPhotoPath: string | undefined;
+
+  if (initializeTaskSessionCamera) {
+    await robot.setCameraTilt({ angle: cameraAngleLimits.max });
+  }
 
   for (const action of batch.actions) {
     process.stdout.write(`${pc.bold("action")} ${JSON.stringify(action)}\n`);
@@ -208,4 +240,12 @@ function formatKeyValue({
   readonly value: string;
 }): string {
   return `${pc.dim(`${key}=`)}${value}`;
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }

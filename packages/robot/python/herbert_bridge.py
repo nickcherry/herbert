@@ -26,6 +26,7 @@ CAMERA_MAX = 35
 SPEECH_TEXT_MAX = 800
 SPEECH_LANGUAGES = {"en-US", "en-GB", "zh-CN", "de-DE", "es-ES"}
 PHOTO_WARMUP_S = 1.5
+PHOTO_CAPTURE_SIZE = (1296, 972)
 DEFAULT_PICARX_CONFIG_PATH = Path("/opt/picar-x/picar-x.conf")
 HERBERT_PICARX_CONFIG_PATH = Path.home() / ".config" / "herbert" / "picar-x.conf"
 NO_SUDO_MESSAGE = (
@@ -491,7 +492,10 @@ def normalize_photo_stem(name: str | None) -> str:
 
 
 def create_still_configuration(picam2: Any) -> Any:
-    return picam2.create_still_configuration()
+    try:
+        return picam2.create_still_configuration(main={"size": PHOTO_CAPTURE_SIZE})
+    except TypeError:
+        return picam2.create_still_configuration()
 
 
 def camera_detection_error_message() -> str:

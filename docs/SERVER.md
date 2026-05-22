@@ -27,6 +27,9 @@ either run to completion or been dropped — either way it should not be
 re-executed on restart. The next admin Telegram message starts a fresh task
 session.
 
+The robot worker tilts the camera fully up before executing the first action
+batch it sees for each task session.
+
 `spokenMessage` from each OpenAI response is synthesized to MP3 by ElevenLabs
 and played on the host running `server:start` (via `afplay` on macOS or
 `aplay` on Linux). The robot never receives spoken commentary — it only

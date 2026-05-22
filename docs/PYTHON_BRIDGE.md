@@ -80,16 +80,18 @@ direct `pico2wave` plus `aplay`. The TypeScript side validates supported
 languages and caps speech text at 800 characters before sending it over the
 bridge.
 
-`take_photo` uses Picamera2 still capture directly and returns the exact file
-path that was written. The TypeScript side gives this command a longer timeout
-than normal motor and servo commands because the camera has to initialize and
-warm up. The bridge does not apply an image orientation transform; Herbert's
-current camera mount produces upright stills from Picamera2's default still
-configuration. Camera detection failures are returned as bridge errors rather
-than letting the command hang.
+`take_photo` uses Picamera2 still capture directly at `1296x972` and returns
+the exact file path that was written. The TypeScript side gives this command a
+longer timeout than normal motor and servo commands because the camera has to
+initialize and warm up. The bridge does not apply an image orientation
+transform; Herbert's current camera mount produces upright stills from
+Picamera2's default still configuration. Camera detection failures are returned
+as bridge errors rather than letting the command hang.
 
 `camera_check` returns Picamera2 camera enumeration and
-`rpicam-hello --list-cameras` output for no-sudo diagnostics.
+`rpicam-hello --list-cameras` output for no-sudo diagnostics. It does not
+capture a frame; use `bun herbert robot:photo-check` to test the same capture
+path as `take_photo`.
 
 `shutdown` stops the drive motors. Keyboard mode also centers steering before
 closing, but it does not send camera pan or tilt commands during shutdown.

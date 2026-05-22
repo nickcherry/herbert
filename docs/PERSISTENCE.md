@@ -145,7 +145,9 @@ key: default
 The queue document stores active/finished task sessions plus queued, claimed,
 completed, and abandoned action batches. A task session carries `taskState`
 and recent robot commentary entries so subsequent OpenAI turns know the
-original request and what has happened since.
+original request and what has happened since. The robot worker treats the first
+batch it sees for a task session as the session start and tilts the camera fully
+up before executing that batch.
 
 `server:start` runs `abandonPendingRobotTaskWork` on boot. Any batch still in
 `queued` or `claimed` from a previous run is marked `abandoned`, and any
