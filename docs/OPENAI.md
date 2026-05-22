@@ -122,8 +122,8 @@ before the response is used.
 
 Movement actions are bounded more narrowly than the low-level robot bridge:
 
-- speed: `1..50`
-- drive duration: `100..1000` ms
+- speed: `1..100`
+- drive duration: `100..3000` ms
 - steering angle: `-30..30`
 - camera deltas: `-10..10`
 

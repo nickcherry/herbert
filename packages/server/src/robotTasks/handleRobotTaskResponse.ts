@@ -1,4 +1,5 @@
 import { playAudioFile } from "@herbert/server/audio/playAudioFile";
+import { elevenLabsConfig } from "@herbert/server/constants/elevenlabs";
 import { synthesizeSpeech } from "@herbert/server/elevenlabs/synthesizeSpeech";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import { appendHerbertResponseHistory } from "@herbert/server/persistence/operations/herbertResponseHistory";
@@ -54,13 +55,15 @@ export async function handleRobotTaskResponse({
       `${pc.bold("spoken")} ${formatKeyValue({
         key: "text",
         value: JSON.stringify(text),
-      })}\n`,
+      })}${elevenLabsConfig.spokenMessagePlaybackEnabled ? "" : pc.dim(" (playback disabled)")}\n`,
     );
-    void speakCommentary({ text }).catch((error: unknown) => {
-      process.stderr.write(
-        `${pc.red(pc.bold("spoken"))} playback failed: ${formatError(error)}\n`,
-      );
-    });
+    if (elevenLabsConfig.spokenMessagePlaybackEnabled) {
+      void speakCommentary({ text }).catch((error: unknown) => {
+        process.stderr.write(
+          `${pc.red(pc.bold("spoken"))} playback failed: ${formatError(error)}\n`,
+        );
+      });
+    }
   }
 
   await recordRobotTaskResponse({

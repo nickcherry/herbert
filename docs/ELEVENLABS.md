@@ -18,6 +18,10 @@ when unset, Herbert uses the configured default voice id.
 
 ElevenLabs defaults live in `packages/server/src/constants/elevenlabs.ts`.
 
+- `spokenMessagePlaybackEnabled`: when `false`, Herbert still produces
+  `spokenMessage` text and persists it in response history, but the server
+  skips ElevenLabs synthesis and local playback. Flip to `true` to re-enable
+  the audio side. `audio:test` is unaffected by this flag.
 - `defaultSpeechModel`: `eleven_multilingual_v2` — ElevenLabs model id for
   speech generation.
 - `defaultSpeechVoiceId`: `jvcMcno3QtjOzGtfpjoI` — default voice id selected
@@ -35,7 +39,8 @@ ElevenLabs defaults live in `packages/server/src/constants/elevenlabs.ts`.
 ## Spoken Commentary
 
 OpenAI still decides whether to return `spokenMessage`; ElevenLabs only renders
-that text to audio. Server flow when `spokenMessage` is non-null:
+that text to audio. Server flow when `spokenMessage` is non-null and
+`elevenLabsConfig.spokenMessagePlaybackEnabled` is `true`:
 
 1. `handleRobotTaskResponse` calls `synthesizeSpeech` with the text.
 2. `synthesizeSpeech` calls ElevenLabs `POST /v1/text-to-speech/:voice_id` with
@@ -43,6 +48,11 @@ that text to audio. Server flow when `spokenMessage` is non-null:
 3. `playAudioFile` invokes the platform audio player (`afplay` on macOS,
    `aplay` on Linux) as a fire-and-forget child process so it does not block
    the next Telegram turn.
+
+When `spokenMessagePlaybackEnabled` is `false`, the synthesize/play steps are
+skipped entirely; the `spoken` log line is still printed and the text is
+persisted in response history so future turns know what Herbert "would have"
+said.
 
 Playback errors are logged but never surfaced to the user — the Telegram
 response and queued robot actions still flow normally if audio is unavailable.

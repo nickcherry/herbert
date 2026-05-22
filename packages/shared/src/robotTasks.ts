@@ -4,11 +4,11 @@ export const robotTaskActionLimits = {
   maxActions: 5,
   speed: {
     min: 1,
-    max: 50,
+    max: 100,
   },
   durationMs: {
     min: 100,
-    max: 1_000,
+    max: 3_000,
   },
   steeringAngle: {
     min: -30,

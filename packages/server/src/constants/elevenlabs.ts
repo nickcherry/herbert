@@ -1,5 +1,6 @@
 export const elevenLabsConfig = {
   apiBaseUrl: "https://api.elevenlabs.io",
+  spokenMessagePlaybackEnabled: false,
   defaultSpeechModel: "eleven_multilingual_v2",
   defaultSpeechVoiceId: "jvcMcno3QtjOzGtfpjoI",
   defaultSpeechVoiceName: "Herbert default",
@@ -12,6 +13,7 @@ export const elevenLabsConfig = {
   defaultSpeechRequestTimeoutMs: 30_000,
 } satisfies {
   readonly apiBaseUrl: string;
+  readonly spokenMessagePlaybackEnabled: boolean;
   readonly defaultSpeechModel: string;
   readonly defaultSpeechVoiceId: string;
   readonly defaultSpeechVoiceName: string;

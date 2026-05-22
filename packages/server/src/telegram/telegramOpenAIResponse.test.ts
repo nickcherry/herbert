@@ -71,7 +71,7 @@ describe("telegramOpenAIResponseSchema", () => {
           {
             type: "drive",
             direction: "forward",
-            speed: 51,
+            speed: 101,
             durationMs: 250,
           },
         ],

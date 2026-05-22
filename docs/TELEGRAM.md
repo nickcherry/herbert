@@ -160,8 +160,8 @@ series of `look` actions has already pushed the camera toward a limit.
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
 
-- `drive`: `direction` is `forward` or `backward`, `speed` is `1..50`, and
-  `durationMs` is `100..1000`. This is straight driving; the robot worker centers
+- `drive`: `direction` is `forward` or `backward`, `speed` is `1..100`, and
+  `durationMs` is `100..3000`. This is straight driving; the robot worker centers
   steering first.
 - `drive_arc`: same drive parameters plus `angle` from `-30..30`; negative is
   left and positive is right.
@@ -179,8 +179,10 @@ other.
 
 Drive distance is not measured directly. `speed` is approximate motor power, and
 the prompt gives OpenAI the rough straight-line heuristic
-`distance_cm ~= 50 * (speed / 100) * (durationMs / 1000)`, so `speed=50` for
-`1000ms` is about `25cm` before floor, battery, traction, and steering effects.
+`distance_cm ~= 50 * (speed / 100) * (durationMs / 1000)`, so `speed=100` for
+`3000ms` is about `150cm` before floor, battery, traction, and steering effects.
+The prompt biases Herbert toward decisive, room-scale drives on clear floor;
+short pulses are reserved for close-quarters maneuvering.
 
 `taskState` is the durable memory between turns. It should be self-contained
 enough for a later OpenAI request to know the user's goal, what Herbert has

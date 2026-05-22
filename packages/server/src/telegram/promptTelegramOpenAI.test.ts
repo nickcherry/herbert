@@ -10,12 +10,13 @@ describe("telegramOpenAIInstructions", () => {
 
   test("includes approximate drive distance guidance", () => {
     expect(telegramOpenAIInstructions).toContain("distance_cm");
-    expect(telegramOpenAIInstructions).toContain("speed 50 for 1000ms");
+    expect(telegramOpenAIInstructions).toContain("speed 100 for 3000ms");
   });
 
-  test("encourages useful movement instead of excessive caution", () => {
+  test("biases toward bold movement instead of excessive caution", () => {
     expect(telegramOpenAIInstructions).toContain("clear floor");
-    expect(telegramOpenAIInstructions).toContain("Avoid micro-drive pulses");
+    expect(telegramOpenAIInstructions).toContain("biased toward movement");
+    expect(telegramOpenAIInstructions).toContain("drive boldly");
     expect(telegramOpenAIInstructions).toContain("partly obscured");
     expect(telegramOpenAIInstructions).toContain("absolute camera pan/tilt");
   });
