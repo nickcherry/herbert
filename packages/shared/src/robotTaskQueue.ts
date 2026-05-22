@@ -1,7 +1,7 @@
 import { cameraAngleSchema } from "@herbert/shared/commands";
 import {
   robotTaskActionBatchSchema,
-  robotTaskActionSchema,
+  robotTaskHistoricalActionSchema,
 } from "@herbert/shared/robotTasks";
 import { z } from "zod";
 
@@ -24,7 +24,7 @@ export const robotTaskBatchReportSchema = z.object({
   completedAtMs: z.number().int().nonnegative(),
   photoPath: z.string().min(1),
   cameraPosition: robotTaskCameraPositionSchema.optional(),
-  actions: z.array(robotTaskActionSchema),
+  actions: z.array(robotTaskHistoricalActionSchema),
 });
 
 export type RobotTaskBatchReport = z.infer<typeof robotTaskBatchReportSchema>;
