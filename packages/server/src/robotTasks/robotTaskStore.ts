@@ -9,7 +9,7 @@ import {
 } from "@herbert/shared";
 import { z } from "zod";
 
-export const robotTaskObservationSchema = z.object({
+export const robotTaskCommentarySchema = z.object({
   batchId: z.string().min(1),
   completedAtMs: z.number().int().nonnegative(),
   photoPath: z.string().min(1),
@@ -23,7 +23,7 @@ export const robotTaskSessionSchema = z.object({
   createdAtMs: z.number().int().nonnegative(),
   updatedAtMs: z.number().int().nonnegative(),
   taskState: z.string().min(1),
-  observations: z.array(robotTaskObservationSchema).max(20),
+  commentary: z.array(robotTaskCommentarySchema).max(20),
 });
 
 const storedRobotTaskBatchSchema = robotTaskActionBatchSchema.extend({
@@ -39,7 +39,7 @@ const robotTaskQueueDocumentSchema = z.object({
   batches: z.array(storedRobotTaskBatchSchema).max(200),
 });
 
-export type RobotTaskObservation = z.infer<typeof robotTaskObservationSchema>;
+export type RobotTaskCommentary = z.infer<typeof robotTaskCommentarySchema>;
 export type RobotTaskSession = z.infer<typeof robotTaskSessionSchema>;
 
 type StoredRobotTaskBatch = z.infer<typeof storedRobotTaskBatchSchema>;
@@ -235,7 +235,7 @@ export async function completeRobotTaskBatch({
 }: CompleteRobotTaskBatchOptions): Promise<{
   readonly batch: StoredRobotTaskBatch;
   readonly session: RobotTaskSession;
-  readonly observation: RobotTaskObservation;
+  readonly commentary: RobotTaskCommentary;
 }> {
   return await withRobotTaskQueueLock(async () => {
     return await completeRobotTaskBatchUnlocked({
@@ -257,7 +257,7 @@ async function completeRobotTaskBatchUnlocked({
 }: Required<CompleteRobotTaskBatchOptions>): Promise<{
   readonly batch: StoredRobotTaskBatch;
   readonly session: RobotTaskSession;
-  readonly observation: RobotTaskObservation;
+  readonly commentary: RobotTaskCommentary;
 }> {
   const queue = await readQueue({ store });
   const batchIndex = queue.batches.findIndex(
@@ -288,7 +288,7 @@ async function completeRobotTaskBatchUnlocked({
     status: "completed",
     completedAtMs: nowMs,
   };
-  const observation: RobotTaskObservation = robotTaskObservationSchema.parse({
+  const commentary: RobotTaskCommentary = robotTaskCommentarySchema.parse({
     batchId,
     completedAtMs: nowMs,
     photoPath,
@@ -297,7 +297,7 @@ async function completeRobotTaskBatchUnlocked({
   const updatedSession: RobotTaskSession = {
     ...session,
     updatedAtMs: nowMs,
-    observations: [...session.observations, observation].slice(-20),
+    commentary: [...session.commentary, commentary].slice(-20),
   };
 
   await writeQueue({
@@ -315,7 +315,7 @@ async function completeRobotTaskBatchUnlocked({
   return {
     batch: completedBatch,
     session: updatedSession,
-    observation,
+    commentary,
   };
 }
 
@@ -332,8 +332,8 @@ function createRobotTaskSession({
     status: "active",
     createdAtMs: nowMs,
     updatedAtMs: nowMs,
-    taskState: "New task started from Telegram. No robot observations yet.",
-    observations: [],
+    taskState: "New task started from Telegram. No robot commentary yet.",
+    commentary: [],
   });
 }
 

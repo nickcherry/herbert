@@ -3,9 +3,9 @@ import type { RobotTaskAction } from "@herbert/shared";
 
 export type TelegramPromptTurnTrigger =
   | "telegram_messages"
-  | "robot_observation";
+  | "robot_commentary";
 
-export interface TelegramPromptObservation {
+export interface TelegramPromptCommentary {
   readonly completedAtMs: number;
   readonly photoPath: string;
   readonly actions: readonly RobotTaskAction[];
@@ -16,7 +16,7 @@ export interface BuildTelegramOpenAIPromptOptions {
   readonly newMessages: readonly TelegramHistoryMessage[];
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly taskState?: string;
-  readonly observations?: readonly TelegramPromptObservation[];
+  readonly commentary?: readonly TelegramPromptCommentary[];
   readonly hasAttachedImages?: boolean;
 }
 
@@ -25,7 +25,7 @@ export function buildTelegramOpenAIPrompt({
   newMessages,
   turnTrigger,
   taskState,
-  observations = [],
+  commentary = [],
   hasAttachedImages = false,
 }: BuildTelegramOpenAIPromptOptions): string {
   return [
@@ -33,37 +33,38 @@ export function buildTelegramOpenAIPrompt({
     formatTurnContextXml({
       turnTrigger,
       newMessageCount: newMessages.length,
-      observationCount: observations.length,
+      commentaryCount: commentary.length,
       hasAttachedImages,
     }),
     "Authorized Telegram user messages from this admin chat, oldest first.",
-    "Messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to the new messages as one combined admin request.",
-    "If there are no new messages and the trigger is robot_observation, continue from the current task state and latest robot observation.",
+    "Messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to them together as one combined admin request.",
+    "Messages with <is_new>0</is_new> are prior context that has already been handled; do not re-respond to them.",
+    "If there are no new messages and the trigger is robot_commentary, continue the active task from the current task state and the latest robot commentary entry.",
     "All timestamps are UTC.",
     formatTelegramMessagesXml({ recentMessages, newMessages }),
-    "Current task state:",
+    'Current task state (Herbert\'s durable memory carried over from the previous turn; "none" if no task is active):',
     taskState?.trim() ?? "none",
-    "Robot observations from this task, oldest first:",
-    formatObservationsXml({ observations }),
+    "Robot commentary from this task so far, oldest first. Each entry reports the actions Herbert just completed at the end of a batch and the path to the photo Herbert captured immediately after. On robot_commentary turns the latest commentary photo is attached to this prompt as an image input; earlier entries are text-only.",
+    formatRobotCommentariesXml({ commentary }),
   ].join("\n\n");
 }
 
 function formatTurnContextXml({
   turnTrigger,
   newMessageCount,
-  observationCount,
+  commentaryCount,
   hasAttachedImages,
 }: {
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly newMessageCount: number;
-  readonly observationCount: number;
+  readonly commentaryCount: number;
   readonly hasAttachedImages: boolean;
 }): string {
   return [
     "<turn_context>",
     `  <trigger>${turnTrigger}</trigger>`,
     `  <new_message_count>${newMessageCount}</new_message_count>`,
-    `  <robot_observation_count>${observationCount}</robot_observation_count>`,
+    `  <robot_commentary_count>${commentaryCount}</robot_commentary_count>`,
     `  <latest_image_attached>${hasAttachedImages ? "1" : "0"}</latest_image_attached>`,
     "</turn_context>",
   ].join("\n");
@@ -107,29 +108,29 @@ function formatTelegramHistoryMessageXml({
   ].join("\n");
 }
 
-function formatObservationsXml({
-  observations,
+function formatRobotCommentariesXml({
+  commentary,
 }: {
-  readonly observations: readonly TelegramPromptObservation[];
+  readonly commentary: readonly TelegramPromptCommentary[];
 }): string {
   return [
-    "<robot_observations>",
-    ...observations.map((observation) => formatObservationXml({ observation })),
-    "</robot_observations>",
+    "<robot_commentaries>",
+    ...commentary.map((entry) => formatCommentaryXml({ entry })),
+    "</robot_commentaries>",
   ].join("\n");
 }
 
-function formatObservationXml({
-  observation,
+function formatCommentaryXml({
+  entry,
 }: {
-  readonly observation: TelegramPromptObservation;
+  readonly entry: TelegramPromptCommentary;
 }): string {
   return [
-    "  <observation>",
-    `    <timestamp>${formatMillisecondsTimestamp({ milliseconds: observation.completedAtMs })}</timestamp>`,
-    `    <completed_actions>${escapeXmlText(JSON.stringify(observation.actions))}</completed_actions>`,
-    `    <photo_path>${escapeXmlText(observation.photoPath)}</photo_path>`,
-    "  </observation>",
+    "  <commentary>",
+    `    <timestamp>${formatMillisecondsTimestamp({ milliseconds: entry.completedAtMs })}</timestamp>`,
+    `    <completed_actions>${escapeXmlText(JSON.stringify(entry.actions))}</completed_actions>`,
+    `    <photo_path>${escapeXmlText(entry.photoPath)}</photo_path>`,
+    "  </commentary>",
   ].join("\n");
 }
 

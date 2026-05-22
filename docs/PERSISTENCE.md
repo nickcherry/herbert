@@ -10,7 +10,7 @@ The database path is normal config, not an environment variable:
 ```ts
 export const persistenceConfig = {
   sqlitePath: "data/herbert.sqlite",
-  observationImageDirectory: "data/robot-observations",
+  commentaryImageDirectory: "data/robot-commentary",
 } as const;
 ```
 
@@ -85,14 +85,14 @@ key: default
 
 The queue document stores active/finished task sessions plus queued, claimed,
 and completed action batches. A task session carries `taskState` and recent
-robot observations so subsequent OpenAI turns know the original request and what
-has happened since.
+robot commentary entries so subsequent OpenAI turns know the original request
+and what has happened since.
 
 Queue mutations are serialized inside the server process because the first
 implementation stores the queue as one typed document.
 
 Robot completion photos are binary files, not SQLite documents. They are written
-under `data/robot-observations` and ignored by git.
+under `data/robot-commentary` and ignored by git.
 
 Sources:
 

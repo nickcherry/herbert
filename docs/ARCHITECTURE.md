@@ -67,7 +67,7 @@ Telegram admin message
 ```
 
 Each queued action batch is deliberately small. After a batch runs, the robot
-captures a photo and the server uses that observation to decide the next turn.
+captures a photo and the server uses that commentary to decide the next turn.
 
 ## CLI
 

@@ -25,7 +25,7 @@ describe("executeRobotTaskBatch", () => {
       },
     });
 
-    expect(photoPath).toBe("/tmp/herbert-observation.jpg");
+    expect(photoPath).toBe("/tmp/herbert-commentary.jpg");
     expect(calls).toEqual([
       "set_steering:0",
       "set_motor:20",
@@ -52,7 +52,7 @@ function createFakeRobot({
     },
     async takePhoto() {
       calls.push("take_photo");
-      return { path: "/tmp/herbert-observation.jpg" };
+      return { path: "/tmp/herbert-commentary.jpg" };
     },
     async stop() {
       calls.push("stop");

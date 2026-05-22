@@ -163,8 +163,8 @@ describe("createServerFetch", () => {
     body.set("taskId", batch.taskId);
     body.append(
       "image",
-      new File(["image-bytes"], "observation.jpg"),
-      "observation.jpg",
+      new File(["image-bytes"], "commentary.jpg"),
+      "commentary.jpg",
     );
 
     const completeResponse = await fetch(

@@ -28,10 +28,10 @@ describe("buildTelegramOpenAIPrompt", () => {
         },
       ],
       taskState: "Checking whether the stove is on.",
-      observations: [
+      commentary: [
         {
           completedAtMs: 1_800_000_012_000,
-          photoPath: "data/robot-observations/task/batch.jpg",
+          photoPath: "data/robot-commentary/task/batch.jpg",
           actions: [{ type: "take_photo" }],
         },
       ],
@@ -42,7 +42,7 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<trigger>telegram_messages</trigger>");
     expect(prompt).toContain("<new_message_count>2</new_message_count>");
     expect(prompt).toContain(
-      "<robot_observation_count>1</robot_observation_count>",
+      "<robot_commentary_count>1</robot_commentary_count>",
     );
     expect(prompt).toContain(
       "<latest_image_attached>1</latest_image_attached>",
@@ -57,27 +57,28 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<text>then take a photo</text>");
     expect(prompt).toContain("<is_new>1</is_new>");
     expect(prompt).toContain("Checking whether the stove is on.");
-    expect(prompt).toContain("<robot_observations>");
+    expect(prompt).toContain("<robot_commentaries>");
+    expect(prompt).toContain("<commentary>");
     expect(prompt).toContain("<completed_actions>");
     expect(prompt).toContain(
-      "<photo_path>data/robot-observations/task/batch.jpg</photo_path>",
+      "<photo_path>data/robot-commentary/task/batch.jpg</photo_path>",
     );
   });
 
-  test("marks robot observation turns that have no new messages", () => {
+  test("marks robot commentary turns that have no new messages", () => {
     const prompt = buildTelegramOpenAIPrompt({
-      turnTrigger: "robot_observation",
+      turnTrigger: "robot_commentary",
       recentMessages: [],
       newMessages: [],
       taskState: "Checking the stove from the kitchen doorway.",
-      observations: [],
+      commentary: [],
       hasAttachedImages: true,
     });
 
-    expect(prompt).toContain("<trigger>robot_observation</trigger>");
+    expect(prompt).toContain("<trigger>robot_commentary</trigger>");
     expect(prompt).toContain("<new_message_count>0</new_message_count>");
     expect(prompt).toContain(
-      "If there are no new messages and the trigger is robot_observation",
+      "If there are no new messages and the trigger is robot_commentary",
     );
   });
 });

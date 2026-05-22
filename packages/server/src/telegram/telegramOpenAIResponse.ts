@@ -3,9 +3,27 @@ import { z } from "zod";
 
 export const telegramOpenAIActionLimits = robotTaskActionLimits;
 
-export const telegramReplyTextSchema = z.string().trim().min(1).max(4_096);
-export const spokenTextSchema = z.string().trim().min(1).max(300);
-export const taskStateSchema = z.string().trim().min(1).max(2_000);
+export const telegramOpenAIResponseLimits = {
+  telegramMessage: { min: 1, max: 4_096 },
+  spokenMessage: { min: 1, max: 300 },
+  taskState: { min: 1, max: 2_000 },
+} as const;
+
+export const telegramReplyTextSchema = z
+  .string()
+  .trim()
+  .min(telegramOpenAIResponseLimits.telegramMessage.min)
+  .max(telegramOpenAIResponseLimits.telegramMessage.max);
+export const spokenTextSchema = z
+  .string()
+  .trim()
+  .min(telegramOpenAIResponseLimits.spokenMessage.min)
+  .max(telegramOpenAIResponseLimits.spokenMessage.max);
+export const taskStateSchema = z
+  .string()
+  .trim()
+  .min(telegramOpenAIResponseLimits.taskState.min)
+  .max(telegramOpenAIResponseLimits.taskState.max);
 
 const nullableTelegramMessageSchema = z.union([z.string().trim(), z.null()]);
 const nullableSpokenMessageSchema = z.union([z.string().trim(), z.null()]);

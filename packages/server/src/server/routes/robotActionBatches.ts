@@ -115,7 +115,7 @@ export async function handleRobotActionBatchCompleteRoute({
   }
 
   try {
-    const photoPath = await saveObservationImage({
+    const photoPath = await saveCommentaryImage({
       taskId,
       batchId,
       image,
@@ -141,9 +141,9 @@ export async function handleRobotActionBatchCompleteRoute({
     const response = await respondToMessage({
       recentMessages,
       newMessages: [],
-      turnTrigger: "robot_observation",
+      turnTrigger: "robot_commentary",
       taskState: session.taskState,
-      observations: session.observations,
+      commentary: session.commentary,
       imagePaths: [photoPath],
     });
 
@@ -170,7 +170,7 @@ export async function handleRobotActionBatchCompleteRoute({
   }
 }
 
-async function saveObservationImage({
+async function saveCommentaryImage({
   taskId,
   batchId,
   image,
@@ -180,7 +180,7 @@ async function saveObservationImage({
   readonly image: Blob;
 }): Promise<string> {
   const directory = join(
-    persistenceConfig.observationImageDirectory,
+    persistenceConfig.commentaryImageDirectory,
     safePathSegment(taskId),
   );
   const path = join(
@@ -210,7 +210,7 @@ function filenameForBlob({ blob }: { readonly blob: Blob }): string {
     return safePathSegment(basename(blob.name));
   }
 
-  return "herbert-observation.jpg";
+  return "herbert-commentary.jpg";
 }
 
 function requiredString(value: unknown): string | undefined {

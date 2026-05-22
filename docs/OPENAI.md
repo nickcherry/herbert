@@ -60,13 +60,13 @@ Telegram admin messages use Structured Outputs with this root shape:
 ```
 
 The prompt content includes turn metadata, prior same-chat context, newly
-received messages, task state, and robot observations:
+received messages, task state, and robot commentary:
 
 ```xml
 <turn_context>
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
-  <robot_observation_count>0</robot_observation_count>
+  <robot_commentary_count>0</robot_commentary_count>
   <latest_image_attached>0</latest_image_attached>
 </turn_context>
 ```
@@ -83,9 +83,9 @@ received messages, task state, and robot observations:
 ```
 
 `trigger` is `telegram_messages` when a poll delivered new admin messages and
-`robot_observation` when Herbert has just completed an action batch and returned
-a photo. On robot observation turns, there may be no new Telegram messages; the
-model must continue from `taskState` and the latest observation.
+`robot_commentary` when Herbert has just completed an action batch and returned
+a photo. On robot commentary turns, there are usually no new Telegram messages;
+the model must continue from `taskState` and the latest commentary entry.
 
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,

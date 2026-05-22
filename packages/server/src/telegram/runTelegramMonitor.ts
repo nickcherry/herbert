@@ -167,7 +167,7 @@ export function startTelegramPolling({
             newMessages,
             turnTrigger: "telegram_messages",
             taskState: taskContext.session?.taskState,
-            observations: taskContext.session?.observations,
+            commentary: taskContext.session?.commentary,
           });
 
           logTelegramOpenAIResponse({ response });

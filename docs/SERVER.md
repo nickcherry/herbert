@@ -40,8 +40,9 @@ server. It is useful for testing the Telegram/OpenAI path in isolation.
 `GET /robot/action-batches/next` lets Herbert claim the next queued action
 batch. `POST /robot/action-batches/complete` accepts `batchId`, `taskId`, and an
 `image` attachment from the robot after it executes a batch. The server stores
-the image under `data/robot-observations`, sends the photo to Telegram, and
-sends the turn observation back to OpenAI to decide whether to continue.
+the image under `data/robot-commentary`, sends the photo to Telegram, and
+sends the resulting commentary turn back to OpenAI to decide whether to
+continue.
 
 When `server:start` exits from `SIGINT` or `SIGTERM`, it stops Telegram polling
 and then stops the HTTP server.

@@ -96,8 +96,8 @@ must be paired with an empty action list.
 
 When actions are returned, the server queues them as a robot action batch in
 SQLite. Herbert's robot process polls the queue, executes the batch, captures an
-end-of-turn photo, and reports completion back to the server. That photo and the
-completed actions are included in the next OpenAI request.
+end-of-batch photo, and reports completion back to the server. That photo and
+the completed actions become the next OpenAI turn's robot commentary entry.
 
 User message context is formatted as XML:
 
@@ -105,7 +105,7 @@ User message context is formatted as XML:
 <turn_context>
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
-  <robot_observation_count>0</robot_observation_count>
+  <robot_commentary_count>0</robot_commentary_count>
   <latest_image_attached>0</latest_image_attached>
 </turn_context>
 ```
@@ -124,10 +124,12 @@ User message context is formatted as XML:
 Messages are oldest first. Prior context has `is_new` set to `0`; messages from
 the current polling response have `is_new` set to `1`.
 
-Robot turn observations are also formatted as XML. When the turn trigger is
-`robot_observation`, there may be no new Telegram messages; OpenAI should
-continue from `taskState`, the observation XML, and the attached photo. The
-actual photo from the latest completed robot batch is attached as an image input.
+Robot commentary entries are also formatted as XML. When the turn trigger is
+`robot_commentary`, there are usually no new Telegram messages; OpenAI should
+continue from `taskState`, the commentary XML, and the attached photo. The
+photo from the latest completed robot batch is attached as an image input;
+earlier commentary entries list a photo path but the photos themselves are not
+attached.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
