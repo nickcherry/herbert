@@ -123,8 +123,8 @@ describe("robot command schemas", () => {
           {
             type: "drive",
             direction: "forward",
-            speed: 25,
-            durationMs: 250,
+            speed: 70,
+            durationMs: 1_500,
           },
           {
             type: "look",
@@ -140,8 +140,8 @@ describe("robot command schemas", () => {
         {
           type: "drive",
           direction: "forward",
-          speed: 25,
-          durationMs: 250,
+          speed: 70,
+          durationMs: 1_500,
         },
         {
           type: "look",

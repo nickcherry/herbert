@@ -160,9 +160,10 @@ series of `look` actions has already pushed the camera toward a limit.
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
 
-- `drive`: `direction` is `forward` or `backward`, `speed` is `1..100`, and
-  `durationMs` is `100..3000`. This is straight driving; the robot worker centers
-  steering first.
+- `drive`: `direction` is `forward` or `backward`, `speed` is `50..100`, and
+  `durationMs` is `1000..3000`. This is straight driving; the robot worker centers
+  steering first. The lower bounds are intentional and force every drive to
+  cover roughly 25 cm or more — see the prompt's `<movement_mandate>` section.
 - `drive_arc`: same drive parameters plus `angle` from `-30..30`; negative is
   left and positive is right.
 - `set_steering`: `angle` from `-30..30`; turns the front wheels in place without
@@ -181,8 +182,10 @@ Drive distance is not measured directly. `speed` is approximate motor power, and
 the prompt gives OpenAI the rough straight-line heuristic
 `distance_cm ~= 50 * (speed / 100) * (durationMs / 1000)`, so `speed=100` for
 `3000ms` is about `150cm` before floor, battery, traction, and steering effects.
-The prompt biases Herbert toward decisive, room-scale drives on clear floor;
-short pulses are reserved for close-quarters maneuvering.
+The schema floors (`speed >= 50`, `durationMs >= 1000`) put the minimum
+possible drive at roughly 25 cm, so the model can't choose timid pulses even
+if it wanted to. Close-quarters control happens through `stop`, `take_photo`,
+`look`, and `set_steering` instead.
 
 `taskState` is the durable memory between turns. It should be self-contained
 enough for a later OpenAI request to know the user's goal, what Herbert has

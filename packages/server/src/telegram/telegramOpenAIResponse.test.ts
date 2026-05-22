@@ -17,15 +17,15 @@ describe("telegramOpenAIResponseSchema", () => {
           {
             type: "drive",
             direction: "forward",
-            speed: 35,
-            durationMs: 250,
+            speed: 80,
+            durationMs: 2_500,
           },
           {
             type: "drive_arc",
             direction: "backward",
             angle: -15,
-            speed: 20,
-            durationMs: 300,
+            speed: 60,
+            durationMs: 1_500,
           },
           {
             type: "set_steering",
@@ -42,15 +42,15 @@ describe("telegramOpenAIResponseSchema", () => {
         {
           type: "drive",
           direction: "forward",
-          speed: 35,
-          durationMs: 250,
+          speed: 80,
+          durationMs: 2_500,
         },
         {
           type: "drive_arc",
           direction: "backward",
           angle: -15,
-          speed: 20,
-          durationMs: 300,
+          speed: 60,
+          durationMs: 1_500,
         },
         {
           type: "set_steering",
@@ -72,7 +72,7 @@ describe("telegramOpenAIResponseSchema", () => {
             type: "drive",
             direction: "forward",
             speed: 101,
-            durationMs: 250,
+            durationMs: 2_000,
           },
         ],
       }),
@@ -88,6 +88,42 @@ describe("telegramOpenAIResponseSchema", () => {
           {
             type: "set_steering",
             angle: 31,
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  test("rejects timid drive parameters below the bold-movement floor", () => {
+    expect(() =>
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: "Tiny nudge.",
+        spokenMessage: null,
+        taskState: "Testing sub-floor speed.",
+        isFinished: false,
+        actions: [
+          {
+            type: "drive",
+            direction: "forward",
+            speed: 40,
+            durationMs: 2_000,
+          },
+        ],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: "Tiny nudge.",
+        spokenMessage: null,
+        taskState: "Testing sub-floor duration.",
+        isFinished: false,
+        actions: [
+          {
+            type: "drive",
+            direction: "forward",
+            speed: 70,
+            durationMs: 500,
           },
         ],
       }),

@@ -3,11 +3,11 @@ import { z } from "zod";
 export const robotTaskActionLimits = {
   maxActions: 5,
   speed: {
-    min: 1,
+    min: 50,
     max: 100,
   },
   durationMs: {
-    min: 100,
+    min: 1_000,
     max: 3_000,
   },
   steeringAngle: {

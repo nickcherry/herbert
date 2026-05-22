@@ -18,8 +18,8 @@ describe("executeRobotTaskBatch", () => {
           {
             type: "drive",
             direction: "forward",
-            speed: 20,
-            durationMs: 100,
+            speed: 70,
+            durationMs: 1_000,
           },
         ],
       },
@@ -28,7 +28,7 @@ describe("executeRobotTaskBatch", () => {
     expect(photoPath).toBe("/tmp/herbert-batch.jpg");
     expect(calls).toEqual([
       "set_steering:0",
-      "set_motor:20",
+      "set_motor:70",
       "stop",
       "take_photo",
     ]);

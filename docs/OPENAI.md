@@ -122,10 +122,16 @@ before the response is used.
 
 Movement actions are bounded more narrowly than the low-level robot bridge:
 
-- speed: `1..100`
-- drive duration: `100..3000` ms
+- speed: `50..100`
+- drive duration: `1000..3000` ms
 - steering angle: `-30..30`
 - camera deltas: `-10..10`
+
+The drive `speed` and `durationMs` floors are deliberate. They force every
+drive action to cover roughly 25 cm or more — smaller pulses are timid noise
+in apartment-scale spaces, and the response schema rejects them outright.
+Close-quarters control (within ~30 cm of an obstacle) is done with
+`stop`, `take_photo`, `look`, or `set_steering`, not smaller drives.
 
 The `-30..30` steering bound follows the PiCar-X v2.0 SDK direction servo
 constants, even though Herbert's low-level bridge currently accepts `-35..35`.

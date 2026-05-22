@@ -13,11 +13,12 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain("speed 100 for 3000ms");
   });
 
-  test("biases toward bold movement instead of excessive caution", () => {
-    expect(telegramOpenAIInstructions).toContain("clear floor");
+  test("forces bold movement via the schema floor and movement mandate", () => {
+    expect(telegramOpenAIInstructions).toContain("<movement_mandate>");
     expect(telegramOpenAIInstructions).toContain("biased toward movement");
-    expect(telegramOpenAIInstructions).toContain("drive boldly");
+    expect(telegramOpenAIInstructions).toContain("There is no slow drive");
+    expect(telegramOpenAIInstructions).toContain("There is no quick pulse");
+    expect(telegramOpenAIInstructions).toContain("smallest legal drive is roughly 25 cm");
     expect(telegramOpenAIInstructions).toContain("partly obscured");
-    expect(telegramOpenAIInstructions).toContain("absolute camera pan/tilt");
   });
 });
