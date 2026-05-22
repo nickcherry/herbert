@@ -88,6 +88,9 @@ and completed action batches. A task session carries `taskState` and recent
 robot observations so subsequent OpenAI turns know the original request and what
 has happened since.
 
+Queue mutations are serialized inside the server process because the first
+implementation stores the queue as one typed document.
+
 Robot completion photos are binary files, not SQLite documents. They are written
 under `data/robot-observations` and ignored by git.
 

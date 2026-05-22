@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 describe("buildTelegramOpenAIPrompt", () => {
   test("formats recent context and new messages as XML", () => {
     const prompt = buildTelegramOpenAIPrompt({
+      turnTrigger: "telegram_messages",
       recentMessages: [
         {
           messageId: 1,
@@ -34,8 +35,18 @@ describe("buildTelegramOpenAIPrompt", () => {
           actions: [{ type: "take_photo" }],
         },
       ],
+      hasAttachedImages: true,
     });
 
+    expect(prompt).toContain("<turn_context>");
+    expect(prompt).toContain("<trigger>telegram_messages</trigger>");
+    expect(prompt).toContain("<new_message_count>2</new_message_count>");
+    expect(prompt).toContain(
+      "<robot_observation_count>1</robot_observation_count>",
+    );
+    expect(prompt).toContain(
+      "<latest_image_attached>1</latest_image_attached>",
+    );
     expect(prompt).toContain("<user_messages>");
     expect(prompt).toContain("<sender>Nick</sender>");
     expect(prompt).toContain("<sender>Frances</sender>");
@@ -50,6 +61,23 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<completed_actions>");
     expect(prompt).toContain(
       "<photo_path>data/robot-observations/task/batch.jpg</photo_path>",
+    );
+  });
+
+  test("marks robot observation turns that have no new messages", () => {
+    const prompt = buildTelegramOpenAIPrompt({
+      turnTrigger: "robot_observation",
+      recentMessages: [],
+      newMessages: [],
+      taskState: "Checking the stove from the kitchen doorway.",
+      observations: [],
+      hasAttachedImages: true,
+    });
+
+    expect(prompt).toContain("<trigger>robot_observation</trigger>");
+    expect(prompt).toContain("<new_message_count>0</new_message_count>");
+    expect(prompt).toContain(
+      "If there are no new messages and the trigger is robot_observation",
     );
   });
 });

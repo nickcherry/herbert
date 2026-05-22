@@ -141,6 +141,7 @@ export async function handleRobotActionBatchCompleteRoute({
     const response = await respondToMessage({
       recentMessages,
       newMessages: [],
+      turnTrigger: "robot_observation",
       taskState: session.taskState,
       observations: session.observations,
       imagePaths: [photoPath],

@@ -151,6 +151,7 @@ describe("startTelegramPolling", () => {
     await handle.done;
 
     expect(openAIRequests).toHaveLength(1);
+    expect(openAIRequests[0]?.turnTrigger).toBe("telegram_messages");
     expect(openAIRequests[0]?.recentMessages).toHaveLength(10);
     expect(openAIRequests[0]?.newMessages).toEqual([
       {

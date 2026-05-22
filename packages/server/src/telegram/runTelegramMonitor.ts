@@ -165,6 +165,7 @@ export function startTelegramPolling({
           const response = await respondToMessage({
             recentMessages,
             newMessages,
+            turnTrigger: "telegram_messages",
             taskState: taskContext.session?.taskState,
             observations: taskContext.session?.observations,
           });

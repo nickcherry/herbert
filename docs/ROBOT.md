@@ -78,10 +78,10 @@ photo is reused as the completion photo.
 
 Supported queued actions are:
 
-- `drive`
-- `drive_arc`
-- `set_steering`
-- `look`
+- `drive`: center steering, drive straight briefly, then stop.
+- `drive_arc`: set steering, drive briefly, stop, then center steering.
+- `set_steering`: turn the front wheels in place.
+- `look`: move camera pan/tilt.
 - `take_photo`
 - `stop`
 

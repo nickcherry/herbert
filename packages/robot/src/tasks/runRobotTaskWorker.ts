@@ -15,6 +15,19 @@ export interface RobotTaskWorkerOptions {
   readonly once: boolean;
 }
 
+export interface RobotTaskExecutor {
+  readonly setMotor: (options: { readonly speed: number }) => Promise<unknown>;
+  readonly setSteering: (options: {
+    readonly angle: number;
+  }) => Promise<unknown>;
+  readonly moveCamera: (options: {
+    readonly panDelta: number;
+    readonly tiltDelta: number;
+  }) => Promise<unknown>;
+  readonly takePhoto: () => Promise<{ readonly path: string }>;
+  readonly stop: () => Promise<unknown>;
+}
+
 export async function runRobotTaskWorker({
   mock,
   pythonPath,
@@ -53,7 +66,7 @@ export async function runRobotTaskWorker({
         })}\n`,
       );
 
-      const photoPath = await executeBatch({ robot, batch, mock });
+      const photoPath = await executeRobotTaskBatch({ robot, batch, mock });
       await completeRobotActionBatch({
         serverUrl,
         batch,
@@ -72,12 +85,12 @@ export async function runRobotTaskWorker({
   }
 }
 
-async function executeBatch({
+export async function executeRobotTaskBatch({
   robot,
   batch,
   mock,
 }: {
-  readonly robot: HerbertController;
+  readonly robot: RobotTaskExecutor;
   readonly batch: RobotTaskActionBatch;
   readonly mock: boolean;
 }): Promise<string> {
@@ -112,13 +125,14 @@ async function executeAction({
   mock,
   batch,
 }: {
-  readonly robot: HerbertController;
+  readonly robot: RobotTaskExecutor;
   readonly action: RobotTaskAction;
   readonly latestPhotoPath: string | undefined;
   readonly mock: boolean;
   readonly batch: RobotTaskActionBatch;
 }): Promise<string | undefined> {
   if (action.type === "drive") {
+    await robot.setSteering({ angle: 0 });
     await robot.setMotor({
       speed: action.direction === "forward" ? action.speed : -action.speed,
     });

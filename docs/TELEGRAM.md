@@ -102,6 +102,15 @@ completed actions are included in the next OpenAI request.
 User message context is formatted as XML:
 
 ```xml
+<turn_context>
+  <trigger>telegram_messages</trigger>
+  <new_message_count>1</new_message_count>
+  <robot_observation_count>0</robot_observation_count>
+  <latest_image_attached>0</latest_image_attached>
+</turn_context>
+```
+
+```xml
 <user_messages>
   <message>
     <sender>Nick</sender>
@@ -115,17 +124,21 @@ User message context is formatted as XML:
 Messages are oldest first. Prior context has `is_new` set to `0`; messages from
 the current polling response have `is_new` set to `1`.
 
-Robot turn observations are also formatted as XML. The actual photo from the
-latest completed robot batch is attached to the OpenAI request as an image input.
+Robot turn observations are also formatted as XML. When the turn trigger is
+`robot_observation`, there may be no new Telegram messages; OpenAI should
+continue from `taskState`, the observation XML, and the attached photo. The
+actual photo from the latest completed robot batch is attached as an image input.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
 
 - `drive`: `direction` is `forward` or `backward`, `speed` is `1..50`, and
-  `durationMs` is `100..1000`.
+  `durationMs` is `100..1000`. This is straight driving; the robot worker centers
+  steering first.
 - `drive_arc`: same drive parameters plus `angle` from `-30..30`; negative is
   left and positive is right.
-- `set_steering`: `angle` from `-30..30`.
+- `set_steering`: `angle` from `-30..30`; turns the front wheels in place without
+  moving the robot.
 - `look`: `panDelta` and `tiltDelta` from `-10..10`.
 - `take_photo`
 - `stop`: emergency or cancel semantic; keep it available even though normal
@@ -135,6 +148,10 @@ Steering is capped at `-30..30` because the PiCar-X v2.0 SDK clamps direction
 servo input to that range. Camera deltas are narrower than the bridge's absolute
 camera range so one model response cannot swing the head from one extreme to the
 other.
+
+`taskState` is the durable memory between turns. It should be self-contained
+enough for a later OpenAI request to know the user's goal, what Herbert has
+observed, what he has already tried, and what he should do next.
 
 ## Cursor State
 

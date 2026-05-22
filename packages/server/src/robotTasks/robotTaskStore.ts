@@ -76,13 +76,25 @@ export async function readRobotTaskContext({
   readonly chatId: string;
   readonly store?: DocumentStore;
 }): Promise<RobotTaskContext> {
+  return await withRobotTaskQueueLock(async () => {
+    return await readRobotTaskContextUnlocked({ chatId, store });
+  });
+}
+
+async function readRobotTaskContextUnlocked({
+  chatId,
+  store,
+}: {
+  readonly chatId: string;
+  readonly store: DocumentStore;
+}): Promise<RobotTaskContext> {
   const queue = await readQueue({ store });
-  const session = [...queue.sessions]
-    .reverse()
-    .find(
-      (candidate) =>
-        candidate.chatId === chatId && candidate.status === "active",
-    );
+  const sessionIndex = findLatestActiveSessionIndex({
+    sessions: queue.sessions,
+    chatId,
+  });
+  const session =
+    sessionIndex === -1 ? undefined : queue.sessions[sessionIndex];
 
   return { session };
 }
@@ -96,10 +108,30 @@ export async function recordRobotTaskResponse({
   readonly session: RobotTaskSession;
   readonly batch?: RobotTaskActionBatch;
 }> {
+  return await withRobotTaskQueueLock(async () => {
+    return await recordRobotTaskResponseUnlocked({
+      chatId,
+      response,
+      nowMs,
+      store,
+    });
+  });
+}
+
+async function recordRobotTaskResponseUnlocked({
+  chatId,
+  response,
+  nowMs,
+  store,
+}: Required<RecordRobotTaskResponseOptions>): Promise<{
+  readonly session: RobotTaskSession;
+  readonly batch?: RobotTaskActionBatch;
+}> {
   const queue = await readQueue({ store });
-  const sessionIndex = queue.sessions.findIndex(
-    (candidate) => candidate.chatId === chatId && candidate.status === "active",
-  );
+  const sessionIndex = findLatestActiveSessionIndex({
+    sessions: queue.sessions,
+    chatId,
+  });
   const existingSession =
     sessionIndex === -1 ? undefined : queue.sessions[sessionIndex];
   const session = existingSession ?? createRobotTaskSession({ chatId, nowMs });
@@ -150,6 +182,17 @@ export async function claimNextRobotTaskBatch({
 }: ClaimNextRobotTaskBatchOptions = {}): Promise<
   RobotTaskActionBatch | undefined
 > {
+  return await withRobotTaskQueueLock(async () => {
+    return await claimNextRobotTaskBatchUnlocked({ nowMs, store });
+  });
+}
+
+async function claimNextRobotTaskBatchUnlocked({
+  nowMs,
+  store,
+}: Required<ClaimNextRobotTaskBatchOptions>): Promise<
+  RobotTaskActionBatch | undefined
+> {
   const queue = await readQueue({ store });
   const batchIndex = queue.batches.findIndex(
     (batch) => batch.status === "queued",
@@ -190,6 +233,28 @@ export async function completeRobotTaskBatch({
   nowMs = Date.now(),
   store = defaultDocumentStore(),
 }: CompleteRobotTaskBatchOptions): Promise<{
+  readonly batch: StoredRobotTaskBatch;
+  readonly session: RobotTaskSession;
+  readonly observation: RobotTaskObservation;
+}> {
+  return await withRobotTaskQueueLock(async () => {
+    return await completeRobotTaskBatchUnlocked({
+      batchId,
+      taskId,
+      photoPath,
+      nowMs,
+      store,
+    });
+  });
+}
+
+async function completeRobotTaskBatchUnlocked({
+  batchId,
+  taskId,
+  photoPath,
+  nowMs,
+  store,
+}: Required<CompleteRobotTaskBatchOptions>): Promise<{
   readonly batch: StoredRobotTaskBatch;
   readonly session: RobotTaskSession;
   readonly observation: RobotTaskObservation;
@@ -344,4 +409,42 @@ function robotTaskQueueDocument(): {
 
 function randomIdSegment(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function findLatestActiveSessionIndex({
+  sessions,
+  chatId,
+}: {
+  readonly sessions: readonly RobotTaskSession[];
+  readonly chatId: string;
+}): number {
+  for (let index = sessions.length - 1; index >= 0; index -= 1) {
+    const candidate = sessions[index];
+
+    if (candidate?.chatId === chatId && candidate.status === "active") {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+let robotTaskQueueLock: Promise<void> = Promise.resolve();
+
+async function withRobotTaskQueueLock<Result>(
+  run: () => Promise<Result>,
+): Promise<Result> {
+  const previous = robotTaskQueueLock;
+  let release: () => void = () => {};
+  robotTaskQueueLock = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+
+  try {
+    return await run();
+  } finally {
+    release();
+  }
 }

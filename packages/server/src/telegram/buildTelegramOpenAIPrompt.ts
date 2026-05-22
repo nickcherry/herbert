@@ -1,6 +1,10 @@
 import type { TelegramHistoryMessage } from "@herbert/server/telegram/telegramMessageHistory";
 import type { RobotTaskAction } from "@herbert/shared";
 
+export type TelegramPromptTurnTrigger =
+  | "telegram_messages"
+  | "robot_observation";
+
 export interface TelegramPromptObservation {
   readonly completedAtMs: number;
   readonly photoPath: string;
@@ -10,25 +14,59 @@ export interface TelegramPromptObservation {
 export interface BuildTelegramOpenAIPromptOptions {
   readonly recentMessages: readonly TelegramHistoryMessage[];
   readonly newMessages: readonly TelegramHistoryMessage[];
+  readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly taskState?: string;
   readonly observations?: readonly TelegramPromptObservation[];
+  readonly hasAttachedImages?: boolean;
 }
 
 export function buildTelegramOpenAIPrompt({
   recentMessages,
   newMessages,
+  turnTrigger,
   taskState,
   observations = [],
+  hasAttachedImages = false,
 }: BuildTelegramOpenAIPromptOptions): string {
   return [
+    "Current turn context:",
+    formatTurnContextXml({
+      turnTrigger,
+      newMessageCount: newMessages.length,
+      observationCount: observations.length,
+      hasAttachedImages,
+    }),
     "Authorized Telegram user messages from this admin chat, oldest first.",
     "Messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to the new messages as one combined admin request.",
+    "If there are no new messages and the trigger is robot_observation, continue from the current task state and latest robot observation.",
+    "All timestamps are UTC.",
     formatTelegramMessagesXml({ recentMessages, newMessages }),
     "Current task state:",
     taskState?.trim() ?? "none",
     "Robot observations from this task, oldest first:",
     formatObservationsXml({ observations }),
   ].join("\n\n");
+}
+
+function formatTurnContextXml({
+  turnTrigger,
+  newMessageCount,
+  observationCount,
+  hasAttachedImages,
+}: {
+  readonly turnTrigger: TelegramPromptTurnTrigger;
+  readonly newMessageCount: number;
+  readonly observationCount: number;
+  readonly hasAttachedImages: boolean;
+}): string {
+  return [
+    "<turn_context>",
+    `  <trigger>${turnTrigger}</trigger>`,
+    `  <new_message_count>${newMessageCount}</new_message_count>`,
+    `  <robot_observation_count>${observationCount}</robot_observation_count>`,
+    `  <latest_image_attached>${hasAttachedImages ? "1" : "0"}</latest_image_attached>`,
+    "</turn_context>",
+  ].join("\n");
 }
 
 function formatTelegramMessagesXml({

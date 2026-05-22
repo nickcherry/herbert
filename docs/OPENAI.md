@@ -59,8 +59,17 @@ Telegram admin messages use Structured Outputs with this root shape:
 }
 ```
 
-The user-message prompt content is XML. It contains prior same-chat context,
-newly received messages, task state, and robot observations:
+The prompt content includes turn metadata, prior same-chat context, newly
+received messages, task state, and robot observations:
+
+```xml
+<turn_context>
+  <trigger>telegram_messages</trigger>
+  <new_message_count>1</new_message_count>
+  <robot_observation_count>0</robot_observation_count>
+  <latest_image_attached>0</latest_image_attached>
+</turn_context>
+```
 
 ```xml
 <user_messages>
@@ -73,6 +82,11 @@ newly received messages, task state, and robot observations:
 </user_messages>
 ```
 
+`trigger` is `telegram_messages` when a poll delivered new admin messages and
+`robot_observation` when Herbert has just completed an action batch and returned
+a photo. On robot observation turns, there may be no new Telegram messages; the
+model must continue from `taskState` and the latest observation.
+
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
 which is supported by Structured Outputs. Do not replace it with
@@ -80,9 +94,9 @@ which is supported by Structured Outputs. Do not replace it with
 current SDK emits `oneOf` for discriminated unions.
 
 The OpenAI schema only includes constraints supported by Structured Outputs.
-Telegram reply length, spoken message length, task state length, and
-`isFinished`/actions consistency are validated after parsing before the response
-is used.
+Telegram reply length, spoken message length, task state length, no-op active
+responses, and `isFinished`/actions consistency are validated after parsing
+before the response is used.
 
 Movement actions are bounded more narrowly than the low-level robot bridge:
 
@@ -93,6 +107,8 @@ Movement actions are bounded more narrowly than the low-level robot bridge:
 
 The `-30..30` steering bound follows the PiCar-X v2.0 SDK direction servo
 constants, even though Herbert's low-level bridge currently accepts `-35..35`.
+`drive` is straight; use `drive_arc` to move while steering. `set_steering`
+turns the front wheels in place without moving the robot.
 
 ## Images
 

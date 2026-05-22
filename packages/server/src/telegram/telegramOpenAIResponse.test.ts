@@ -122,6 +122,18 @@ describe("telegramOpenAIResponseSchema", () => {
     ).toThrow();
   });
 
+  test("rejects unfinished no-op responses", () => {
+    expect(() =>
+      executableTelegramOpenAIResponseSchema.parse({
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Waiting without telling the user or queueing work.",
+        isFinished: false,
+        actions: [],
+      }),
+    ).toThrow();
+  });
+
   test("rejects speech actions from Telegram", () => {
     expect(() =>
       executableTelegramOpenAIResponseSchema.parse({

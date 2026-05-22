@@ -33,6 +33,13 @@ export const executableTelegramOpenAIResponseSchema = z
   .refine(
     (response) => !response.isFinished || response.actions.length === 0,
     "isFinished responses must not include more robot actions.",
+  )
+  .refine(
+    (response) =>
+      response.isFinished ||
+      response.actions.length > 0 ||
+      response.telegramMessage !== null,
+    "Unfinished responses must queue robot actions or send a Telegram message.",
   );
 
 export type TelegramOpenAIResponse = z.infer<
