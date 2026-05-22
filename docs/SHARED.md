@@ -1,12 +1,10 @@
 # Shared Package
 
-`packages/shared` contains TypeScript types and Zod schemas that are expected to
-be shared across boundaries.
+`packages/shared` contains Zod schemas and TypeScript types for boundaries
+crossed by more than one package.
 
-Today it defines the JSONL protocol between the Bun process and the Python
-bridge, plus the small HTTP API contracts shared by `packages/robot` and
-`packages/server`. Later it should also define the command payloads exchanged
-between a phone/server control plane and Herbert's local robot process.
+It currently defines the JSONL protocol between TypeScript and Python, plus the
+HTTP contracts shared by `packages/robot` and `packages/server`.
 
 ## Rules
 
@@ -20,10 +18,14 @@ The package currently exports:
 - `robotCommandPayloadSchema`
 - `robotCommandSchema`
 - `bridgeResponseSchema`
+- `takePhotoResultSchema`
+- `cameraCheckResultSchema`
 - `robotPhotoUploadResponseSchema`
 - `robotTaskActionSchema`
 - `robotTaskActionBatchSchema`
-- robot action batch HTTP response schemas
+- `robotTaskActionBatchPollResponseSchema`
+- `robotTaskActionBatchCompleteResponseSchema`
+- robot HTTP path constants
 - `speechTextSchema`
 - `speechLanguageSchema`
 - command limit constants

@@ -54,6 +54,7 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 
 - `--speed` controls motor power for drive pulses.
 - `--turn-angle` controls the steering step for left/right arrows.
+- `--camera-step` controls the pan/tilt step for `wasd`.
 - `--pulse-ms` controls how long the car keeps moving after a drive keypress.
 - `--safety-ms` controls the Python watchdog timeout.
 - `--python` overrides the Python executable. `HERBERT_PYTHON` can also set it.
@@ -70,11 +71,10 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 bun herbert robot:worker
 ```
 
-`robot:worker` is the polling process for server-directed robot work. It asks
-the Herbert server for the next queued action batch, executes each action in
-series, captures an end-of-turn photo, and reports completion back to the server.
-If the batch already included `take_photo`, that photo is reused as the
-completion photo.
+`robot:worker` polls the server for queued action batches. For each batch it
+executes the actions in order, captures an end-of-turn photo, and reports
+completion back to the server. If the batch already included `take_photo`, that
+photo is reused as the completion photo.
 
 Supported queued actions are:
 
@@ -110,12 +110,10 @@ If the laptop's Bonjour hostname changes, pass the LAN URL explicitly:
 bun herbert robot:keyboard --server-url http://<laptop-hostname>.local:8787
 ```
 
-The bridge captures photos with Picamera2 directly instead of Vilib. This avoids
-Vilib's `camera_start()` path, which can block indefinitely when the camera is
-not detected. Herbert's current camera mount uses Picamera2's default still
-orientation without an extra flip or rotation. If capture fails with a
-camera-detection error, check the camera cable and run `rpicam-hello` on
-Herbert.
+The bridge captures photos with Picamera2 directly instead of Vilib. Herbert's
+current camera mount uses Picamera2's default still orientation without an extra
+flip or rotation. If capture fails with a camera-detection error, check the
+camera cable and run `rpicam-hello` on Herbert.
 
 For camera diagnostics from Herbert's runtime environment, run:
 

@@ -20,9 +20,9 @@ Update docs when changing:
 - Python SDK usage
 - motor or camera angle limits
 - safety timeout behavior
-- polling or WebSocket command contracts
+- polling or server-to-robot command contracts
 - Telegram admin command contracts
-- server-to-robot command broker behavior
+- server-to-robot command queue behavior
 - OpenAI prompt contracts, schemas, model defaults, or image input handling
 - persistence table layout, event schemas, or migration assumptions
 

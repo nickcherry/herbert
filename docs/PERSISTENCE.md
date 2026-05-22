@@ -1,8 +1,7 @@
 # Persistence
 
-Herbert uses a local SQLite database file for server-side persistence.
-Persistence belongs only in `packages/server`; the robot package should treat
-the server as the durable coordination point.
+Herbert uses local SQLite for server-side persistence. The robot package should
+treat the server as the durable coordination point.
 
 ## Configuration
 
@@ -33,9 +32,8 @@ CREATE TABLE IF NOT EXISTS herbert_documents (
 );
 ```
 
-This keeps the early persistence model close to the old typed collection model
-while keeping durability in a simple local database file. If a subsystem later
-needs relational queries, it should get its own purpose-built table and
+This keeps durability simple while preserving collection-style documents. If a
+subsystem later needs relational queries, it should get its own table and
 migration.
 
 ## Rules

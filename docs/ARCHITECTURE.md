@@ -2,30 +2,13 @@
 
 Herbert is a TypeScript repo that keeps Python isolated to the hardware edge.
 
-```text
-packages/robot
-  Bun/TypeScript process on Herbert
-  keyboard CLI now
-  polling or WebSocket listener later
-  low-level typed API over the Python bridge
-
-packages/server
-  Bun/TypeScript process on the Mac mini
-  Telegram administration channel
-  future command broker for Herbert
-
-packages/shared
-  Zod schemas and TypeScript types for cross-boundary commands and API payloads
-
-packages/cli
-  single operator entrypoint for `bun herbert`
-
-packages/robot/python
-  persistent Python subprocess
-  owns Picarx(), Picamera2, and Robot HAT calls
-  JSONL stdin/stdout protocol
-  motor safety watchdog
-```
+| Package                 | Role                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `packages/cli`          | single operator entrypoint for `bun herbert`                                           |
+| `packages/robot`        | robot-side TypeScript for keyboard control, server polling, and Python bridge calls    |
+| `packages/robot/python` | persistent Python subprocess that owns PiCar-X, Picamera2, and Robot HAT calls         |
+| `packages/server`       | Bun HTTP server, Telegram admin channel, OpenAI interpretation, and robot action queue |
+| `packages/shared`       | Zod schemas and TypeScript types for cross-process contracts                           |
 
 The important boundary is the JSONL command protocol. TypeScript sends atomic
 commands such as `set_motor`, `set_steering`, `set_camera_pan`,
@@ -33,13 +16,12 @@ commands such as `set_motor`, `set_steering`, `set_camera_pan`,
 executes those commands against the PiCar-X SDK and Robot HAT APIs.
 
 Higher-level behavior belongs in TypeScript. Driving pulses, steering holds,
-keyboard mapping, future phone commands, network reconnects, and policy
-decisions should compose the atomic commands rather than expanding the Python
-bridge.
+keyboard mapping, network polling, and policy decisions compose atomic bridge
+commands instead of expanding the Python layer.
 
 ## Runtime Shape
 
-The first operator path is:
+Keyboard control:
 
 ```text
 bun herbert robot:keyboard
@@ -50,7 +32,7 @@ bun herbert robot:keyboard
   -> packages/robot/python/herbert_bridge.py
 ```
 
-The server-directed robot path replaces only the command source:
+Server-directed robot work:
 
 ```text
 server action batch
@@ -60,7 +42,7 @@ server action batch
   -> herbert_bridge.py
 ```
 
-Photo upload is already server-mediated:
+Manual photo upload:
 
 ```text
 keyboard photo command
@@ -69,7 +51,7 @@ keyboard photo command
   -> packages/server Telegram sendPhoto
 ```
 
-The administered path uses the server as the coordinator:
+Telegram-administered task loop:
 
 ```text
 Telegram admin message
@@ -84,6 +66,9 @@ Telegram admin message
   -> OpenAI follow-up turn
 ```
 
+Each queued action batch is deliberately small. After a batch runs, the robot
+captures a photo and the server uses that observation to decide the next turn.
+
 ## CLI
 
 All operator commands go through one entrypoint:
@@ -97,9 +82,6 @@ CLI binaries.
 
 ## Safety
 
-Driving should be pulse-based at the TypeScript layer and watchdog-protected at
-the Python layer.
-
-The Python bridge stops the motors if no motor command arrives before its safety
-timeout. This protects against a crashed Bun process, broken SSH session, or
-future network disconnect.
+Driving should be finite and inspectable. TypeScript uses short motor pulses and
+small server action batches; Python also stops the motors if no motor command
+arrives before the safety timeout.

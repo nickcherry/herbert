@@ -14,8 +14,7 @@ OPENAI_API_KEY=...
 
 OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 
-The default prompt model is `gpt-5.4-mini`, chosen as a fast, efficient model
-with text and image input plus structured output support.
+The default prompt model is `gpt-5.4-mini`.
 
 ## Prompt Helper
 
@@ -46,7 +45,7 @@ Structured Outputs schemas should be compatible with OpenAI's supported subset.
 In practice, use a root `z.object(...)` and keep fields required unless there is
 a specific reason to model nullability.
 
-## Telegram Admin Response
+## Telegram Response
 
 Telegram admin messages use Structured Outputs with this root shape:
 
@@ -60,8 +59,8 @@ Telegram admin messages use Structured Outputs with this root shape:
 }
 ```
 
-The user-message prompt content is XML. It contains prior same-chat context and
-all newly received messages from the current Telegram polling response:
+The user-message prompt content is XML. It contains prior same-chat context,
+newly received messages, task state, and robot observations:
 
 ```xml
 <user_messages>
@@ -74,10 +73,6 @@ all newly received messages from the current Telegram polling response:
 </user_messages>
 ```
 
-Messages with `is_new=1` are the unseen messages the response should handle.
-Robot turn observations are also included in the prompt; the latest completion
-photo is attached as an image input.
-
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
 It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
 which is supported by Structured Outputs. Do not replace it with
@@ -89,8 +84,7 @@ Telegram reply length, spoken message length, task state length, and
 `isFinished`/actions consistency are validated after parsing before the response
 is used.
 
-Movement action parameters are bounded more narrowly than the low-level robot
-bridge:
+Movement actions are bounded more narrowly than the low-level robot bridge:
 
 - speed: `1..50`
 - drive duration: `100..1000` ms

@@ -1,6 +1,8 @@
 # Telegram
 
-Telegram is the first admin channel for Herbert.
+Telegram is Herbert's admin channel. The server polls Telegram, sends authorized
+messages to OpenAI, queues robot actions when needed, and sends replies or photos
+back to Telegram.
 
 ## Required Environment
 
@@ -58,7 +60,7 @@ In that case, set:
 TELEGRAM_ADMIN_CHAT_IDS=987654321
 ```
 
-## Setup Check
+## Smoke Check
 
 1. Set `TELEGRAM_ADMIN_CHAT_IDS`.
 2. Run `bun herbert telegram:test` to verify outbound messaging.
@@ -71,12 +73,11 @@ Inbound Telegram messages are not trusted just because they came through the bot
 The server must check the chat id against `TELEGRAM_ADMIN_CHAT_IDS` before
 interpreting a message as an admin command.
 
-## OpenAI Replies
+## OpenAI Task Loop
 
-Every polling response is grouped by admin chat id before contacting OpenAI. If
-Telegram returns multiple unseen messages for the same admin chat, the server
-sends them together in one OpenAI request with up to the 10 most recent
-previously handled messages from that chat. OpenAI must return:
+Every polling response is grouped by admin chat id. If Telegram returns multiple
+unseen messages for the same admin chat, the server sends them together in one
+OpenAI request with recent same-chat context. OpenAI returns:
 
 ```ts
 {
@@ -89,10 +90,9 @@ previously handled messages from that chat. OpenAI must return:
 ```
 
 `telegramMessage` is sent back to Telegram when present. `spokenMessage` is
-logged for the future physical voice path. `taskState` is persisted so
-multi-turn robot work keeps track of the original goal, what Herbert knows so
-far, and what he is trying next. `isFinished` closes the active task for that
-chat and must be paired with an empty action list.
+logged for the future physical voice path. `taskState` is persisted for
+multi-turn robot work. `isFinished` closes the active task for that chat and
+must be paired with an empty action list.
 
 When actions are returned, the server queues them as a robot action batch in
 SQLite. Herbert's robot process polls the queue, executes the batch, captures an
@@ -115,8 +115,8 @@ User message context is formatted as XML:
 Messages are oldest first. Prior context has `is_new` set to `0`; messages from
 the current polling response have `is_new` set to `1`.
 
-Robot turn observations are also formatted as XML in the prompt. The actual
-photo is attached to the OpenAI request as an image input.
+Robot turn observations are also formatted as XML. The actual photo from the
+latest completed robot batch is attached to the OpenAI request as an image input.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:
