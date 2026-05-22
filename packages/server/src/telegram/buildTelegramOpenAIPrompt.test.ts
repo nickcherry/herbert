@@ -35,7 +35,7 @@ describe("buildTelegramOpenAIPrompt", () => {
           actions: [{ type: "take_photo" }],
         },
       ],
-      hasAttachedImages: true,
+      attachedImageCount: 1,
     });
 
     expect(prompt).toContain("<turn_context>");
@@ -44,9 +44,7 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain(
       "<robot_commentary_count>1</robot_commentary_count>",
     );
-    expect(prompt).toContain(
-      "<latest_image_attached>1</latest_image_attached>",
-    );
+    expect(prompt).toContain("<attached_image_count>1</attached_image_count>");
     expect(prompt).toContain("<user_messages>");
     expect(prompt).toContain("<sender>Nick</sender>");
     expect(prompt).toContain("<sender>Frances</sender>");
@@ -72,7 +70,7 @@ describe("buildTelegramOpenAIPrompt", () => {
       newMessages: [],
       taskState: "Checking the stove from the kitchen doorway.",
       commentary: [],
-      hasAttachedImages: true,
+      attachedImageCount: 1,
     });
 
     expect(prompt).toContain("<trigger>robot_commentary</trigger>");

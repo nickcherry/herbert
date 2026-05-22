@@ -1,6 +1,8 @@
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
+  abandonPendingRobotTaskWork,
   claimNextRobotTaskBatch,
+  readRobotTaskContext,
   recordRobotTaskResponse,
 } from "@herbert/server/robotTasks/robotTaskStore";
 import { describe, expect, test } from "bun:test";
@@ -47,6 +49,41 @@ describe("robotTaskStore", () => {
       { type: "look", panDelta: -10, tiltDelta: 0 },
     ]);
     expect(thirdBatch).toBeUndefined();
+  });
+
+  test("abandons pending batches and finishes active sessions on startup sweep", async () => {
+    const store = createMemoryDocumentStore();
+
+    await recordRobotTaskResponse({
+      chatId: "101",
+      nowMs: 1_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Mid-task, needs a look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const before = await readRobotTaskContext({ chatId: "101", store });
+    expect(before.session?.status).toBe("active");
+
+    const sweep = await abandonPendingRobotTaskWork({ nowMs: 5_000, store });
+    expect(sweep.abandonedBatchCount).toBe(1);
+    expect(sweep.finishedSessionCount).toBe(1);
+
+    expect(await claimNextRobotTaskBatch({ nowMs: 6_000, store })).toBeUndefined();
+
+    const after = await readRobotTaskContext({ chatId: "101", store });
+    expect(after.session).toBeUndefined();
+  });
+
+  test("no-op sweep when nothing pending", async () => {
+    const store = createMemoryDocumentStore();
+    const sweep = await abandonPendingRobotTaskWork({ nowMs: 1_000, store });
+    expect(sweep).toEqual({ abandonedBatchCount: 0, finishedSessionCount: 0 });
   });
 });
 

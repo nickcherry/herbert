@@ -18,6 +18,8 @@ export interface BuildTelegramOpenAIPromptOptions {
   readonly taskState?: string;
   readonly commentary?: readonly TelegramPromptCommentary[];
   readonly hasAttachedImages?: boolean;
+  readonly attachedImageCount?: number;
+  readonly nowMs?: number;
 }
 
 export function buildTelegramOpenAIPrompt({
@@ -27,24 +29,28 @@ export function buildTelegramOpenAIPrompt({
   taskState,
   commentary = [],
   hasAttachedImages = false,
+  attachedImageCount,
+  nowMs: _nowMs = Date.now(),
 }: BuildTelegramOpenAIPromptOptions): string {
+  const resolvedAttachedCount = attachedImageCount ?? (hasAttachedImages ? 1 : 0);
   return [
     "Current turn context:",
     formatTurnContextXml({
       turnTrigger,
       newMessageCount: newMessages.length,
       commentaryCount: commentary.length,
-      hasAttachedImages,
+      attachedImageCount: resolvedAttachedCount,
     }),
     "Authorized Telegram user messages from this admin chat, oldest first.",
     "Messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to them together as one combined admin request.",
     "Messages with <is_new>0</is_new> are prior context that has already been handled; do not re-respond to them.",
+    "Older messages outside the recent context window are dropped before this prompt is built, so only the freshest authorized history is shown.",
     "If there are no new messages and the trigger is robot_commentary, continue the active task from the current task state and the latest robot commentary entry.",
     "All timestamps are UTC.",
     formatTelegramMessagesXml({ recentMessages, newMessages }),
     'Current task state (Herbert\'s durable memory carried over from the previous turn; "none" if no task is active):',
     taskState?.trim() ?? "none",
-    "Robot commentary from this task so far, oldest first. Each entry reports the actions Herbert just completed at the end of a batch and the path to the photo Herbert captured immediately after. On robot_commentary turns the latest commentary photo is attached to this prompt as an image input; earlier entries are text-only.",
+    "Robot commentary from this task so far, oldest first. Each entry reports the actions Herbert just completed at the end of a batch and the path to the photo Herbert captured immediately after. The most recent commentary photos are attached to this prompt as image inputs (the LAST attached image is the latest; earlier attached images come from earlier commentary entries and are downsampled). Commentary entries with no matching attached image are text-only on this turn.",
     formatRobotCommentariesXml({ commentary }),
   ].join("\n\n");
 }
@@ -53,19 +59,19 @@ function formatTurnContextXml({
   turnTrigger,
   newMessageCount,
   commentaryCount,
-  hasAttachedImages,
+  attachedImageCount,
 }: {
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly newMessageCount: number;
   readonly commentaryCount: number;
-  readonly hasAttachedImages: boolean;
+  readonly attachedImageCount: number;
 }): string {
   return [
     "<turn_context>",
     `  <trigger>${turnTrigger}</trigger>`,
     `  <new_message_count>${newMessageCount}</new_message_count>`,
     `  <robot_commentary_count>${commentaryCount}</robot_commentary_count>`,
-    `  <latest_image_attached>${hasAttachedImages ? "1" : "0"}</latest_image_attached>`,
+    `  <attached_image_count>${attachedImageCount}</attached_image_count>`,
     "</turn_context>",
   ].join("\n");
 }

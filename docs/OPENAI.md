@@ -14,7 +14,20 @@ OPENAI_API_KEY=...
 
 OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 
-The default prompt model is `gpt-5.4-mini`.
+- `defaultModel`: `gpt-5.5` — used for every chat/Responses-API call (Telegram
+  task loop, structured prompts, anything that calls `promptOpenAI`).
+- `defaultSpeechModel`: `gpt-5.5-mini-tts` — used for server-side
+  text-to-speech synthesis of Herbert's `spokenMessage`.
+- `defaultSpeechVoice`: `fable` — OpenAI voice preset that pairs naturally
+  with Herbert's tiny British chauffeur personality.
+- `defaultSpeechFormat`: `mp3` — output container for synthesized audio.
+- `includedCommentaryPhotoLimit`: maximum number of commentary photos the
+  server attaches to a Telegram OpenAI turn (1 latest at full detail + up to
+  `limit-1` earlier photos at lower detail).
+
+Everything OpenAI-related runs on `gpt-5.5`. If a new caller is added, it
+should fall through to `openaiConfig.defaultModel` rather than hardcoding a
+version.
 
 ## Prompt Helper
 
@@ -31,7 +44,9 @@ const SceneSchema = z.object({
 
 const result = await promptOpenAI({
   prompt: "Describe Herbert's current view.",
-  imagePaths: ["/tmp/herbert/latest.jpg"],
+  images: [
+    { path: "/tmp/herbert/latest.jpg", detail: "high", label: "current view" },
+  ],
   schema: SceneSchema,
   schemaName: "scene",
 });
@@ -67,7 +82,7 @@ received messages, task state, and robot commentary:
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
   <robot_commentary_count>0</robot_commentary_count>
-  <latest_image_attached>0</latest_image_attached>
+  <attached_image_count>0</attached_image_count>
 </turn_context>
 ```
 
@@ -110,10 +125,42 @@ constants, even though Herbert's low-level bridge currently accepts `-35..35`.
 `drive` is straight; use `drive_arc` to move while steering. `set_steering`
 turns the front wheels in place without moving the robot.
 
+## Spoken Commentary
+
+`spokenMessage` is synthesized to audio server-side and played out of the
+machine running `server:start` (the Mac mini or laptop near the robot). It is
+never sent to the robot — the robot only executes action batches.
+
+Server flow when `spokenMessage` is non-null:
+
+1. `handleRobotTaskResponse` calls `synthesizeSpeech` with the text.
+2. `synthesizeSpeech` calls `client.audio.speech.create` against
+   `openaiConfig.defaultSpeechModel` with `openaiConfig.defaultSpeechVoice` and
+   writes the audio to a temp file.
+3. `playAudioFile` invokes the platform audio player (`afplay` on macOS,
+   `aplay` on Linux) as a fire-and-forget child process so it doesn't block
+   the next Telegram turn.
+
+Playback errors are logged but never surfaced to the user — the Telegram
+response and queued robot actions still flow normally if audio is unavailable.
+
 ## Images
 
-`imagePaths` accepts local image paths. The helper reads each file and sends it
-as an `input_image` data URL.
+`promptOpenAI` accepts either:
+
+- `imagePaths: string[]` — simple list, sent at `detail: "auto"`.
+- `images: PromptImageInput[]` — fine-grained control, where each entry is
+  `{ path, detail?, label? }`. The label is emitted as an `input_text` block
+  immediately before the image so the model can attribute each picture.
+
+The Telegram task loop uses the `images` form. On a `robot_commentary` turn it
+sends the latest commentary photo at `detail: "high"` and up to
+`includedCommentaryPhotoLimit - 1` earlier commentary photos at `detail:
+"low"`. OpenAI processes `low`-detail images at a fixed lower resolution, so
+older photos cost far fewer tokens than the current view while still giving
+the model continuity across batches. Each image's label identifies its
+commentary entry so the model knows which photo is the current view and which
+are older.
 
 Supported extensions:
 
@@ -126,6 +173,7 @@ Supported extensions:
 Sources:
 
 - [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses&lang=javascript)
-- [OpenAI GPT-5.4 mini model](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+- [OpenAI image input detail levels](https://platform.openai.com/docs/guides/vision)
+- [OpenAI text-to-speech](https://platform.openai.com/docs/guides/text-to-speech)
 - [SunFounder PiCar-X movement docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_move.html)
 - [SunFounder PiCar-X SDK source](https://github.com/sunfounder/picar-x/blob/v2.0/picarx/picarx.py)

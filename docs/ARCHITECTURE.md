@@ -56,18 +56,27 @@ Telegram-administered task loop:
 ```text
 Telegram admin message
   -> packages/server Telegram polling
-  -> OpenAI structured response
+  -> OpenAI structured response (gpt-5.5)
   -> SQLite robot task queue
   -> packages/robot worker polls GET /robot/action-batches/next
   -> PythonBridgeClient
   -> herbert_bridge.py
-  -> end-of-turn photo
+  -> end-of-batch photo
   -> POST /robot/action-batches/complete
-  -> OpenAI follow-up turn
+  -> OpenAI follow-up turn (with latest photo + downsampled earlier photos)
+  -> spokenMessage synthesized by OpenAI TTS and played server-side
 ```
 
 Each queued action batch is deliberately small. After a batch runs, the robot
 captures a photo and the server uses that commentary to decide the next turn.
+
+On `server:start`, any robot action batches still in `queued` or `claimed`
+state from a previous run are marked `abandoned` and their owning sessions
+are marked `finished`. Crashed or killed work is never replayed.
+
+`spokenMessage` is rendered to audio on the server (the machine running
+`server:start`) and played through its local speaker. The robot only executes
+queued action batches; it never receives speech.
 
 ## CLI
 

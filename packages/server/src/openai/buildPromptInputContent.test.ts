@@ -19,7 +19,7 @@ describe("buildPromptInputContent", () => {
     ]);
   });
 
-  test("builds text plus image prompt content", async () => {
+  test("builds text plus image prompt content from imagePaths", async () => {
     const directory = await mkdtemp(join(tmpdir(), "herbert-openai-"));
     const path = join(directory, "photo.jpg");
 
@@ -40,6 +40,43 @@ describe("buildPromptInputContent", () => {
           type: "input_image",
           image_url: "data:image/jpeg;base64,BAUG",
           detail: "auto",
+        },
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("inserts a label text block before each labeled image", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "herbert-openai-"));
+    const older = join(directory, "older.jpg");
+    const latest = join(directory, "latest.jpg");
+
+    try {
+      await writeFile(older, Buffer.from([1, 2, 3]));
+      await writeFile(latest, Buffer.from([7, 8, 9]));
+
+      const content = await buildPromptInputContent({
+        prompt: "describe the scene",
+        images: [
+          { path: older, detail: "low", label: "Older commentary photo" },
+          { path: latest, detail: "high", label: "Latest commentary photo" },
+        ],
+      });
+
+      expect(content).toEqual([
+        { type: "input_text", text: "describe the scene" },
+        { type: "input_text", text: "Older commentary photo" },
+        {
+          type: "input_image",
+          image_url: "data:image/jpeg;base64,AQID",
+          detail: "low",
+        },
+        { type: "input_text", text: "Latest commentary photo" },
+        {
+          type: "input_image",
+          image_url: "data:image/jpeg;base64,BwgJ",
+          detail: "high",
         },
       ]);
     } finally {

@@ -38,7 +38,9 @@ Current polling cadence:
   seconds.
 - The three cadence values live in `telegramConfig`.
 - OpenAI Telegram context keeps the most recent 10 authorized text messages per
-  admin chat id.
+  admin chat id, and additionally drops any message older than
+  `telegramConfig.openAIContextMessageMaxAgeMs` (default: 3 minutes) before
+  building the OpenAI prompt. Stale history is never replayed to the model.
 
 ## Getting The Chat Id
 
@@ -90,9 +92,11 @@ OpenAI request with recent same-chat context. OpenAI returns:
 ```
 
 `telegramMessage` is sent back to Telegram when present. `spokenMessage` is
-logged for the future physical voice path. `taskState` is persisted for
-multi-turn robot work. `isFinished` closes the active task for that chat and
-must be paired with an empty action list.
+synthesized to audio server-side via OpenAI TTS and played out of the host
+running `server:start` (see [OPENAI.md](./OPENAI.md#spoken-commentary)) — it
+is never sent to the robot. `taskState` is persisted for multi-turn robot
+work. `isFinished` closes the active task for that chat and must be paired
+with an empty action list.
 
 When actions are returned, the server queues them as a robot action batch in
 SQLite. Herbert's robot process polls the queue, executes the batch, captures an
@@ -106,7 +110,7 @@ User message context is formatted as XML:
   <trigger>telegram_messages</trigger>
   <new_message_count>1</new_message_count>
   <robot_commentary_count>0</robot_commentary_count>
-  <latest_image_attached>0</latest_image_attached>
+  <attached_image_count>0</attached_image_count>
 </turn_context>
 ```
 
@@ -126,10 +130,14 @@ the current polling response have `is_new` set to `1`.
 
 Robot commentary entries are also formatted as XML. When the turn trigger is
 `robot_commentary`, there are usually no new Telegram messages; OpenAI should
-continue from `taskState`, the commentary XML, and the attached photo. The
-photo from the latest completed robot batch is attached as an image input;
-earlier commentary entries list a photo path but the photos themselves are not
-attached.
+continue from `taskState`, the commentary XML, and the attached photos. The
+latest commentary photo is attached at `detail: "high"` (Herbert's current
+view) and up to `openaiConfig.includedCommentaryPhotoLimit - 1` earlier
+commentary photos are attached at `detail: "low"` (downsampled by OpenAI for
+continuity at lower token cost). Each attached image is preceded by a label
+identifying which commentary entry it belongs to. Commentary entries beyond
+the photo cap are still listed in the XML with their `photo_path` but have no
+attached image on that turn.
 
 The OpenAI-facing action contract is deliberately narrower than the low-level
 Python bridge:

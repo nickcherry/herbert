@@ -84,9 +84,15 @@ key: default
 ```
 
 The queue document stores active/finished task sessions plus queued, claimed,
-and completed action batches. A task session carries `taskState` and recent
-robot commentary entries so subsequent OpenAI turns know the original request
-and what has happened since.
+completed, and abandoned action batches. A task session carries `taskState`
+and recent robot commentary entries so subsequent OpenAI turns know the
+original request and what has happened since.
+
+`server:start` runs `abandonPendingRobotTaskWork` on boot. Any batch still in
+`queued` or `claimed` from a previous run is marked `abandoned`, and any
+`active` session is marked `finished`. The server cannot tell whether the
+work was completed before shutdown or simply never ran, so it treats it as
+done either way — the queue will never replay a stale batch.
 
 Queue mutations are serialized inside the server process because the first
 implementation stores the queue as one typed document.

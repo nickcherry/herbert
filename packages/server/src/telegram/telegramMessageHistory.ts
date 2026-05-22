@@ -52,6 +52,19 @@ export async function readTelegramMessageHistory({
   return history?.messages ?? [];
 }
 
+export function filterRecentTelegramMessages({
+  messages,
+  nowMs = Date.now(),
+  maxAgeMs,
+}: {
+  readonly messages: readonly TelegramHistoryMessage[];
+  readonly nowMs?: number;
+  readonly maxAgeMs: number;
+}): readonly TelegramHistoryMessage[] {
+  const cutoffSeconds = Math.floor((nowMs - maxAgeMs) / 1_000);
+  return messages.filter((message) => message.date >= cutoffSeconds);
+}
+
 export async function appendTelegramMessageHistory({
   chatId,
   message,

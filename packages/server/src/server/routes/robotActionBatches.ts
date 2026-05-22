@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import { persistenceConfig } from "@herbert/server/constants/persistence";
+import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
 import {
@@ -15,7 +16,10 @@ import {
   type SendTelegramPhoto,
   sendTelegramPhoto,
 } from "@herbert/server/telegram/sendTelegramPhoto";
-import { readTelegramMessageHistory } from "@herbert/server/telegram/telegramMessageHistory";
+import {
+  filterRecentTelegramMessages,
+  readTelegramMessageHistory,
+} from "@herbert/server/telegram/telegramMessageHistory";
 import {
   robotActionBatchCompletePath,
   robotActionBatchPollPath,
@@ -134,9 +138,12 @@ export async function handleRobotActionBatchCompleteRoute({
       filename: filenameForBlob({ blob: image }),
     });
 
-    const recentMessages = await readTelegramMessageHistory({
-      chatId: session.chatId,
-      store,
+    const recentMessages = filterRecentTelegramMessages({
+      messages: await readTelegramMessageHistory({
+        chatId: session.chatId,
+        store,
+      }),
+      maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
     });
     const response = await respondToMessage({
       recentMessages,
@@ -144,7 +151,7 @@ export async function handleRobotActionBatchCompleteRoute({
       turnTrigger: "robot_commentary",
       taskState: session.taskState,
       commentary: session.commentary,
-      imagePaths: [photoPath],
+      latestPhotoPath: photoPath,
     });
 
     await handleRobotTaskResponse({

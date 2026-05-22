@@ -1,5 +1,8 @@
 import { openaiConfig } from "@herbert/server/constants/openai";
-import { buildPromptInputContent } from "@herbert/server/openai/buildPromptInputContent";
+import {
+  buildPromptInputContent,
+  type PromptImageInput,
+} from "@herbert/server/openai/buildPromptInputContent";
 import { createOpenAIClient } from "@herbert/server/openai/createOpenAIClient";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -10,6 +13,7 @@ export interface PromptOpenAIOptions<Schema extends z.ZodType> {
   readonly schema: Schema;
   readonly schemaName?: string;
   readonly imagePaths?: readonly string[];
+  readonly images?: readonly PromptImageInput[];
   readonly model?: string;
   readonly instructions?: string;
   readonly client?: OpenAI;
@@ -19,7 +23,8 @@ export async function promptOpenAI<Schema extends z.ZodType>({
   prompt,
   schema,
   schemaName = openaiConfig.defaultSchemaName,
-  imagePaths = [],
+  imagePaths,
+  images,
   model = openaiConfig.defaultModel,
   instructions,
   client = createOpenAIClient(),
@@ -27,7 +32,7 @@ export async function promptOpenAI<Schema extends z.ZodType>({
   const input = [
     {
       role: "user" as const,
-      content: await buildPromptInputContent({ prompt, imagePaths }),
+      content: await buildPromptInputContent({ prompt, imagePaths, images }),
     },
   ];
 

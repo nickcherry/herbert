@@ -28,10 +28,11 @@ export const robotTaskSessionSchema = z.object({
 
 const storedRobotTaskBatchSchema = robotTaskActionBatchSchema.extend({
   chatId: z.string().min(1),
-  status: z.enum(["queued", "claimed", "completed"]),
+  status: z.enum(["queued", "claimed", "completed", "abandoned"]),
   createdAtMs: z.number().int().nonnegative(),
   claimedAtMs: z.number().int().nonnegative().optional(),
   completedAtMs: z.number().int().nonnegative().optional(),
+  abandonedAtMs: z.number().int().nonnegative().optional(),
 });
 
 const robotTaskQueueDocumentSchema = z.object({
@@ -59,6 +60,16 @@ export interface RecordRobotTaskResponseOptions {
 export interface ClaimNextRobotTaskBatchOptions {
   readonly nowMs?: number;
   readonly store?: DocumentStore;
+}
+
+export interface AbandonPendingRobotTaskWorkOptions {
+  readonly nowMs?: number;
+  readonly store?: DocumentStore;
+}
+
+export interface AbandonPendingRobotTaskWorkResult {
+  readonly abandonedBatchCount: number;
+  readonly finishedSessionCount: number;
 }
 
 export interface CompleteRobotTaskBatchOptions {
@@ -174,6 +185,61 @@ async function recordRobotTaskResponseUnlocked({
     session: updatedSession,
     ...(batch === undefined ? {} : { batch: publicRobotTaskBatch({ batch }) }),
   };
+}
+
+export async function abandonPendingRobotTaskWork({
+  nowMs = Date.now(),
+  store = defaultDocumentStore(),
+}: AbandonPendingRobotTaskWorkOptions = {}): Promise<AbandonPendingRobotTaskWorkResult> {
+  return await withRobotTaskQueueLock(async () => {
+    const queue = await readQueue({ store });
+
+    const batches = queue.batches.map((batch) => {
+      if (batch.status !== "queued" && batch.status !== "claimed") {
+        return batch;
+      }
+      return {
+        ...batch,
+        status: "abandoned" as const,
+        abandonedAtMs: nowMs,
+      };
+    });
+
+    const sessions = queue.sessions.map((session) => {
+      if (session.status !== "active") {
+        return session;
+      }
+      return {
+        ...session,
+        status: "finished" as const,
+        updatedAtMs: nowMs,
+      };
+    });
+
+    const abandonedBatchCount = batches.filter(
+      (batch, index) =>
+        batch.status === "abandoned" && queue.batches[index]?.status !== "abandoned",
+    ).length;
+    const finishedSessionCount = sessions.filter(
+      (session, index) =>
+        session.status === "finished" &&
+        queue.sessions[index]?.status === "active",
+    ).length;
+
+    if (abandonedBatchCount === 0 && finishedSessionCount === 0) {
+      return { abandonedBatchCount, finishedSessionCount };
+    }
+
+    await writeQueue({
+      store,
+      queue: {
+        sessions,
+        batches,
+      },
+    });
+
+    return { abandonedBatchCount, finishedSessionCount };
+  });
 }
 
 export async function claimNextRobotTaskBatch({

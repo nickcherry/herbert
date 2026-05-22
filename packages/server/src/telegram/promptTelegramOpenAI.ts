@@ -1,5 +1,7 @@
+import { openaiConfig } from "@herbert/server/constants/openai";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import { promptOpenAI } from "@herbert/server/openai";
+import type { PromptImageInput } from "@herbert/server/openai/buildPromptInputContent";
 import {
   buildTelegramOpenAIPrompt,
   type TelegramPromptCommentary,
@@ -20,7 +22,8 @@ export interface PromptTelegramOpenAIOptions {
   readonly turnTrigger: TelegramPromptTurnTrigger;
   readonly taskState?: string;
   readonly commentary?: readonly TelegramPromptCommentary[];
-  readonly imagePaths?: readonly string[];
+  readonly latestPhotoPath?: string;
+  readonly nowMs?: number;
 }
 
 export async function promptTelegramOpenAI({
@@ -29,8 +32,14 @@ export async function promptTelegramOpenAI({
   turnTrigger,
   taskState,
   commentary,
-  imagePaths = [],
+  latestPhotoPath,
+  nowMs = Date.now(),
 }: PromptTelegramOpenAIOptions): Promise<TelegramOpenAIResponse> {
+  const images = buildCommentaryImageList({
+    commentary,
+    latestPhotoPath,
+  });
+
   const response = await promptOpenAI({
     prompt: buildTelegramOpenAIPrompt({
       recentMessages,
@@ -38,15 +47,68 @@ export async function promptTelegramOpenAI({
       turnTrigger,
       taskState,
       commentary,
-      hasAttachedImages: imagePaths.length > 0,
+      hasAttachedImages: images.length > 0,
+      attachedImageCount: images.length,
+      nowMs,
     }),
-    imagePaths,
+    images,
     schema: telegramOpenAIResponseSchema,
     schemaName: "telegram_robot_response",
     instructions: telegramOpenAIInstructions,
   });
 
   return parseExecutableTelegramOpenAIResponse({ response });
+}
+
+function buildCommentaryImageList({
+  commentary,
+  latestPhotoPath,
+}: {
+  readonly commentary?: readonly TelegramPromptCommentary[];
+  readonly latestPhotoPath?: string;
+}): readonly PromptImageInput[] {
+  const entries = commentary ?? [];
+  const photoCap = Math.max(1, openaiConfig.includedCommentaryPhotoLimit);
+
+  if (latestPhotoPath !== undefined) {
+    const earlier = entries.slice(0, -1).slice(-(photoCap - 1));
+    const images: PromptImageInput[] = earlier.map((entry, index) => ({
+      path: entry.photoPath,
+      detail: "low",
+      label: `Older commentary photo (entry ${entries.length - earlier.length + index} of ${entries.length}, downsampled): from ${formatPathOnlyLabel({ entry })}.`,
+    }));
+    images.push({
+      path: latestPhotoPath,
+      detail: "high",
+      label: `Latest commentary photo (entry ${entries.length} of ${entries.length}, full detail): Herbert's current view, captured at the end of the action batch that just completed.`,
+    });
+    return images;
+  }
+
+  if (entries.length === 0) {
+    return [];
+  }
+
+  const sliced = entries.slice(-photoCap);
+  return sliced.map((entry, index, list) => {
+    const isLatest = index === list.length - 1;
+    const absoluteIndex = entries.length - list.length + index + 1;
+    return {
+      path: entry.photoPath,
+      detail: isLatest ? "high" : "low",
+      label: isLatest
+        ? `Latest commentary photo (entry ${absoluteIndex} of ${entries.length}, full detail): Herbert's most recent view.`
+        : `Older commentary photo (entry ${absoluteIndex} of ${entries.length}, downsampled): from a previous batch.`,
+    };
+  });
+}
+
+function formatPathOnlyLabel({
+  entry,
+}: {
+  readonly entry: TelegramPromptCommentary;
+}): string {
+  return `the batch that completed at the timestamp shown in the commentary entry below (photo path ${entry.photoPath})`;
 }
 
 export const telegramOpenAIInstructions = [
@@ -65,7 +127,9 @@ export const telegramOpenAIInstructions = [
   "A turn is triggered by exactly one of:",
   "  1. `telegram_messages` — one or more new authorized Telegram messages arrived. Respond to every message marked `<is_new>1</is_new>` as one combined admin request.",
   "  2. `robot_commentary` — the physical robot just finished an action batch and reported back. There are usually no new messages on these turns; continue the active task from `taskState` and the latest commentary entry.",
-  "After each action batch the robot automatically captures a photo and posts the completed actions plus the photo back to the server. That report becomes the next turn's latest commentary entry. On a `robot_commentary` turn the latest commentary photo is attached to this prompt as an image input — treat it as Herbert's current view. On a `telegram_messages` turn no image is attached. Earlier commentary entries only list completed actions and a photo path; their photos are not attached.",
+  "After each action batch the robot automatically captures a photo and posts the completed actions plus the photo back to the server. That report becomes the next turn's latest commentary entry.",
+  "Images attached to this prompt are the recent commentary photos in chronological order, with the LAST one always being the latest. Each image is preceded by a text label that identifies which commentary entry it belongs to. The latest photo is sent at full detail and represents Herbert's current view; any earlier photos are sent at lower detail purely for continuity. Trust the latest photo for fine details and use the older ones only to recall how the scene has changed.",
+  "If a commentary entry has no matching attached image, treat it as text-only: actions were completed but the photo itself is not available to you on this turn.",
   "`taskState` is Herbert's durable memory between turns. Because nothing else persists, it must be self-contained: include the user's goal, relevant prior commitments or clarifying questions Herbert asked, what Herbert knows from the commentary so far, what he plans to try next, and any safety or navigation constraints he must respect. If Herbert asks a question or makes a promise that matters later, record it in `taskState` so the next turn still knows.",
   "Physical tasks proceed in small inspectable steps: choose a small safe batch of robot actions, then wait for the resulting `robot_commentary` turn before deciding what to do next. Herbert cannot interrupt his own batch mid-execution, so prefer short pulses over long drives.",
   "</operating_model>",
@@ -79,7 +143,7 @@ export const telegramOpenAIInstructions = [
   "<response_guidance>",
   "`telegramMessage` is for the Telegram user. Keep it short, personable, useful, and operationally clear. Use null when no Telegram message should be sent right now.",
   `\`telegramMessage\` must fit Telegram's limit (max ${telegramOpenAIResponseLimits.telegramMessage.max} characters); aim much shorter than that.`,
-  "`spokenMessage` is reserved for sparse physical Herbert flavor. Use null unless a short spoken aside would add charm without distracting from the task; operational information belongs in `telegramMessage`.",
+  "`spokenMessage` is Herbert's spoken voice — it is synthesized server-side and played out loud through the speakers near the robot. Use it for sparse physical Herbert flavor: a quick spoken aside that brings the scene to life. Use null unless a short spoken line would add charm without distracting from the task; all operational information belongs in `telegramMessage`.",
   `\`spokenMessage\`, when present, must be at most ${telegramOpenAIResponseLimits.spokenMessage.max} characters.`,
   `\`taskState\` must always be a non-empty string and must stay under ${telegramOpenAIResponseLimits.taskState.max} characters. Summarize older history if it grows long.`,
   "If the situation is confusing, unsafe, or something has gone wrong, stay in character but reduce the cuteness and focus on understanding or resolving the issue.",

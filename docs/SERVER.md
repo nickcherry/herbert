@@ -20,6 +20,18 @@ bun herbert telegram:monitor
 `--no-telegram` is used for HTTP-only checks. The default robot upload target is
 Nick's laptop at `http://Nicks-MacBook-Pro.local:8787`.
 
+On startup, `server:start` sweeps the robot task queue: every batch still in
+`queued` or `claimed` is marked `abandoned`, and every `active` task session is
+marked `finished`. If the server was killed mid-batch, we assume the work has
+either run to completion or been dropped — either way it should not be
+re-executed on restart. The next admin Telegram message starts a fresh task
+session.
+
+`spokenMessage` from each OpenAI response is synthesized to MP3 by OpenAI TTS
+and played on the host running `server:start` (via `afplay` on macOS or
+`aplay` on Linux). The robot never receives spoken commentary — it only
+executes action batches it polls from the queue.
+
 `GET /ping` returns a small JSON response for smoke tests.
 
 `POST /robot/photos` accepts a multipart image attachment in the `image` field,
@@ -59,17 +71,22 @@ in typed constants.
   through the OpenAI response helper.
 - Server-side persistence uses Bun's built-in SQL client with a local SQLite
   file at `data/herbert.sqlite`.
-- Telegram polling defaults also live in `telegramConfig`.
+- Telegram polling defaults (including the context message age cutoff
+  `openAIContextMessageMaxAgeMs`) live in `telegramConfig`.
+- OpenAI defaults (prompt model, TTS model, voice, commentary photo cap) live
+  in `openaiConfig`. Every OpenAI call routes through `gpt-5.5` by default.
 
 ## Boundary
 
 The server package should own:
 
 - Telegram Bot API calls
-- OpenAI API calls
+- OpenAI API calls (chat + text-to-speech)
 - SQLite-backed persistence
 - administrator authentication
 - robot action queue behavior
+- server-side audio playback of synthesized commentary
 
 The server package should not talk directly to PiCar-X hardware. Herbert's robot
-package owns local hardware execution.
+package owns local hardware execution; the robot never receives spoken
+commentary — only the queued action batches.

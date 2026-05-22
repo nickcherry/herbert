@@ -23,6 +23,7 @@ import {
 } from "@herbert/server/telegram/state/telegramStateStore";
 import {
   appendTelegramMessageHistoryBatch,
+  filterRecentTelegramMessages,
   readTelegramMessageHistory,
   type TelegramHistoryMessage,
   telegramHistoryMessageFromTelegram,
@@ -158,9 +159,12 @@ export function startTelegramPolling({
             chatId,
             store,
           });
-          const recentMessages = await readTelegramMessageHistory({
-            chatId,
-            store,
+          const recentMessages = filterRecentTelegramMessages({
+            messages: await readTelegramMessageHistory({
+              chatId,
+              store,
+            }),
+            maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
           });
           const response = await respondToMessage({
             recentMessages,

@@ -2,6 +2,7 @@ import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   appendTelegramMessageHistory,
   appendTelegramMessageHistoryBatch,
+  filterRecentTelegramMessages,
   readTelegramMessageHistory,
 } from "@herbert/server/telegram/telegramMessageHistory";
 import { describe, expect, test } from "bun:test";
@@ -76,6 +77,24 @@ describe("telegramMessageHistory", () => {
         text: "two",
         sender: "unknown",
       },
+    ]);
+  });
+
+  test("filterRecentTelegramMessages drops messages older than the cutoff", () => {
+    const nowMs = 600_000;
+    const maxAgeMs = 180_000;
+    const messages = [
+      { messageId: 1, date: 100, text: "way old", sender: "Nick" },
+      { messageId: 2, date: 500, text: "fresh enough", sender: "Nick" },
+      { messageId: 3, date: 350, text: "older than cutoff", sender: "Nick" },
+      { messageId: 4, date: 580, text: "fresh", sender: "Nick" },
+    ];
+
+    expect(
+      filterRecentTelegramMessages({ messages, nowMs, maxAgeMs }),
+    ).toEqual([
+      { messageId: 2, date: 500, text: "fresh enough", sender: "Nick" },
+      { messageId: 4, date: 580, text: "fresh", sender: "Nick" },
     ]);
   });
 

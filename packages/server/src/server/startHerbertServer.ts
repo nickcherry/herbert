@@ -1,6 +1,8 @@
 import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
+import type { DocumentStore } from "@herbert/server/persistence/documentStore";
+import { abandonPendingRobotTaskWork } from "@herbert/server/robotTasks/robotTaskStore";
 import { createServerFetch } from "@herbert/server/server/createServerFetch";
 import { startTelegramPolling } from "@herbert/server/telegram/runTelegramMonitor";
 import pc from "picocolors";
@@ -9,6 +11,8 @@ export interface StartHerbertServerOptions {
   readonly host?: string;
   readonly port?: number;
   readonly telegramPolling?: boolean;
+  readonly store?: DocumentStore;
+  readonly sweepPendingRobotTaskWork?: boolean;
 }
 
 export interface HerbertServerHandle {
@@ -22,9 +26,20 @@ export async function startHerbertServer({
   host = serverConfig.host,
   port = serverConfig.port,
   telegramPolling = true,
+  store,
+  sweepPendingRobotTaskWork = true,
 }: StartHerbertServerOptions = {}): Promise<HerbertServerHandle> {
   if (telegramPolling) {
     requireOpenAIApiKey();
+  }
+
+  if (sweepPendingRobotTaskWork) {
+    const sweep = await abandonPendingRobotTaskWork({ store });
+    if (sweep.abandonedBatchCount > 0 || sweep.finishedSessionCount > 0) {
+      process.stdout.write(
+        `${pc.bold("server")} abandoned ${sweep.abandonedBatchCount} pending robot batch(es) and finished ${sweep.finishedSessionCount} active task session(s) from a prior run\n`,
+      );
+    }
   }
 
   const telegramHandle = telegramPolling
@@ -37,6 +52,7 @@ export async function startHerbertServer({
         activePollIntervalMs: telegramConfig.activePollIntervalMs,
         activePollWindowMs: telegramConfig.activePollWindowMs,
         once: false,
+        store,
       })
     : undefined;
 
@@ -52,6 +68,7 @@ export async function startHerbertServer({
     fetch: createServerFetch({
       telegramBotToken: env.telegramBotToken,
       telegramAdminChatIds: env.telegramAdminChatIds,
+      store,
     }),
   });
 

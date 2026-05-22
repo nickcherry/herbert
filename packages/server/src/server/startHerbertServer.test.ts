@@ -7,6 +7,7 @@ describe("startHerbertServer", () => {
       host: "127.0.0.1",
       port: 0,
       telegramPolling: false,
+      sweepPendingRobotTaskWork: false,
     });
 
     try {
