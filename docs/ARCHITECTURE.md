@@ -64,7 +64,7 @@ Telegram admin message
   -> end-of-batch photo
   -> POST /robot/action-batches/complete
   -> OpenAI follow-up turn (with latest photo + downsampled earlier photos)
-  -> spokenMessage synthesized by OpenAI TTS and played server-side
+  -> spokenMessage synthesized by ElevenLabs and played server-side
 ```
 
 Each queued action batch is deliberately small. After a batch runs, the robot

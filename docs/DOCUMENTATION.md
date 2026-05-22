@@ -24,6 +24,7 @@ Update docs when changing:
 - Telegram admin command contracts
 - server-to-robot command queue behavior
 - OpenAI prompt contracts, schemas, model defaults, or image input handling
+- ElevenLabs speech synthesis provider, model, voice, or audio settings
 - persistence table layout, event schemas, or migration assumptions
 
 When implementation relies on SunFounder behavior, link the relevant official

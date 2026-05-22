@@ -1,3 +1,6 @@
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+
 import { CliUsageError } from "@herbert/cli/cli/CliUsageError";
 import { herbertPythonPath } from "@herbert/robot/constants/env";
 import { robotServerConfig } from "@herbert/robot/constants/server";
@@ -5,11 +8,15 @@ import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
 import { HerbertController } from "@herbert/robot/robot/HerbertController";
 import { runRobotTaskWorker } from "@herbert/robot/tasks/runRobotTaskWorker";
 import { playAudioFile } from "@herbert/server/audio/playAudioFile";
+import { elevenLabsConfig } from "@herbert/server/constants/elevenlabs";
 import { env } from "@herbert/server/constants/env";
-import { openaiConfig } from "@herbert/server/constants/openai";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
-import { synthesizeSpeech } from "@herbert/server/openai/synthesizeSpeech";
+import {
+  fileExtensionForElevenLabsOutputFormat,
+  resolveElevenLabsOutputFormat,
+  synthesizeSpeech,
+} from "@herbert/server/elevenlabs/synthesizeSpeech";
 import { startHerbertServer } from "@herbert/server/server/startHerbertServer";
 import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates";
 import { runTelegramMonitor } from "@herbert/server/telegram/runTelegramMonitor";
@@ -60,9 +67,12 @@ interface TelegramFlags {
 interface AudioTestFlags {
   readonly text: string;
   readonly model: string;
-  readonly voice: string;
-  readonly instructions?: string;
-  readonly format: SpeechAudioFormat;
+  readonly voiceId: string;
+  readonly outputFormat: string;
+  readonly stability: number;
+  readonly similarityBoost: number;
+  readonly style: number;
+  readonly useSpeakerBoost: boolean;
   readonly speechSpeed: number;
   readonly outputPath?: string;
   readonly player?: string;
@@ -243,40 +253,41 @@ export async function runHerbertCli({
 
   if (command === "audio:test" || command === "speech:test") {
     const flags = parseAudioTestFlags({ argv: rest });
-    requireOpenAIApiKey();
+    requireElevenLabsApiKey();
 
     process.stdout.write(
       `${pc.bold("generating")} ${formatKeyValue({
         key: "model",
         value: flags.model,
       })} ${formatKeyValue({
-        key: "voice",
-        value: flags.voice,
-      })} ${formatKeyValue({
-        key: "instructions",
-        value: flags.instructions === undefined ? "off" : "on",
+        key: "voice_id",
+        value: flags.voiceId,
       })} ${formatKeyValue({
         key: "speed",
         value: String(flags.speechSpeed),
+      })} ${formatKeyValue({
+        key: "output_format",
+        value: flags.outputFormat,
       })} ${formatKeyValue({
         key: "timeoutMs",
         value: String(flags.generationTimeoutMs),
       })}\n`,
     );
 
+    const outputPath =
+      flags.outputPath ?? (await defaultAudioTestOutputPath({ flags }));
     const speech = await synthesizeSpeech({
       text: flags.text,
       model: flags.model,
-      voice: flags.voice,
-      ...(flags.instructions === undefined
-        ? {}
-        : { instructions: flags.instructions }),
-      format: flags.format,
+      voiceId: flags.voiceId,
+      outputFormat: flags.outputFormat,
+      stability: flags.stability,
+      similarityBoost: flags.similarityBoost,
+      style: flags.style,
+      useSpeakerBoost: flags.useSpeakerBoost,
       speed: flags.speechSpeed,
       requestTimeoutMs: flags.generationTimeoutMs,
-      ...(flags.outputPath === undefined
-        ? {}
-        : { outputPath: flags.outputPath }),
+      outputPath,
     });
 
     process.stdout.write(
@@ -287,17 +298,17 @@ export async function runHerbertCli({
         key: "model",
         value: flags.model,
       })} ${formatKeyValue({
-        key: "voice",
-        value: flags.voice,
+        key: "voice_id",
+        value: flags.voiceId,
       })} ${formatKeyValue({
-        key: "instructions",
-        value: flags.instructions === undefined ? "off" : "on",
+        key: "output_format",
+        value: speech.outputFormat,
       })} ${formatKeyValue({
         key: "speed",
         value: String(flags.speechSpeed),
       })} ${formatKeyValue({
-        key: "format",
-        value: speech.format,
+        key: "extension",
+        value: speech.fileExtension,
       })}\n`,
     );
 
@@ -380,17 +391,21 @@ export function renderUsage(): string {
     `  ${pc.cyan("--limit <n>")}             update batch limit (default: telegramConfig)`,
     `  ${pc.cyan("--once")}                  poll one batch and exit`,
     "",
-    pc.bold("OpenAI audio options"),
+    pc.bold("ElevenLabs audio options"),
     `  ${pc.cyan("--text <text>")}           text for audio:test`,
-    `  ${pc.cyan("--voice <voice>")}         OpenAI voice selector (default: ${openaiConfig.defaultSpeechVoice})`,
-    `  ${pc.cyan("--model <model>")}         OpenAI speech model (default: ${openaiConfig.defaultSpeechModel})`,
-    `  ${pc.cyan("--instructions <text>")}   TTS voice direction (default: Herbert personality)`,
-    `  ${pc.cyan("--no-instructions")}       omit TTS voice direction`,
-    `  ${pc.cyan("--speech-speed <n>")}      speech speed from 0.25 to 4.0 (default: ${openaiConfig.defaultSpeechSpeed})`,
-    `  ${pc.cyan("--format <format>")}       audio format: mp3, wav, opus, aac, flac (default: ${openaiConfig.defaultSpeechFormat})`,
-    `  ${pc.cyan("--output <path>")}         write the generated audio to a specific file`,
+    `  ${pc.cyan("--voice-id <id>")}         ElevenLabs voice id (default: ELEVENLABS_VOICE_ID or ${elevenLabsConfig.defaultSpeechVoiceName}/${elevenLabsConfig.defaultSpeechVoiceId})`,
+    `  ${pc.cyan("--voice <id>")}            alias for --voice-id`,
+    `  ${pc.cyan("--model <model>")}         ElevenLabs speech model (default: ${elevenLabsConfig.defaultSpeechModel})`,
+    `  ${pc.cyan("--format <format>")}       ElevenLabs output format or alias mp3/wav/opus (default: ${elevenLabsConfig.defaultSpeechOutputFormat})`,
+    `  ${pc.cyan("--stability <0-1>")}       voice stability (default: ${elevenLabsConfig.defaultSpeechStability})`,
+    `  ${pc.cyan("--similarity-boost <0-1>")} voice similarity boost (default: ${elevenLabsConfig.defaultSpeechSimilarityBoost})`,
+    `  ${pc.cyan("--style <0-1>")}           style exaggeration (default: ${elevenLabsConfig.defaultSpeechStyle})`,
+    `  ${pc.cyan("--speaker-boost")}         enable ElevenLabs speaker boost`,
+    `  ${pc.cyan("--no-speaker-boost")}      disable ElevenLabs speaker boost`,
+    `  ${pc.cyan("--speech-speed <n>")}      speech speed from 0.7 to 1.2 (default: ${elevenLabsConfig.defaultSpeechSpeed})`,
+    `  ${pc.cyan("--output <path>")}         write the generated audio to a specific file (default: tmp/herbert-audio)`,
     `  ${pc.cyan("--player <cmd>")}          playback command (default: afplay on macOS, aplay on Linux)`,
-    `  ${pc.cyan("--generate-timeout-ms <ms>")} fail if OpenAI generation does not finish (default: ${openaiConfig.defaultSpeechRequestTimeoutMs})`,
+    `  ${pc.cyan("--generate-timeout-ms <ms>")} fail if ElevenLabs generation does not finish (default: ${elevenLabsConfig.defaultSpeechRequestTimeoutMs})`,
     `  ${pc.cyan("--play-timeout-ms <ms>")}  fail if playback does not finish (default: 30000)`,
     `  ${pc.cyan("--no-play")}               generate the file without playing it`,
     "",
@@ -789,12 +804,15 @@ function parseAudioTestFlags({
   readonly argv: readonly string[];
 }): AudioTestFlags {
   const raw: Record<string, string | number | boolean | undefined> = {
-    model: openaiConfig.defaultSpeechModel,
-    voice: openaiConfig.defaultSpeechVoice,
-    instructions: openaiConfig.defaultSpeechInstructions,
-    format: openaiConfig.defaultSpeechFormat,
-    speechSpeed: openaiConfig.defaultSpeechSpeed,
-    generationTimeoutMs: openaiConfig.defaultSpeechRequestTimeoutMs,
+    model: elevenLabsConfig.defaultSpeechModel,
+    voiceId: env.elevenLabsVoiceId ?? elevenLabsConfig.defaultSpeechVoiceId,
+    outputFormat: elevenLabsConfig.defaultSpeechOutputFormat,
+    stability: elevenLabsConfig.defaultSpeechStability,
+    similarityBoost: elevenLabsConfig.defaultSpeechSimilarityBoost,
+    style: elevenLabsConfig.defaultSpeechStyle,
+    useSpeakerBoost: elevenLabsConfig.defaultSpeechUseSpeakerBoost,
+    speechSpeed: elevenLabsConfig.defaultSpeechSpeed,
+    generationTimeoutMs: elevenLabsConfig.defaultSpeechRequestTimeoutMs,
     playbackTimeoutMs: 30_000,
     playback: true,
   };
@@ -818,8 +836,8 @@ function parseAudioTestFlags({
       continue;
     }
 
-    if (flag === "--voice") {
-      raw.voice = readOptionValue({ argv, index, flag, value: option.value });
+    if (flag === "--voice" || flag === "--voice-id") {
+      raw.voiceId = readOptionValue({ argv, index, flag, value: option.value });
       if (option.value === undefined) {
         index += 1;
       }
@@ -834,8 +852,8 @@ function parseAudioTestFlags({
       continue;
     }
 
-    if (flag === "--instructions") {
-      raw.instructions = readOptionValue({
+    if (flag === "--format") {
+      raw.outputFormat = readOptionValue({
         argv,
         index,
         flag,
@@ -847,17 +865,48 @@ function parseAudioTestFlags({
       continue;
     }
 
-    if (flag === "--no-instructions") {
-      rejectUnexpectedOptionValue({ flag, value: option.value });
-      raw.instructions = undefined;
-      continue;
-    }
-
-    if (flag === "--format") {
-      raw.format = readOptionValue({ argv, index, flag, value: option.value });
+    if (flag === "--stability") {
+      raw.stability = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
       if (option.value === undefined) {
         index += 1;
       }
+      continue;
+    }
+
+    if (flag === "--similarity-boost") {
+      raw.similarityBoost = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--style") {
+      raw.style = parseNumberFlag({
+        value: readOptionValue({ argv, index, flag, value: option.value }),
+        flag,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--speaker-boost") {
+      rejectUnexpectedOptionValue({ flag, value: option.value });
+      raw.useSpeakerBoost = true;
+      continue;
+    }
+
+    if (flag === "--no-speaker-boost") {
+      rejectUnexpectedOptionValue({ flag, value: option.value });
+      raw.useSpeakerBoost = false;
       continue;
     }
 
@@ -935,6 +984,25 @@ function parseAudioTestFlags({
   return audioTestFlagsSchema.parse(raw);
 }
 
+async function defaultAudioTestOutputPath({
+  flags,
+}: {
+  readonly flags: AudioTestFlags;
+}): Promise<string> {
+  const outputDirectory = join("tmp", "herbert-audio");
+  await mkdir(outputDirectory, { recursive: true });
+
+  const outputFormat = resolveElevenLabsOutputFormat({
+    format: flags.outputFormat,
+  });
+  const extension = fileExtensionForElevenLabsOutputFormat({ outputFormat });
+
+  return join(
+    outputDirectory,
+    `herbert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`,
+  );
+}
+
 function requireTelegramBotToken(): string {
   const botToken = env.telegramBotToken;
 
@@ -960,6 +1028,16 @@ function requireOpenAIApiKey(): string {
 
   if (apiKey === undefined) {
     throw new Error("OPENAI_API_KEY is not set in the environment.");
+  }
+
+  return apiKey;
+}
+
+function requireElevenLabsApiKey(): string {
+  const apiKey = env.elevenLabsApiKey;
+
+  if (apiKey === undefined) {
+    throw new Error("ELEVENLABS_API_KEY is not set in the environment.");
   }
 
   return apiKey;
@@ -1117,17 +1195,16 @@ const telegramFlagsSchema = z.object({
   once: z.boolean(),
 });
 
-const speechAudioFormats = ["mp3", "wav", "opus", "aac", "flac"] as const;
-
-type SpeechAudioFormat = (typeof speechAudioFormats)[number];
-
 const audioTestFlagsSchema = z.object({
   text: z.string().trim().min(1).max(4096),
   model: z.string().trim().min(1),
-  voice: z.string().trim().min(1),
-  instructions: z.string().trim().min(1).max(1_000).optional(),
-  format: z.enum(speechAudioFormats),
-  speechSpeed: z.number().min(0.25).max(4.0),
+  voiceId: z.string().trim().min(1),
+  outputFormat: z.string().trim().min(1),
+  stability: z.number().min(0).max(1),
+  similarityBoost: z.number().min(0).max(1),
+  style: z.number().min(0).max(1),
+  useSpeakerBoost: z.boolean(),
+  speechSpeed: z.number().min(0.7).max(1.2),
   outputPath: z.string().trim().min(1).optional(),
   player: z.string().trim().min(1).optional(),
   generationTimeoutMs: z.number().int().min(1_000).max(300_000),

@@ -92,8 +92,8 @@ OpenAI request with recent same-chat context. OpenAI returns:
 ```
 
 `telegramMessage` is sent back to Telegram when present. `spokenMessage` is
-synthesized to audio server-side via OpenAI TTS and played out of the host
-running `server:start` (see [OPENAI.md](./OPENAI.md#spoken-commentary)) — it
+synthesized to audio server-side via ElevenLabs and played out of the host
+running `server:start` (see [ELEVENLABS.md](./ELEVENLABS.md)) — it
 is never sent to the robot. `taskState` is persisted for multi-turn robot
 work. `isFinished` closes the active task for that chat and must be paired
 with an empty action list.

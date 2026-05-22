@@ -16,27 +16,14 @@ OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 
 - `defaultModel`: `gpt-5.5` — used for every chat/Responses-API call (Telegram
   task loop, structured prompts, anything that calls `promptOpenAI`).
-- `defaultSpeechModel`: `gpt-4o-mini-tts` — used for server-side
-  text-to-speech synthesis of Herbert's `spokenMessage`.
-- `defaultSpeechVoice`: `cedar` — the default voice selector for Herbert's
-  OpenAI speech output.
-- `defaultSpeechInstructions`: voice direction based on Herbert's Telegram
-  personality: an adult British male take on a tiny British chauffeur who is
-  polite, warm, deferential, mildly flustered when confused, and eager to be
-  useful, with lightly funny delivery that avoids theatricality.
-- `defaultSpeechFormat`: `mp3` — output container for synthesized audio.
-- `defaultSpeechSpeed`: `1.0` — OpenAI's default speech speed. The API accepts
-  `0.25..4.0`.
-- `defaultSpeechRequestTimeoutMs`: `30000` — timeout for a single OpenAI speech
-  generation request.
 - `includedCommentaryPhotoLimit`: maximum number of commentary photos the
   server attaches to a Telegram OpenAI turn (1 latest at full detail + up to
   `limit-1` earlier photos at lower detail).
 
-Text generation runs on `gpt-5.5`. Speech generation runs on the OpenAI TTS
-model in `openaiConfig.defaultSpeechModel`. If a new text caller is added, it
-should fall through to `openaiConfig.defaultModel` rather than hardcoding a
-version.
+Text generation runs on `gpt-5.5`. Speech synthesis is handled by ElevenLabs;
+OpenAI only decides whether a response includes `spokenMessage` text. If a new
+text caller is added, it should fall through to `openaiConfig.defaultModel`
+rather than hardcoding a version.
 
 ## Prompt Helper
 
@@ -136,47 +123,24 @@ turns the front wheels in place without moving the robot.
 
 ## Spoken Commentary
 
-`spokenMessage` is synthesized to audio server-side and played out of the
-machine running `server:start` (the Mac mini or laptop near the robot). It is
-never sent to the robot — the robot only executes action batches.
+`spokenMessage` is selected by OpenAI but synthesized by ElevenLabs server-side
+and played out of the machine running `server:start` (the Mac mini or laptop
+near the robot). It is never sent to the robot — the robot only executes action
+batches.
 
-Server flow when `spokenMessage` is non-null:
+OpenAI prompt guidance for `spokenMessage`:
 
-1. `handleRobotTaskResponse` calls `synthesizeSpeech` with the text.
-2. `synthesizeSpeech` calls `client.audio.speech.create` against
-   `openaiConfig.defaultSpeechModel` with `openaiConfig.defaultSpeechVoice` and
-   `openaiConfig.defaultSpeechInstructions`, `openaiConfig.defaultSpeechSpeed`,
-   then writes the audio to a temp file.
-3. `playAudioFile` invokes the platform audio player (`afplay` on macOS,
-   `aplay` on Linux) as a fire-and-forget child process so it doesn't block
-   the next Telegram turn.
+- Use it for sparse physical Herbert flavor: a quick spoken aside that brings
+  the scene to life.
+- Use null unless a short spoken line would add charm without distracting from
+  the task.
+- Keep all operational information in `telegramMessage`.
+- Avoid urgent, time-sensitive, or frame-perfect commentary because audio is
+  based on a completed action batch/photo and usually plays 5-10 seconds after
+  Herbert's last physical action.
 
-Playback errors are logged but never surfaced to the user — the Telegram
-response and queued robot actions still flow normally if audio is unavailable.
-
-Use `audio:test` to generate and play a one-off OpenAI speech sample from the
-operator CLI:
-
-```sh
-bun herbert audio:test "Testing Herbert audio."
-bun herbert audio:test "Testing Marin." --voice marin
-bun herbert audio:test "Testing Alloy." --voice=alloy
-bun herbert audio:test "Testing speed." --speech-speed 1.15
-bun herbert audio:test "Testing custom direction." --instructions "Sound like a calm British man, warm and deferential."
-bun herbert audio:test "Testing a short generation timeout." --generate-timeout-ms 10000
-bun herbert audio:test "Testing a short playback timeout." --play-timeout-ms 10000
-bun herbert audio:test --text "Generate only." --output tmp/audio-test.mp3 --no-play
-```
-
-The command defaults to `openaiConfig.defaultSpeechModel`,
-`openaiConfig.defaultSpeechVoice`, `openaiConfig.defaultSpeechInstructions`,
-`openaiConfig.defaultSpeechSpeed`, and `openaiConfig.defaultSpeechFormat`. Use
-`--model`, `--voice`, `--instructions`, `--no-instructions`, `--speech-speed`,
-`--format`, `--output`, `--player`, `--generate-timeout-ms`,
-`--play-timeout-ms`, and `--no-play` to override those values for a local test
-run. Value options accept either `--flag value` or `--flag=value`. The command
-prints separate `generating`, `generated`, `playing`, and `played` lines so slow
-OpenAI generation or a stuck audio player is visible.
+See [ElevenLabs](./ELEVENLABS.md) for speech synthesis configuration and
+`audio:test`.
 
 ## Images
 
@@ -208,6 +172,5 @@ Sources:
 
 - [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses&lang=javascript)
 - [OpenAI image input detail levels](https://platform.openai.com/docs/guides/vision)
-- [OpenAI text-to-speech](https://platform.openai.com/docs/guides/text-to-speech)
 - [SunFounder PiCar-X movement docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_move.html)
 - [SunFounder PiCar-X SDK source](https://github.com/sunfounder/picar-x/blob/v2.0/picarx/picarx.py)

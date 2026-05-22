@@ -27,7 +27,7 @@ either run to completion or been dropped — either way it should not be
 re-executed on restart. The next admin Telegram message starts a fresh task
 session.
 
-`spokenMessage` from each OpenAI response is synthesized to MP3 by OpenAI TTS
+`spokenMessage` from each OpenAI response is synthesized to MP3 by ElevenLabs
 and played on the host running `server:start` (via `afplay` on macOS or
 `aplay` on Linux). The robot never receives spoken commentary — it only
 executes action batches it polls from the queue.
@@ -69,21 +69,26 @@ in typed constants.
   chat ids.
 - `OPENAI_API_KEY` is read from env when authorized Telegram messages are sent
   through the OpenAI response helper.
+- `ELEVENLABS_API_KEY` is read from env when `spokenMessage` audio is
+  synthesized or `audio:test` is run.
+- `ELEVENLABS_VOICE_ID` optionally overrides the configured default ElevenLabs
+  voice id.
 - Server-side persistence uses Bun's built-in SQL client with a local SQLite
   file at `data/herbert.sqlite`.
 - Telegram polling defaults (including the context message age cutoff
   `openAIContextMessageMaxAgeMs`) live in `telegramConfig`.
-- OpenAI defaults (prompt model, TTS model, TTS voice, instructions, speed, and
-  commentary photo cap) live in `openaiConfig`. Text generation routes through
-  `gpt-5.5` by default, and speech generation routes through the configured TTS
-  model.
+- OpenAI defaults (prompt model and commentary photo cap) live in
+  `openaiConfig`. Text generation routes through `gpt-5.5` by default.
+- ElevenLabs defaults (TTS model, voice id, output format, voice settings, and
+  request timeout) live in `elevenLabsConfig`.
 
 ## Boundary
 
 The server package should own:
 
 - Telegram Bot API calls
-- OpenAI API calls (chat + text-to-speech)
+- OpenAI API calls for Telegram interpretation
+- ElevenLabs API calls for text-to-speech
 - SQLite-backed persistence
 - administrator authentication
 - robot action queue behavior

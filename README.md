@@ -11,6 +11,7 @@ operator interfaces, and network coordination in TypeScript.
 - [Server Package](./docs/SERVER.md) - HTTP server, Telegram admin, and robot action queue.
 - [Telegram](./docs/TELEGRAM.md) - Bot API setup and Telegram-to-OpenAI task loop.
 - [OpenAI](./docs/OPENAI.md) - schema-first prompt helper and image inputs.
+- [ElevenLabs](./docs/ELEVENLABS.md) - server-side speech synthesis and audio testing.
 - [Persistence](./docs/PERSISTENCE.md) - SQLite document store and stored collections.
 - [Python Bridge](./docs/PYTHON_BRIDGE.md) - JSONL protocol and PiCar-X SDK isolation.
 - [Shared Package](./docs/SHARED.md) - schemas and types shared across process boundaries.

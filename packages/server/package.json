@@ -5,6 +5,7 @@
   "private": true,
   "exports": {
     "./env": "./src/constants/env.ts",
+    "./elevenlabs": "./src/elevenlabs/index.ts",
     "./openai": "./src/openai/index.ts",
     "./persistence": "./src/persistence/index.ts",
     "./robotTasks": "./src/robotTasks/index.ts",

@@ -7,6 +7,12 @@ export const env = {
   get openaiApiKey(): string | undefined {
     return optionalEnv("OPENAI_API_KEY");
   },
+  get elevenLabsApiKey(): string | undefined {
+    return optionalEnv("ELEVENLABS_API_KEY");
+  },
+  get elevenLabsVoiceId(): string | undefined {
+    return optionalEnv("ELEVENLABS_VOICE_ID");
+  },
   get telegramBotToken(): string | undefined {
     return optionalEnv("TELEGRAM_BOT_TOKEN");
   },
