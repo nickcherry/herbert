@@ -17,15 +17,19 @@ describe("telegramOpenAIInstructions", () => {
       "      <floorplan>",
       "      <batch_photos>",
       "      <photo_observations>",
+      "      <pose>",
       "<actions>",
       "  <inventory>",
       "  <limits>",
       "  <distance_estimates>",
       "  <composition>",
       "<movement_policy>",
+      "  <pose_awareness>",
+      "  <wheel_awareness>",
       "  <target_pursuit>",
       "  <bias>",
       "  <hazards>",
+      "  <perspective>",
       "  <blockers>",
       "  <camera_only_limit>",
       "  <practical_limit>",
@@ -77,6 +81,7 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain(
       "pursue it with chassis movement",
     );
+    expect(telegramOpenAIInstructions).toContain("get physically closer");
     expect(telegramOpenAIInstructions).toContain(
       "speed 90-100 at 3000-5000 ms",
     );
@@ -88,6 +93,20 @@ describe("telegramOpenAIInstructions", () => {
     );
     expect(telegramOpenAIInstructions).toContain(
       "Do not do more than two camera-only batches",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "Objects look larger and closer",
+    );
+  });
+
+  test("distinguishes camera direction from body and wheel state", () => {
+    expect(telegramOpenAIInstructions).toContain(
+      "Do not confuse camera direction with chassis direction",
+    );
+    expect(telegramOpenAIInstructions).toContain("camera pan is far from 0");
+    expect(telegramOpenAIInstructions).toContain("Use wheel_state");
+    expect(telegramOpenAIInstructions).toContain(
+      "At batch boundaries the motor is stopped",
     );
   });
 

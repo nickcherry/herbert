@@ -20,6 +20,7 @@ export interface CompleteRobotTaskBatchOptions {
   readonly taskId: string;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly steeringAngle?: number;
   readonly distanceCm?: number;
   readonly nowMs?: number;
   readonly store?: DocumentStore;
@@ -42,6 +43,7 @@ export async function completeRobotTaskBatch({
   taskId,
   photoPath,
   cameraPosition,
+  steeringAngle,
   distanceCm,
   nowMs = Date.now(),
   store = defaultDocumentStore(),
@@ -52,6 +54,7 @@ export async function completeRobotTaskBatch({
       taskId,
       photoPath,
       cameraPosition,
+      steeringAngle,
       distanceCm,
       nowMs,
       store,
@@ -64,6 +67,7 @@ async function completeRobotTaskBatchUnlocked({
   taskId,
   photoPath,
   cameraPosition,
+  steeringAngle,
   distanceCm,
   nowMs,
   store,
@@ -72,6 +76,7 @@ async function completeRobotTaskBatchUnlocked({
   readonly taskId: string;
   readonly photoPath: string;
   readonly cameraPosition: RobotTaskCameraPosition | undefined;
+  readonly steeringAngle: number | undefined;
   readonly distanceCm: number | undefined;
   readonly nowMs: number;
   readonly store: DocumentStore;
@@ -110,6 +115,7 @@ async function completeRobotTaskBatchUnlocked({
     completedAtMs: nowMs,
     photoPath,
     ...(cameraPosition === undefined ? {} : { cameraPosition }),
+    ...(steeringAngle === undefined ? {} : { steeringAngle }),
     ...(distanceCm === undefined ? {} : { distanceCm }),
     actions: batch.actions,
   });

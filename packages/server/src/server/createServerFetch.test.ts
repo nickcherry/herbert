@@ -157,6 +157,7 @@ describe("createServerFetch", () => {
           pan: -10,
           tilt: 25,
         });
+        expect(latestBatchReport.steeringAngle).toBe(-5);
         expect(latestBatchReport.photoObservation).toEqual({
           summary: "A window is visible beyond open floor.",
           targetProgress: "The requested window is visible.",
@@ -191,6 +192,7 @@ describe("createServerFetch", () => {
     body.set("taskId", batch.taskId);
     body.set("cameraPan", "-10");
     body.set("cameraTilt", "25");
+    body.set("steeringAngle", "-5");
     body.append("image", new File(["image-bytes"], "batch.jpg"), "batch.jpg");
 
     const completeResponse = await fetch(

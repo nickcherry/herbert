@@ -180,9 +180,12 @@ stored photo observations. Use `--session-id <id>` to inspect an older persisted
 session, or `--output <path>` to choose a destination file.
 
 When the robot worker completes a batch, it also reports Herbert's current
-absolute camera pan/tilt when available. That position is persisted on the
-batch report and rendered as `<camera_position>` so OpenAI can tell when a
-series of `look` actions has already pushed the camera toward a limit.
+absolute camera pan/tilt and front steering angle when available. Those values
+are persisted on the batch report and rendered as `<camera_position>` and
+`<wheel_state>`. Camera pan/tilt is the view direction for the photo, not
+necessarily Herbert's chassis-forward direction. The wheel state tells OpenAI
+where the front wheels were pointed at the batch boundary; motors are stopped at
+that point.
 
 ### Prompt Structure
 
@@ -221,6 +224,13 @@ clutter, glare, and partial occlusion are normal apartment context, not stop
 conditions by themselves. Repeated camera-only adjustment from the same floor
 position should give way to a chassis move or an honest "best available from
 here" finish.
+
+The prompt also tells OpenAI not to confuse the camera's pan direction with the
+body direction. If the camera is panned hard left or right, the model should
+translate the target back into the chassis frame or take a centered bearing
+photo before driving. It also reminds the model that Herbert's low camera makes
+nearby furniture look larger and closer than it is; visible floor around or
+beyond those objects usually means there is still a route toward the target.
 
 ### Floorplan Attachment
 

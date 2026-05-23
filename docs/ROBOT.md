@@ -74,10 +74,10 @@ bun herbert robot:worker
 
 `robot:worker` polls the server for queued action batches. For each batch it
 executes the actions in order, captures an end-of-turn photo, and reports
-completion back to the server with the current camera pan/tilt and an
-ultrasonic distance reading. If the batch ended with `take_photo`, that
-photo is reused as the completion photo; otherwise the worker takes a fresh
-final photo after movement or camera changes.
+completion back to the server with the current camera pan/tilt, front steering
+angle, and an ultrasonic distance reading. If the batch ended with
+`take_photo`, that photo is reused as the completion photo; otherwise the
+worker takes a fresh final photo after movement or camera changes.
 
 After the photo, the worker calls `HerbertController.getDistance()` which
 issues a `get_distance` command to the Python bridge. The bridge wraps the
@@ -88,9 +88,14 @@ report rather than fabricated. The Telegram OpenAI prompt surfaces it as
 `<ultrasonic_distance_cm>` inside each batch report and treats it as ground
 truth for clearance ahead.
 
+The same prompt surfaces camera pose and wheel pose. Camera pan/tilt is the
+camera's viewing direction for the completion photo, not necessarily Herbert's
+chassis-forward direction. The steering angle is the front wheel angle at the
+batch boundary; motors are stopped at that point.
+
 The server-side grouping for one user request is called a task session. Before
-the first action batch it sees for a task session, `robot:worker` tilts the
-camera fully up to the bridge maximum angle.
+the first action batch it sees for a task session, `robot:worker` centers the
+steering and tilts the camera fully up to the bridge maximum angle.
 
 Supported queued actions are:
 

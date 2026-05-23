@@ -47,6 +47,7 @@ export interface SayOptions {
 export class HerbertController {
   private cameraPanAngle = 0;
   private cameraTiltAngle = 0;
+  private steeringAngle = 0;
 
   private constructor(private readonly bridge: PythonBridgeClient) {}
 
@@ -83,10 +84,17 @@ export class HerbertController {
   }: {
     readonly angle: number;
   }): Promise<BridgeOkResponse> {
-    return await this.bridge.send({
+    const parsedAngle = steeringAngleSchema.parse(angle);
+    const response = await this.bridge.send({
       type: "set_steering",
-      angle: steeringAngleSchema.parse(angle),
+      angle: parsedAngle,
     });
+    this.steeringAngle = parsedAngle;
+    return response;
+  }
+
+  public getSteeringAngle(): number {
+    return this.steeringAngle;
   }
 
   public async setCameraPan({

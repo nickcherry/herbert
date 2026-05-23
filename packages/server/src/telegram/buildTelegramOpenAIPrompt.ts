@@ -12,6 +12,7 @@ export interface TelegramPromptBatchReport {
   readonly completedAtMs: number;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly steeringAngle?: number;
   readonly distanceCm?: number;
   readonly photoObservation?: RobotTaskBatchPhotoObservation;
   readonly actions: readonly RobotTaskAction[];
@@ -232,6 +233,15 @@ function formatBatchReportXml({
       `      <pan>${entry.cameraPosition.pan}</pan>`,
       `      <tilt>${entry.cameraPosition.tilt}</tilt>`,
       "    </camera_position>",
+    );
+  }
+
+  if (entry.steeringAngle !== undefined) {
+    lines.push(
+      "    <wheel_state>",
+      `      <steering_angle>${entry.steeringAngle}</steering_angle>`,
+      "      <motor_state>stopped_at_batch_boundary</motor_state>",
+      "    </wheel_state>",
     );
   }
 

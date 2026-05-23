@@ -52,6 +52,14 @@ function buildBatchPhotoObservationPrompt({
           `    <tilt>${batchReport.cameraPosition.tilt}</tilt>`,
           "  </camera_position>",
         ]),
+    ...(batchReport.steeringAngle === undefined
+      ? []
+      : [
+          "  <wheel_state>",
+          `    <steering_angle>${batchReport.steeringAngle}</steering_angle>`,
+          "    <motor_state>stopped_at_batch_boundary</motor_state>",
+          "  </wheel_state>",
+        ]),
     ...(batchReport.distanceCm === undefined
       ? []
       : [

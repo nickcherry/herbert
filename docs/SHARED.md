@@ -24,8 +24,8 @@ It defines:
 - `@herbert/shared/robotTasks` — robot action contract used by the queue API
   and the OpenAI structured response.
 - `@herbert/shared/robotTaskQueue` — persisted task sessions, batch reports
-  (each with optional camera position and photo observation), queued batches,
-  and the top-level queue document.
+  (each with optional camera position, steering angle, and photo observation),
+  queued batches, and the top-level queue document.
 - `@herbert/shared/telegramMessageHistory` — persisted Telegram user message
   history and Herbert Telegram/spoken response history documents.
 - `@herbert/shared/telegramState` — persisted Telegram polling cursor.

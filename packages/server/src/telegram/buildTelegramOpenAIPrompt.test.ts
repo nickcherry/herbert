@@ -40,6 +40,7 @@ describe("buildTelegramOpenAIPrompt", () => {
           completedAtMs: 1_800_000_012_000,
           photoPath: "data/robot-batch-photos/task/batch.jpg",
           cameraPosition: { pan: -10, tilt: 25 },
+          steeringAngle: -5,
           distanceCm: 42.5,
           photoObservation: {
             summary: "A kitchen doorway is visible with open floor ahead.",
@@ -89,6 +90,11 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<camera_position>");
     expect(prompt).toContain("<pan>-10</pan>");
     expect(prompt).toContain("<tilt>25</tilt>");
+    expect(prompt).toContain("<wheel_state>");
+    expect(prompt).toContain("<steering_angle>-5</steering_angle>");
+    expect(prompt).toContain(
+      "<motor_state>stopped_at_batch_boundary</motor_state>",
+    );
     expect(prompt).toContain(
       "<ultrasonic_distance_cm>42.5</ultrasonic_distance_cm>",
     );

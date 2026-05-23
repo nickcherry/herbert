@@ -315,6 +315,7 @@ function renderBatchReport({
     "        </div>",
     '        <dl class="meta-grid compact">',
     renderMeta("camera", formatCameraPosition({ report })),
+    renderMeta("steering", formatSteeringAngle({ report })),
     renderMeta("ultrasonic", formatDistance({ report })),
     renderMeta("photo", report.photoPath),
     "        </dl>",
@@ -622,6 +623,16 @@ function formatDistance({
   return report.distanceCm === undefined
     ? "unknown"
     : `${report.distanceCm} cm`;
+}
+
+function formatSteeringAngle({
+  report,
+}: {
+  readonly report: RobotTaskBatchReport;
+}): string {
+  return report.steeringAngle === undefined
+    ? "unknown"
+    : `${report.steeringAngle} deg`;
 }
 
 function formatNullableNumber(value: number | null): string {

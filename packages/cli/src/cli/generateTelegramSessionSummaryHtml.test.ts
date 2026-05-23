@@ -85,6 +85,7 @@ describe("generateTelegramSessionSummaryHtml", () => {
           completedAtMs: 15_000,
           photoPath: "/tmp/missing-batch.jpg",
           cameraPosition: { pan: -10, tilt: 25 },
+          steeringAngle: -5,
           distanceCm: 42,
           photoObservation: {
             summary: "Window visible beyond furniture.",
@@ -146,6 +147,7 @@ describe("generateTelegramSessionSummaryHtml", () => {
     expect(html).toContain("Pursuing the balcony window.");
     expect(html).toContain("Window visible beyond furniture.");
     expect(html).toContain("sofa foreground");
+    expect(html).toContain("-5 deg");
     expect(html).toContain("Full Prompt");
   });
 });

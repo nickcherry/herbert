@@ -20,6 +20,7 @@ export interface CompleteRobotActionBatchOptions {
   readonly batch: RobotTaskActionBatch;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly steeringAngle?: number;
   readonly distanceCm?: number | null;
 }
 
@@ -47,6 +48,7 @@ export async function completeRobotActionBatch({
   batch,
   photoPath,
   cameraPosition,
+  steeringAngle,
   distanceCm,
 }: CompleteRobotActionBatchOptions): Promise<RobotTaskActionBatchCompleteResponse> {
   const photo = Bun.file(photoPath);
@@ -61,6 +63,9 @@ export async function completeRobotActionBatch({
   if (cameraPosition !== undefined) {
     formData.set("cameraPan", String(cameraPosition.pan));
     formData.set("cameraTilt", String(cameraPosition.tilt));
+  }
+  if (steeringAngle !== undefined) {
+    formData.set("steeringAngle", String(steeringAngle));
   }
   if (distanceCm !== undefined && distanceCm !== null) {
     formData.set("distanceCm", String(distanceCm));

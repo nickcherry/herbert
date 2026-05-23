@@ -115,15 +115,18 @@ describe("robotTaskQueue operations", () => {
       taskId: batch.taskId,
       photoPath: "/tmp/batch.jpg",
       cameraPosition: { pan: -10, tilt: 25 },
+      steeringAngle: -5,
       nowMs: 3_000,
       store,
     });
 
     expect(result.batchReport.cameraPosition).toEqual({ pan: -10, tilt: 25 });
+    expect(result.batchReport.steeringAngle).toBe(-5);
     expect(result.session.batchReports.at(-1)?.cameraPosition).toEqual({
       pan: -10,
       tilt: 25,
     });
+    expect(result.session.batchReports.at(-1)?.steeringAngle).toBe(-5);
   });
 
   test("records a stored observation on a completed batch report", async () => {

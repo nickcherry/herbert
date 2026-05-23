@@ -34,7 +34,7 @@ describe("executeRobotTaskBatch", () => {
     ]);
   });
 
-  test("tilts the camera fully up before the first batch in a task session", async () => {
+  test("centers steering and tilts the camera fully up before the first batch in a task session", async () => {
     const calls: string[] = [];
     const robot = createFakeRobot({ calls });
     const photoPath = await executeRobotTaskBatch({
@@ -49,7 +49,11 @@ describe("executeRobotTaskBatch", () => {
     });
 
     expect(photoPath).toBe("/tmp/herbert-batch.jpg");
-    expect(calls).toEqual(["set_camera_tilt:35", "take_photo"]);
+    expect(calls).toEqual([
+      "set_steering:0",
+      "set_camera_tilt:35",
+      "take_photo",
+    ]);
   });
 
   test("captures a fresh completion photo after camera movement", async () => {
@@ -83,6 +87,9 @@ function createFakeRobot({
     },
     async setSteering({ angle }) {
       calls.push(`set_steering:${angle}`);
+    },
+    getSteeringAngle() {
+      return 0;
     },
     async moveCamera({ panDelta, tiltDelta }) {
       calls.push(`move_camera:${panDelta}:${tiltDelta}`);

@@ -36,6 +36,7 @@ import {
   robotTaskActionBatchCompleteResponseSchema,
   robotTaskActionBatchPollResponseSchema,
   robotTaskCameraPositionSchema,
+  steeringAngleSchema,
 } from "@herbert/shared";
 
 export const robotActionBatchPollRoutePath = robotActionBatchPollPath;
@@ -116,6 +117,9 @@ export async function handleRobotActionBatchCompleteRoute({
   const cameraPositionResult = optionalCameraPosition({
     formData: formDataResult,
   });
+  const steeringAngleResult = optionalSteeringAngle({
+    formData: formDataResult,
+  });
   const distanceCmResult = optionalDistanceCm({ formData: formDataResult });
   const image = formDataResult.get("image");
 
@@ -133,6 +137,10 @@ export async function handleRobotActionBatchCompleteRoute({
 
   if (distanceCmResult instanceof Response) {
     return distanceCmResult;
+  }
+
+  if (steeringAngleResult instanceof Response) {
+    return steeringAngleResult;
   }
 
   if (!(image instanceof Blob)) {
@@ -154,6 +162,7 @@ export async function handleRobotActionBatchCompleteRoute({
       taskId,
       photoPath,
       cameraPosition: cameraPositionResult,
+      steeringAngle: steeringAngleResult,
       distanceCm: distanceCmResult,
       store,
     });
@@ -375,6 +384,39 @@ function optionalDistanceCm({
   }
 
   return value;
+}
+
+function optionalSteeringAngle({
+  formData,
+}: {
+  readonly formData: { get: (name: string) => unknown };
+}): number | undefined | Response {
+  const raw = formData.get("steeringAngle");
+
+  if (raw === null) {
+    return undefined;
+  }
+
+  if (typeof raw !== "string") {
+    return errorResponse({
+      status: 400,
+      error: "invalid_steering_angle",
+      message:
+        "Expected `steeringAngle` multipart field to be a numeric string.",
+    });
+  }
+
+  const result = steeringAngleSchema.safeParse(Number(raw));
+
+  if (!result.success) {
+    return errorResponse({
+      status: 400,
+      error: "invalid_steering_angle",
+      message: "Expected steering angle within the supported range.",
+    });
+  }
+
+  return result.data;
 }
 
 function safePathSegment(value: string): string {

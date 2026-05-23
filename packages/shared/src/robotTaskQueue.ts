@@ -1,4 +1,7 @@
-import { cameraAngleSchema } from "@herbert/shared/commands";
+import {
+  cameraAngleSchema,
+  steeringAngleSchema,
+} from "@herbert/shared/commands";
 import {
   robotTaskActionBatchSchema,
   robotTaskHistoricalActionSchema,
@@ -39,6 +42,7 @@ export const robotTaskBatchReportSchema = z.object({
   completedAtMs: z.number().int().nonnegative(),
   photoPath: z.string().min(1),
   cameraPosition: robotTaskCameraPositionSchema.optional(),
+  steeringAngle: steeringAngleSchema.optional(),
   distanceCm: z.number().finite().nonnegative().optional(),
   photoObservation: robotTaskBatchPhotoObservationSchema.optional(),
   actions: z.array(robotTaskHistoricalActionSchema),

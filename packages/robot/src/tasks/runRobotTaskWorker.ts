@@ -31,6 +31,7 @@ export interface RobotTaskExecutor {
   readonly setCameraTilt: (options: {
     readonly angle: number;
   }) => Promise<unknown>;
+  readonly getSteeringAngle: () => number;
   readonly takePhoto: () => Promise<{ readonly path: string }>;
   readonly stop: () => Promise<unknown>;
 }
@@ -92,6 +93,7 @@ export async function runRobotTaskWorker({
         batch,
         photoPath,
         cameraPosition: robot.getCameraPosition(),
+        steeringAngle: robot.getSteeringAngle(),
         distanceCm,
       });
       process.stdout.write(
@@ -128,6 +130,7 @@ export async function executeRobotTaskBatch({
   let latestPhotoPath: string | undefined;
 
   if (initializeTaskSessionCamera) {
+    await robot.setSteering({ angle: 0 });
     await robot.setCameraTilt({ angle: cameraAngleLimits.max });
   }
 
