@@ -102,6 +102,14 @@ The server-side grouping for one user request is called a task session. Before
 the first action batch it sees for a task session, `robot:worker` centers the
 steering and tilts the camera fully up to the bridge maximum angle.
 
+## Physical Size
+
+Herbert's approximate assembled PiCar-X envelope is 216 mm long, 143 mm wide,
+and 113 mm tall (8.5 x 5.6 x 4.5 inches). Treat the wheel-level path as the
+main clearance constraint: Herbert can fit under many chairs, coffee tables,
+side tables, and furniture overhangs when the underside clearance is roughly
+above 12 cm / 5 inches and the floor path is wider than the body plus a margin.
+
 Supported queued actions are:
 
 - `drive`: center steering, drive straight briefly, then stop.
@@ -208,3 +216,4 @@ Sources:
 - [Picamera2 manual](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf)
 - [PiCar-X text-to-speech docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_tts.html)
 - [Robot HAT TTS API](https://docs.sunfounder.com/projects/robot-hat/en/latest/pythonApi/TTS.html)
+- [SunFounder forum dimensional drawing](https://forum.sunfounder.com/t/actual-physical-dimensions-of-picar-x-robot/2446)

@@ -194,6 +194,9 @@ top-level XML sections:
 
 - `<role>` — Herbert's identity, British-chauffeur voice, evidence-grounding,
   and the rule that show/look requests are satisfied by photos.
+- `<physical_profile>` — Herbert's approximate assembled dimensions and the
+  clearance implication that the wheel-level path matters more than furniture
+  overhangs.
 - `<turn>` — turn triggers, persistence model, and image attachment order.
 - `<actions>` — robot action inventory, hard limits, distance estimates, and
   action composition guidance.
@@ -224,6 +227,12 @@ clutter, glare, and partial occlusion are normal apartment context, not stop
 conditions by themselves. Repeated camera-only adjustment from the same floor
 position should give way to a chassis move or an honest "best available from
 here" finish.
+
+The physical profile gives OpenAI Herbert's approximate PiCar-X envelope:
+216 mm long, 143 mm wide, and 113 mm tall. Herbert can fit under many chairs,
+coffee tables, side tables, and furniture overhangs when the floor path and
+underside clearance are open, so overhead furniture should not be treated as a
+blocker by itself.
 
 The prompt also tells OpenAI not to confuse the camera's pan direction with the
 body direction. If the camera is panned hard left or right, the model should

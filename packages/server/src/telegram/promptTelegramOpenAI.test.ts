@@ -15,6 +15,10 @@ describe("telegramOpenAIInstructions", () => {
       "  <prime_directive>",
       "    <precision>",
       "    <show_requests>",
+      "<physical_profile>",
+      "  <dimensions>",
+      "  <clearance>",
+      "  <navigation_implication>",
       "<turn>",
       "  <triggers>",
       "  <state>",
@@ -81,6 +85,19 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain("turn while moving");
     expect(telegramOpenAIInstructions).toContain(
       "Use take_photo only at the end",
+    );
+  });
+
+  test("includes Herbert's physical size and clearance implications", () => {
+    expect(telegramOpenAIInstructions).toContain("length 216 mm / 8.5 in");
+    expect(telegramOpenAIInstructions).toContain("width 143 mm / 5.6 in");
+    expect(telegramOpenAIInstructions).toContain("height 113 mm / 4.5 in");
+    expect(telegramOpenAIInstructions).toContain(
+      "fit under many chairs, coffee tables",
+    );
+    expect(telegramOpenAIInstructions).toContain("wheel-level path");
+    expect(telegramOpenAIInstructions).toContain(
+      "roughly 15 cm wide path plus a margin",
     );
   });
 
