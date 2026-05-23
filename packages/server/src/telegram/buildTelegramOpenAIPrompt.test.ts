@@ -40,12 +40,17 @@ describe("buildTelegramOpenAIPrompt", () => {
           completedAtMs: 1_800_000_012_000,
           photoPath: "data/robot-batch-photos/task/batch.jpg",
           cameraPosition: { pan: -10, tilt: 25 },
+          distanceCm: 42.5,
           actions: [{ type: "take_photo" }],
         },
       ],
       attachedImageCount: 1,
     });
 
+    expect(prompt).toContain("<floorplan>");
+    expect(prompt).toContain("22 North 6th Street, Unit 10C");
+    expect(prompt).toContain('<room number="1" name="Living / Dining Room"');
+    expect(prompt).toContain('<room number="7"');
     expect(prompt).toContain("<turn_context>");
     expect(prompt).toContain("<trigger>telegram_messages</trigger>");
     expect(prompt).toContain("<new_message_count>2</new_message_count>");
@@ -67,13 +72,14 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("I can scoot forward and inspect.");
     expect(prompt).toContain("<spoken_message>");
     expect(prompt).toContain("A modest reconnaissance, then.");
-    expect(prompt).toContain("Checking whether the stove is on.");
+    expect(prompt).toContain("<task_state>\nChecking whether the stove is on.\n</task_state>");
     expect(prompt).toContain("<batch_reports>");
     expect(prompt).toContain("<batch_report>");
     expect(prompt).toContain("<completed_actions>");
     expect(prompt).toContain("<camera_position>");
     expect(prompt).toContain("<pan>-10</pan>");
     expect(prompt).toContain("<tilt>25</tilt>");
+    expect(prompt).toContain("<ultrasonic_distance_cm>42.5</ultrasonic_distance_cm>");
     expect(prompt).toContain(
       "<photo_path>data/robot-batch-photos/task/batch.jpg</photo_path>",
     );
@@ -91,8 +97,17 @@ describe("buildTelegramOpenAIPrompt", () => {
 
     expect(prompt).toContain("<trigger>batch_complete</trigger>");
     expect(prompt).toContain("<new_message_count>0</new_message_count>");
-    expect(prompt).toContain(
-      "If there are no new messages and the trigger is batch_complete",
-    );
+    expect(prompt).toContain("<task_state>\nChecking the stove from the kitchen doorway.\n</task_state>");
+  });
+
+  test("renders task_state as 'none' when not provided", () => {
+    const prompt = buildTelegramOpenAIPrompt({
+      turnTrigger: "telegram_messages",
+      recentMessages: [],
+      newMessages: [],
+      batchReports: [],
+    });
+
+    expect(prompt).toContain("<task_state>none</task_state>");
   });
 });

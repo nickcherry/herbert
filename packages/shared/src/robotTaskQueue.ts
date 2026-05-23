@@ -24,6 +24,7 @@ export const robotTaskBatchReportSchema = z.object({
   completedAtMs: z.number().int().nonnegative(),
   photoPath: z.string().min(1),
   cameraPosition: robotTaskCameraPositionSchema.optional(),
+  distanceCm: z.number().finite().nonnegative().optional(),
   actions: z.array(robotTaskHistoricalActionSchema),
 });
 

@@ -7,6 +7,8 @@ import {
   cameraAngleSchema,
   type CameraCheckResult,
   cameraCheckResultSchema,
+  type GetDistanceResult,
+  getDistanceResultSchema,
   motorSpeedSchema,
   speechLanguageSchema,
   speechTextSchema,
@@ -174,6 +176,17 @@ export class HerbertController {
     return cameraCheckResultSchema.parse(response.result);
   }
 
+  public async getDistance(): Promise<GetDistanceResult> {
+    const response = await this.bridge.send(
+      {
+        type: "get_distance",
+      },
+      { timeoutMs: getDistanceTimeoutMs },
+    );
+
+    return getDistanceResultSchema.parse(response.result);
+  }
+
   public async say({ text, lang }: SayOptions): Promise<BridgeOkResponse> {
     return await this.bridge.send(
       {
@@ -202,3 +215,4 @@ function speechTimeoutMs({ text }: { readonly text: string }): number {
 
 const photoTimeoutMs = 30_000;
 const cameraCheckTimeoutMs = 15_000;
+const getDistanceTimeoutMs = 5_000;

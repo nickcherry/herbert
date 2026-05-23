@@ -20,6 +20,7 @@ export interface CompleteRobotTaskBatchOptions {
   readonly taskId: string;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly distanceCm?: number;
   readonly nowMs?: number;
   readonly store?: DocumentStore;
 }
@@ -41,6 +42,7 @@ export async function completeRobotTaskBatch({
   taskId,
   photoPath,
   cameraPosition,
+  distanceCm,
   nowMs = Date.now(),
   store = defaultDocumentStore(),
 }: CompleteRobotTaskBatchOptions): Promise<CompleteRobotTaskBatchResult> {
@@ -50,6 +52,7 @@ export async function completeRobotTaskBatch({
       taskId,
       photoPath,
       cameraPosition,
+      distanceCm,
       nowMs,
       store,
     });
@@ -61,6 +64,7 @@ async function completeRobotTaskBatchUnlocked({
   taskId,
   photoPath,
   cameraPosition,
+  distanceCm,
   nowMs,
   store,
 }: {
@@ -68,6 +72,7 @@ async function completeRobotTaskBatchUnlocked({
   readonly taskId: string;
   readonly photoPath: string;
   readonly cameraPosition: RobotTaskCameraPosition | undefined;
+  readonly distanceCm: number | undefined;
   readonly nowMs: number;
   readonly store: DocumentStore;
 }): Promise<CompleteRobotTaskBatchResult> {
@@ -105,6 +110,7 @@ async function completeRobotTaskBatchUnlocked({
     completedAtMs: nowMs,
     photoPath,
     ...(cameraPosition === undefined ? {} : { cameraPosition }),
+    ...(distanceCm === undefined ? {} : { distanceCm }),
     actions: batch.actions,
   });
   const updatedSession: RobotTaskSession = {

@@ -13,6 +13,7 @@ export interface TelegramPromptBatchReport {
   readonly completedAtMs: number;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly distanceCm?: number;
   readonly actions: readonly RobotTaskAction[];
 }
 
@@ -41,27 +42,48 @@ export function buildTelegramOpenAIPrompt({
 }: BuildTelegramOpenAIPromptOptions): string {
   const resolvedAttachedCount = attachedImageCount ?? (hasAttachedImages ? 1 : 0);
   return [
-    "Current turn context:",
+    formatFloorplanXml(),
     formatTurnContextXml({
       turnTrigger,
       newMessageCount: newMessages.length,
       batchReportCount: batchReports.length,
       attachedImageCount: resolvedAttachedCount,
     }),
-    "Recent conversation history for this admin chat, oldest first.",
-    "User messages with <is_new>1</is_new> are newly received and have not been handled yet. Respond to them together as one combined admin request.",
-    "User messages with <is_new>0</is_new> are prior context that has already been handled; do not re-respond to them.",
-    "Herbert responses are prior text Herbert already sent to Telegram and/or spoke out loud; use them for continuity, and do not repeat them unless useful.",
-    "Older user messages and Herbert responses outside the recent context window are dropped before this prompt is built, so only the freshest authorized history is shown.",
-    "If there are no new messages and the trigger is batch_complete, continue the active task from the current task state and the latest batch report entry.",
-    "All timestamps are UTC.",
     formatTelegramMessagesXml({ recentMessages, newMessages }),
     formatHerbertResponsesXml({ responses: recentHerbertResponses }),
-    'Current task state (Herbert\'s durable memory carried over from the previous turn; "none" if no task is active):',
-    taskState?.trim() ?? "none",
-    "Batch reports from this task so far, oldest first. Each batch report signals that a batch finished and lists the actions Herbert just completed, the camera pan/tilt after the batch when available, and the path to the photo Herbert captured immediately after. The most recent batch report photos are attached to this prompt as image inputs (the LAST attached image is the latest; earlier attached images come from earlier batch reports and are downsampled). Batch reports with no matching attached image are text-only on this turn.",
+    formatTaskStateXml({ taskState }),
     formatBatchReportsXml({ batchReports }),
   ].join("\n\n");
+}
+
+function formatTaskStateXml({
+  taskState,
+}: {
+  readonly taskState: string | undefined;
+}): string {
+  const value = taskState?.trim();
+  return value === undefined || value.length === 0
+    ? "<task_state>none</task_state>"
+    : `<task_state>\n${value}\n</task_state>`;
+}
+
+function formatFloorplanXml(): string {
+  return [
+    "<floorplan>",
+    "  <address>22 North 6th Street, Unit 10C</address>",
+    "  <rooms>",
+    '    <room number="1" name="Living / Dining Room" dimensions="27\'9&quot; x 12\'9&quot;" />',
+    '    <room number="2" name="Kitchen + Living Room" />',
+    '    <room number="3" name="Master Bath" />',
+    '    <room number="4" name="Hall to Master Bedroom" />',
+    '    <room number="5" name="Master Bedroom" dimensions="14\'8&quot; x 13\'10&quot;" />',
+    '    <room number="6" name="Entry / Kitchen / Office" />',
+    '    <room number="7" name="Second Bedroom / Office" dimensions="10\'3&quot; x 12\'7&quot;" />',
+    "  </rooms>",
+    "  <other_features>Balcony (7' x 13') off Living/Dining; second Bath off the hallway near room 7; W/D closet; several CL closets along interior walls.</other_features>",
+    "  <usage>When a batch photo resembles a numbered reference photo, Herbert is roughly at that marker. Use the layout for room boundaries, doorways, and distances. NOT Herbert's current view.</usage>",
+    "</floorplan>",
+  ].join("\n");
 }
 
 function formatTurnContextXml({
@@ -191,6 +213,10 @@ function formatBatchReportXml({
       `      <tilt>${entry.cameraPosition.tilt}</tilt>`,
       "    </camera_position>",
     );
+  }
+
+  if (entry.distanceCm !== undefined) {
+    lines.push(`    <ultrasonic_distance_cm>${entry.distanceCm}</ultrasonic_distance_cm>`);
   }
 
   lines.push(

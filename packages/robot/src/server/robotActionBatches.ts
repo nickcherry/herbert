@@ -20,6 +20,7 @@ export interface CompleteRobotActionBatchOptions {
   readonly batch: RobotTaskActionBatch;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
+  readonly distanceCm?: number | null;
 }
 
 export async function pollRobotActionBatch({
@@ -46,6 +47,7 @@ export async function completeRobotActionBatch({
   batch,
   photoPath,
   cameraPosition,
+  distanceCm,
 }: CompleteRobotActionBatchOptions): Promise<RobotTaskActionBatchCompleteResponse> {
   const photo = Bun.file(photoPath);
 
@@ -59,6 +61,9 @@ export async function completeRobotActionBatch({
   if (cameraPosition !== undefined) {
     formData.set("cameraPan", String(cameraPosition.pan));
     formData.set("cameraTilt", String(cameraPosition.tilt));
+  }
+  if (distanceCm !== undefined && distanceCm !== null) {
+    formData.set("distanceCm", String(distanceCm));
   }
   formData.append("image", photo, basename(photoPath));
 

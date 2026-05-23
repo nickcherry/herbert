@@ -196,6 +196,31 @@ class Hardware:
 
         return {"path": str(photo_path)}
 
+    def get_distance(self) -> dict[str, Any]:
+        if self.mock:
+            return {"distanceCm": None}
+
+        with self._lock:
+            px = self._require_px()
+            try:
+                with contextlib.redirect_stdout(sys.stderr):
+                    raw = px.get_distance()
+            except Exception as error:  # noqa: BLE001
+                raise BridgeError(f"Ultrasonic read failed: {error}") from error
+
+        if raw is None:
+            return {"distanceCm": None}
+
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return {"distanceCm": None}
+
+        if value < 0:
+            return {"distanceCm": None}
+
+        return {"distanceCm": round(value, 1)}
+
     def camera_check(self) -> dict[str, Any]:
         if self.mock:
             return {
@@ -411,6 +436,8 @@ def handle_line(*, hardware: Hardware, line: str) -> bool:
             )
         elif command_type == "camera_check":
             result = hardware.camera_check()
+        elif command_type == "get_distance":
+            result = hardware.get_distance()
         elif command_type == "say":
             hardware.say(
                 text=require_string(command.get("text"), name="text"),

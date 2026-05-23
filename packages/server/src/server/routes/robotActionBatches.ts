@@ -108,6 +108,7 @@ export async function handleRobotActionBatchCompleteRoute({
   const cameraPositionResult = optionalCameraPosition({
     formData: formDataResult,
   });
+  const distanceCmResult = optionalDistanceCm({ formData: formDataResult });
   const image = formDataResult.get("image");
 
   if (batchId === undefined || taskId === undefined) {
@@ -120,6 +121,10 @@ export async function handleRobotActionBatchCompleteRoute({
 
   if (cameraPositionResult instanceof Response) {
     return cameraPositionResult;
+  }
+
+  if (distanceCmResult instanceof Response) {
+    return distanceCmResult;
   }
 
   if (!(image instanceof Blob)) {
@@ -141,6 +146,7 @@ export async function handleRobotActionBatchCompleteRoute({
       taskId,
       photoPath,
       cameraPosition: cameraPositionResult,
+      distanceCm: distanceCmResult,
       store,
     });
 
@@ -166,6 +172,8 @@ export async function handleRobotActionBatchCompleteRoute({
       maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
     });
     const response = await respondToMessage({
+      chatId: session.chatId,
+      taskId: session.id,
       recentMessages,
       newMessages: [],
       recentHerbertResponses,
@@ -282,6 +290,37 @@ function optionalCameraPosition({
   }
 
   return result.data;
+}
+
+function optionalDistanceCm({
+  formData,
+}: {
+  readonly formData: { get: (name: string) => unknown };
+}): number | undefined | Response {
+  const raw = formData.get("distanceCm");
+
+  if (raw === null) {
+    return undefined;
+  }
+
+  if (typeof raw !== "string") {
+    return errorResponse({
+      status: 400,
+      error: "invalid_distance_cm",
+      message: "Expected `distanceCm` multipart field to be a numeric string.",
+    });
+  }
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    return errorResponse({
+      status: 400,
+      error: "invalid_distance_cm",
+      message: "Expected `distanceCm` to be a non-negative finite number.",
+    });
+  }
+
+  return value;
 }
 
 function safePathSegment(value: string): string {

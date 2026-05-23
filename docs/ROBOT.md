@@ -74,9 +74,19 @@ bun herbert robot:worker
 
 `robot:worker` polls the server for queued action batches. For each batch it
 executes the actions in order, captures an end-of-turn photo, and reports
-completion back to the server with the current camera pan/tilt. If the batch
-ended with `take_photo`, that photo is reused as the completion photo; otherwise
-the worker takes a fresh final photo after movement or camera changes.
+completion back to the server with the current camera pan/tilt and an
+ultrasonic distance reading. If the batch ended with `take_photo`, that
+photo is reused as the completion photo; otherwise the worker takes a fresh
+final photo after movement or camera changes.
+
+After the photo, the worker calls `HerbertController.getDistance()` which
+issues a `get_distance` command to the Python bridge. The bridge wraps the
+PiCar-X v2.0 SDK's `px.get_distance()` (ultrasonic, cm). The result is sent
+back with the batch as a `distanceCm` multipart field. In mock mode, and
+when the sensor returns no echo or fails, the value is omitted from the
+report rather than fabricated. The Telegram OpenAI prompt surfaces it as
+`<ultrasonic_distance_cm>` inside each batch report and treats it as ground
+truth for clearance ahead.
 
 The server-side grouping for one user request is called a task session. Before
 the first action batch it sees for a task session, `robot:worker` tilts the

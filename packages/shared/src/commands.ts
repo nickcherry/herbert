@@ -84,6 +84,9 @@ export const robotCommandPayloadSchema = z.discriminatedUnion("type", [
     type: z.literal("camera_check"),
   }),
   z.object({
+    type: z.literal("get_distance"),
+  }),
+  z.object({
     type: z.literal("say"),
     text: speechTextSchema,
     lang: speechLanguageSchema.optional(),
@@ -134,6 +137,10 @@ export const robotCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     id: commandIdSchema,
+    type: z.literal("get_distance"),
+  }),
+  z.object({
+    id: commandIdSchema,
     type: z.literal("say"),
     text: speechTextSchema,
     lang: speechLanguageSchema.optional(),
@@ -159,6 +166,10 @@ export const bridgeOkResponseSchema = z.object({
 
 export const takePhotoResultSchema = z.object({
   path: z.string().min(1),
+});
+
+export const getDistanceResultSchema = z.object({
+  distanceCm: z.number().finite().nonnegative().nullable(),
 });
 
 export const cameraCheckResultSchema = z.object({
@@ -200,3 +211,4 @@ export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
 export type SpeechLanguage = z.infer<typeof speechLanguageSchema>;
 export type TakePhotoResult = z.infer<typeof takePhotoResultSchema>;
 export type CameraCheckResult = z.infer<typeof cameraCheckResultSchema>;
+export type GetDistanceResult = z.infer<typeof getDistanceResultSchema>;

@@ -45,12 +45,20 @@ const result = await promptOpenAI({
   ],
   schema: SceneSchema,
   schemaName: "scene",
+  logType: "scene_describe", // required: searchable type for openai_call_log
+  logChatId: "123",           // optional
+  logTaskId: "task-abc",      // optional
 });
 ```
 
-The caller must provide a Zod schema. The helper uses the OpenAI JavaScript SDK's
-Responses API parser and `zodTextFormat`, then runs the parsed response through
-the same schema before returning.
+The caller must provide a Zod schema and a `logType`. The helper uses the
+OpenAI JavaScript SDK's Responses API parser and `zodTextFormat`, runs the
+parsed response through the same schema, and records the call (prompt,
+instructions, image paths, parsed response or error, latency, and token usage
+when available) to the `openai_call_log` SQLite table for later inspection.
+Log-write failures are swallowed with a stderr warning so they never block the
+returned response. Tests can stub logging by passing `log` (the
+`OpenaiCallLog` interface).
 
 Structured Outputs schemas should be compatible with OpenAI's supported subset.
 In practice, use a root `z.object(...)` and keep fields required unless there is
@@ -70,9 +78,62 @@ Telegram admin messages use Structured Outputs with this root shape:
 }
 ```
 
-The prompt content includes turn metadata, prior same-chat context, newly
-received messages, Herbert's recent Telegram/spoken outputs, task state, and
-batch reports:
+### Prompt structure
+
+The system instructions (`telegramOpenAIInstructions`) are organized as
+top-level XML sections, executive in tone:
+
+- `<role>` — identity, British-chauffeur voice, the "every turn must move
+  Herbert or change his view" mandate.
+- `<truth_seeking>` — finish what the user asked, not a polite approximation
+  of it. "Show me X" = the WHOLE subject in frame; step back if too close;
+  hedged language means not done; camera at an extreme means move the body.
+- `<movement>` — bigger movements by default; hard limits (`<limits>`); action
+  list (`<actions>`); composition guidance (turn AND drive in one batch via
+  `drive_arc`, or via `set_steering` + `drive`); close-quarters rules; hazard
+  rules; the `distance_cm` heuristic; trust `ultrasonic_distance_cm` from
+  batch reports over guessing.
+- `<turn_model>` — each turn is independent; only `taskState` and batch
+  reports carry over; image attachment order (floorplan first, batch photos
+  next with the last one at full detail).
+- `<response>` — `telegram_message`, `spoken_message`, `is_finished`
+  semantics; the inspection-finish guard.
+- `<special_commands>` — `/ping`, stop/halt, stop-only batches, unable
+  responses.
+
+The per-turn prompt body (`buildTelegramOpenAIPrompt`) emits exactly the
+following top-level XML sections in order: `<floorplan>`, `<turn_context>`,
+`<user_messages>`, `<herbert_responses>`, `<task_state>`, `<batch_reports>`.
+There is no connective prose between them — the instructions describe what
+each section means.
+
+### Floorplan attachment
+
+Every Telegram OpenAI turn attaches Herbert's apartment floorplan as the
+first image at `detail: "high"`. The floorplan image embeds seven numbered
+markers (1-7) matched to reference photos of each room, so the model can
+localize batch photos against the layout. The floorplan is NOT counted in
+`<attached_image_count>`; that count continues to mean "batch report photos
+attached on this turn":
+
+```xml
+<floorplan>
+  <address>22 North 6th Street, Unit 10C</address>
+  <rooms>
+    <room number="1" name="Living / Dining Room" dimensions="27'9&quot; x 12'9&quot;" />
+    ...
+  </rooms>
+  <other_features>...</other_features>
+  <usage>...NOT Herbert's current view.</usage>
+</floorplan>
+```
+
+The image file lives at `packages/server/src/openai/assets/floorplan.jpg` and
+the path is resolved via `resolveFloorplanImagePath` so it works regardless of
+the process's cwd. To update the floorplan, replace that file and adjust the
+`<rooms>` list in `buildTelegramOpenAIPrompt.ts` if the markers change.
+
+### Other body sections
 
 ```xml
 <turn_context>
@@ -123,7 +184,7 @@ before the response is used.
 Movement actions are bounded more narrowly than the low-level robot bridge:
 
 - speed: `50..100`
-- drive duration: `1000..3000` ms
+- drive duration: `1000..5000` ms
 - steering angle: `-30..30`
 - camera deltas: `-10..10`
 
@@ -141,8 +202,34 @@ turns the front wheels in place without moving the robot.
 Drive distance is open-loop, not measured. The prompt gives the model a rough
 straight-line estimate of `distance_cm ~= 50 * (speed / 100) * seconds` so it
 does not choose movement pulses too small to matter. Batch reports can also
-include absolute camera pan/tilt after a batch, which helps the model avoid
-repeating `look` actions into the same camera limit.
+include absolute camera pan/tilt and an `ultrasonic_distance_cm` reading
+taken at batch completion (see [ROBOT.md](./ROBOT.md)). The prompt instructs
+the model to treat `ultrasonic_distance_cm` as ground truth for clearance
+ahead rather than guessing from the photo.
+
+## Call Log
+
+Every call to `promptOpenAI` is recorded to the `openai_call_log` SQLite
+table. The caller must pass a `logType` (free-form string, e.g.
+`"telegram_robot_turn"`) and may pass `logChatId` / `logTaskId` for
+correlation. Each row stores:
+
+- `id`, `created_at_ms`, `type`
+- `model`, `schema_name`, `chat_id`, `task_id`
+- `instructions`, `prompt`, `image_paths_json` (array of file paths, not the
+  image bytes themselves)
+- `response_json` (raw parsed structured-output) or `error_message` on
+  failure
+- `latency_ms`, `input_tokens`, `output_tokens` (when reported by the API)
+
+Indexes on `(created_at_ms)`, `(type, created_at_ms)`, and
+`(chat_id, created_at_ms)` keep filtered queries cheap. Use
+`SqliteOpenaiCallLog#list({ type?, chatId?, taskId?, sinceMs?, limit? })`
+to query.
+
+Log-write failures are swallowed with a stderr warning so logging never
+blocks the call's return value. See [PERSISTENCE.md](./PERSISTENCE.md) for
+the table schema and the `OpenaiCallLog` interface.
 
 ## Spoken Commentary
 

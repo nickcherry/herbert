@@ -177,6 +177,10 @@ export function startTelegramPolling({
             maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
           });
           const response = await respondToMessage({
+            chatId,
+            ...(taskContext.session?.id === undefined
+              ? {}
+              : { taskId: taskContext.session.id }),
             recentMessages,
             newMessages,
             recentHerbertResponses,

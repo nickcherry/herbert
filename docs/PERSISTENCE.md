@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS herbert_documents (
 
 This keeps durability simple while preserving collection-style documents. If a
 subsystem later needs relational queries, it should get its own table and
-migration.
+migration — the OpenAI call log below is the first such opt-out.
 
 ## Type Safety
 
@@ -91,6 +91,11 @@ Public ops by domain today:
 - `operations/telegramState/`
   - `readTelegramState`
   - `writeTelegramState`
+
+The OpenAI call log lives in its own subdirectory (`openaiCallLog/`) and
+talks SQL directly because it owns its own table — see
+[Robot Task Queue](#robot-task-queue) for that pattern, and the
+[OpenAI Call Log](#openai-call-log) section below for the specifics.
 
 ## Rules
 
@@ -171,6 +176,42 @@ MP3s are scratch files under the OS tempdir and are not persisted at all.
 The spoken text itself is persisted in `herbert_response_history` together with
 Herbert's recent Telegram reply text so later OpenAI turns know what Herbert
 already said out loud or sent to the admin chat.
+
+## OpenAI Call Log
+
+Every `promptOpenAI` call is recorded to a dedicated relational table so it
+is searchable by `type`, chat, task, and time. The table is created lazily on
+first append:
+
+```sql
+CREATE TABLE IF NOT EXISTS openai_call_log (
+  id TEXT PRIMARY KEY,
+  created_at_ms INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  model TEXT NOT NULL,
+  schema_name TEXT NOT NULL,
+  chat_id TEXT,
+  task_id TEXT,
+  instructions TEXT,
+  prompt TEXT NOT NULL,
+  image_paths_json TEXT NOT NULL,
+  response_json TEXT,
+  error_message TEXT,
+  latency_ms INTEGER NOT NULL,
+  input_tokens INTEGER,
+  output_tokens INTEGER
+);
+```
+
+Indexes cover `(created_at_ms)`, `(type, created_at_ms)`, and
+`(chat_id, created_at_ms)`. Reads go through `SqliteOpenaiCallLog#list` which
+supports filters `type`, `chatId`, `taskId`, `sinceMs`, `limit` (cap 500).
+Append is best-effort: a write failure logs to stderr but does not surface to
+the caller, so logging never blocks an OpenAI response.
+
+`image_paths_json` stores the on-disk paths Herbert sent to the API, not the
+image bytes themselves; resolve them against the filesystem to reconstruct
+what the model actually saw.
 
 Sources:
 

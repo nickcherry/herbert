@@ -86,11 +86,13 @@ export async function runRobotTaskWorker({
         mock,
         initializeTaskSessionCamera,
       });
+      const distanceCm = await readDistanceCm({ robot, mock });
       await completeRobotActionBatch({
         serverUrl,
         batch,
         photoPath,
         cameraPosition: robot.getCameraPosition(),
+        distanceCm,
       });
       process.stdout.write(
         `${pc.bold("batch")} completed ${formatKeyValue({
@@ -224,6 +226,28 @@ async function executeAction({
 
   await robot.stop();
   return latestPhotoPath;
+}
+
+async function readDistanceCm({
+  robot,
+  mock,
+}: {
+  readonly robot: HerbertController;
+  readonly mock: boolean;
+}): Promise<number | null> {
+  if (mock) {
+    return null;
+  }
+
+  try {
+    const result = await robot.getDistance();
+    return result.distanceCm;
+  } catch (error) {
+    process.stderr.write(
+      `${pc.yellow("distance")} read failed: ${formatError(error)}\n`,
+    );
+    return null;
+  }
 }
 
 async function writeMockPhoto({
