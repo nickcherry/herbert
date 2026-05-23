@@ -3,6 +3,7 @@ export * from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
 export * from "@herbert/server/telegram/extractTelegramMessages";
 export * from "@herbert/server/telegram/getTelegramUpdates";
 export * from "@herbert/server/telegram/promptTelegramOpenAI";
+export * from "@herbert/server/telegram/resolveFloorplanImagePath";
 export * from "@herbert/server/telegram/runTelegramMonitor";
 export * from "@herbert/server/telegram/schemas";
 export * from "@herbert/server/telegram/sendTelegramMessage";

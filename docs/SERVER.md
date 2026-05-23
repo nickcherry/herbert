@@ -78,10 +78,11 @@ in typed constants.
   voice id.
 - Server-side persistence uses Bun's built-in SQL client with a local SQLite
   file at `data/herbert.sqlite`.
-- Telegram polling defaults (including the context message age cutoff
-  `openAIContextMessageMaxAgeMs`) live in `telegramConfig`.
-- OpenAI defaults (prompt model and batch report photo cap) live in
-  `openaiConfig`. Text generation routes through `gpt-5.5` by default.
+- Telegram polling and Telegram OpenAI task-loop defaults (including
+  `openAIContextMessageMaxAgeMs` and `openAIBatchPhotoLimit`) live in
+  `telegramConfig`.
+- Generic OpenAI defaults live in `openaiConfig`. Text generation routes
+  through `gpt-5.5` by default.
 - ElevenLabs defaults (TTS model, voice id, output format, voice settings, and
   request timeout) live in `elevenLabsConfig`.
 

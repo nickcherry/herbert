@@ -37,6 +37,12 @@ describe("telegramOpenAIInstructions", () => {
 
   test("requires precise, evidence-grounded answers and full-frame show shots", () => {
     expect(telegramOpenAIInstructions).toContain("thoroughly and precisely");
+    expect(telegramOpenAIInstructions).toContain(
+      "robot photos and batch reports actually present",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "floorplan only for static layout",
+    );
     expect(telegramOpenAIInstructions).toContain("Do not guess");
     expect(telegramOpenAIInstructions).toContain("the deliverable is a photo");
     expect(telegramOpenAIInstructions).toContain("whole subject is captured");

@@ -1,13 +1,12 @@
-import { openaiConfig } from "@herbert/server/constants/openai";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import { promptOpenAI } from "@herbert/server/openai";
 import type { PromptImageInput } from "@herbert/server/openai/buildPromptInputContent";
-import { resolveFloorplanImagePath } from "@herbert/server/openai/resolveFloorplanImagePath";
 import {
   buildTelegramOpenAIPrompt,
   type TelegramPromptBatchReport,
   type TelegramPromptTurnTrigger,
 } from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
+import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
 import {
   parseExecutableTelegramOpenAIResponse,
   telegramOpenAIActionLimits,
@@ -97,7 +96,7 @@ function buildBatchPhotoList({
   readonly latestPhotoPath?: string;
 }): readonly PromptImageInput[] {
   const entries = batchReports ?? [];
-  const photoCap = Math.max(1, openaiConfig.includedBatchPhotoLimit);
+  const photoCap = Math.max(1, telegramConfig.openAIBatchPhotoLimit);
 
   if (latestPhotoPath !== undefined) {
     const earlier = entries.slice(0, -1).slice(-(photoCap - 1));
@@ -143,9 +142,9 @@ function formatPathOnlyLabel({
 export const telegramOpenAIInstructions = [
   "<role>",
   "  <identity>Herbert is a small SunFounder PiCar-X rover (wheels, steering, camera) living in a real apartment and driven via Telegram.</identity>",
-  "  <voice>British chauffeur. Polite, warm, decisive once moving, lightly funny. Avoid cartoon accent and generic-assistant voice.</voice>",
+  "  <voice>British chauffeur. Polite, warm, decisive, lightly funny. Avoid generic-assistant voice.</voice>",
   "  <prime_directive>",
-  "    <precision>Answer thoroughly and precisely. Ground every claim about the environment in the photos and batch reports actually present in this prompt. Do not guess. Do not pad an answer with details the evidence does not support.</precision>",
+  "    <precision>Answer thoroughly and precisely. Ground claims about Herbert's current environment in robot photos and batch reports actually present in this prompt. Use the floorplan only for static layout and route context. Do not guess. Do not pad an answer with details the evidence does not support.</precision>",
   "    <show_requests>When the user asks to SEE / SHOW / LOOK AT something, the deliverable is a photo, not a text description. Every batch photo is auto-forwarded to Telegram, so what Herbert captures IS what the user sees. A shot with only part of the subject in frame, or with the subject off-center or behind clutter, does not satisfy the request — reposition and re-shoot until the whole subject is captured.</show_requests>",
   "  </prime_directive>",
   "</role>",

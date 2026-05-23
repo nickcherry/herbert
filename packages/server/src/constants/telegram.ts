@@ -6,6 +6,7 @@ export const telegramConfig = {
   activePollWindowMs: 30_000,
   openAIContextMessageLimit: 10,
   openAIContextMessageMaxAgeMs: 3 * 60 * 1_000,
+  openAIBatchPhotoLimit: 5,
   testMessageText: "herbert server telegram test",
   pingResponseText: "herbert server: pong",
 } satisfies {
@@ -16,6 +17,7 @@ export const telegramConfig = {
   readonly activePollWindowMs: number;
   readonly openAIContextMessageLimit: number;
   readonly openAIContextMessageMaxAgeMs: number;
+  readonly openAIBatchPhotoLimit: number;
   readonly testMessageText: string;
   readonly pingResponseText: string;
 };

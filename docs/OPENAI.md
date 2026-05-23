@@ -1,6 +1,9 @@
 # OpenAI
 
-The server package owns OpenAI API integration under `packages/server/src/openai`.
+The server package owns generic OpenAI API integration under
+`packages/server/src/openai`. Domain-specific prompts, schemas, and assets live
+with their caller. For example, Herbert's Telegram robot prompt and floorplan
+reference live under `packages/server/src/telegram`.
 
 ## Environment
 
@@ -16,14 +19,13 @@ OpenAI defaults live in `packages/server/src/constants/openai.ts`.
 
 - `defaultModel`: `gpt-5.5` — used for every chat/Responses-API call (Telegram
   task loop, structured prompts, anything that calls `promptOpenAI`).
-- `includedBatchPhotoLimit`: maximum number of batch report photos the server
-  attaches to a Telegram OpenAI turn (1 latest at full detail + up to
-  `limit-1` earlier photos at lower detail).
+- `defaultSchemaName`: fallback Structured Outputs schema name for callers that
+  do not provide one.
 
-Text generation runs on `gpt-5.5`. Speech synthesis is handled by ElevenLabs;
-OpenAI only decides whether a response includes `spokenMessage` text. If a new
-text caller is added, it should fall through to `openaiConfig.defaultModel`
-rather than hardcoding a version.
+Text generation runs on `gpt-5.5`. Speech synthesis is handled separately by
+ElevenLabs; `promptOpenAI` is only responsible for text/image Responses API
+calls. If a new text caller is added, it should fall through to
+`openaiConfig.defaultModel` rather than hardcoding a version.
 
 ## Prompt Helper
 
@@ -64,148 +66,16 @@ Structured Outputs schemas should be compatible with OpenAI's supported subset.
 In practice, use a root `z.object(...)` and keep fields required unless there is
 a specific reason to model nullability.
 
-## Telegram Response
+## Domain Callers
 
-Telegram admin messages use Structured Outputs with this root shape:
+`promptOpenAI` is intentionally domain-agnostic. A caller can ask about robot
+navigation, generic scene analysis, document extraction, or any other structured
+task; the OpenAI helper only handles request construction, image encoding,
+schema parsing, and call logging.
 
-```ts
-{
-  telegramMessage: string | null;
-  spokenMessage: string | null;
-  taskState: string;
-  isFinished: boolean;
-  actions: Action[];
-}
-```
-
-### Prompt structure
-
-The system instructions (`telegramOpenAIInstructions`) are organized as
-top-level XML sections, executive in tone:
-
-- `<role>` — identity, British-chauffeur voice, the "every turn must move
-  Herbert or change his view" mandate.
-- `<truth_seeking>` — finish what the user asked, not a polite approximation
-  of it. "Show me X" = the WHOLE subject in frame; step back if too close;
-  hedged language means not done; camera at an extreme means move the body.
-- `<movement>` — bigger movements by default; hard limits (`<limits>`); action
-  list (`<actions>`); composition guidance (turn AND drive in one batch via
-  `drive_arc`, or via `set_steering` + `drive`); close-quarters rules; hazard
-  rules; the `distance_cm` heuristic; trust `ultrasonic_distance_cm` from
-  batch reports over guessing.
-- `<turn_model>` — each turn is independent; only `taskState` and batch
-  reports carry over; image attachment order (floorplan first, batch photos
-  next with the last one at full detail).
-- `<response>` — `telegram_message`, `spoken_message`, `is_finished`
-  semantics; the inspection-finish guard.
-- `<special_commands>` — `/ping`, stop/halt, stop-only batches, unable
-  responses.
-
-The per-turn prompt body (`buildTelegramOpenAIPrompt`) emits exactly the
-following top-level XML sections in order: `<floorplan>`, `<turn_context>`,
-`<user_messages>`, `<herbert_responses>`, `<task_state>`, `<batch_reports>`.
-There is no connective prose between them — the instructions describe what
-each section means.
-
-### Floorplan attachment
-
-Every Telegram OpenAI turn attaches Herbert's apartment floorplan as the
-first image at `detail: "high"`. The floorplan image embeds seven numbered
-markers (1-7) matched to reference photos of each room, so the model can
-localize batch photos against the layout. The floorplan is NOT counted in
-`<attached_image_count>`; that count continues to mean "batch report photos
-attached on this turn":
-
-```xml
-<floorplan>
-  <address>22 North 6th Street, Unit 10C</address>
-  <rooms>
-    <room number="1" name="Living / Dining Room" dimensions="27'9&quot; x 12'9&quot;" />
-    ...
-  </rooms>
-  <other_features>...</other_features>
-  <usage>...NOT Herbert's current view.</usage>
-</floorplan>
-```
-
-The image file lives at `packages/server/src/openai/assets/floorplan.jpg` and
-the path is resolved via `resolveFloorplanImagePath` so it works regardless of
-the process's cwd. To update the floorplan, replace that file and adjust the
-`<rooms>` list in `buildTelegramOpenAIPrompt.ts` if the markers change.
-
-### Other body sections
-
-```xml
-<turn_context>
-  <trigger>telegram_messages</trigger>
-  <new_message_count>1</new_message_count>
-  <batch_report_count>0</batch_report_count>
-  <attached_image_count>0</attached_image_count>
-</turn_context>
-```
-
-```xml
-<user_messages>
-  <message>
-    <sender>Nick</sender>
-    <text>drive forward</text>
-    <timestamp>2026-05-21 17:39:56</timestamp>
-    <is_new>1</is_new>
-  </message>
-</user_messages>
-```
-
-```xml
-<herbert_responses>
-  <response>
-    <timestamp>2026-05-21 17:40:02</timestamp>
-    <telegram_message>Driving forward.</telegram_message>
-    <spoken_message>A modest reconnaissance, then.</spoken_message>
-  </response>
-</herbert_responses>
-```
-
-`trigger` is `telegram_messages` when a poll delivered new admin messages and
-`batch_complete` when Herbert has just completed an action batch and returned
-a photo. On `batch_complete` turns, there are usually no new Telegram messages;
-the model must continue from `taskState` and the latest batch report.
-
-The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
-It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
-which is supported by Structured Outputs. Do not replace it with
-`z.discriminatedUnion` unless the emitted JSON Schema is checked again; the
-current SDK emits `oneOf` for discriminated unions.
-
-The OpenAI schema only includes constraints supported by Structured Outputs.
-Telegram reply length, spoken message length, task state length, no-op active
-responses, and `isFinished`/actions consistency are validated after parsing
-before the response is used.
-
-Movement actions are bounded more narrowly than the low-level robot bridge:
-
-- speed: `50..100`
-- drive duration: `1000..5000` ms
-- steering angle: `-30..30`
-- camera deltas: `-10..10`
-
-The drive `speed` and `durationMs` floors are deliberate. They force every
-drive action to cover roughly 25 cm or more — smaller pulses are timid noise
-in apartment-scale spaces, and the response schema rejects them outright.
-Close-quarters control (within ~30 cm of an obstacle) is done with
-`stop`, `take_photo`, `look`, or `set_steering`, not smaller drives.
-
-The `-30..30` steering bound follows the PiCar-X v2.0 SDK direction servo
-constants, even though Herbert's low-level bridge currently accepts `-35..35`.
-`drive` is straight; use `drive_arc` to move while steering. `set_steering`
-turns the front wheels in place without moving the robot.
-
-Drive distance is open-loop, not measured. The prompt gives the model a rough
-straight-line estimate of `distance_cm ~= 50 * (speed / 100) * seconds` so it
-does not choose movement pulses too small to matter. Batch reports can also
-include absolute camera pan/tilt and an `ultrasonic_distance_cm` reading
-taken at batch completion (see [ROBOT.md](./ROBOT.md)). The prompt instructs
-the model to treat `ultrasonic_distance_cm` as ground truth for clearance
-ahead rather than guessing from the photo.
+Telegram-specific behavior is documented in [Telegram](./TELEGRAM.md): the
+Herbert prompt, response schema, floorplan asset, batch-photo policy, and robot
+action contract all belong to that domain.
 
 ## Call Log
 
@@ -231,31 +101,6 @@ Log-write failures are swallowed with a stderr warning so logging never
 blocks the call's return value. See [PERSISTENCE.md](./PERSISTENCE.md) for
 the table schema and the `OpenaiCallLog` interface.
 
-## Spoken Commentary
-
-`spokenMessage` is selected by OpenAI but synthesized by ElevenLabs server-side
-and played out of the machine running `server:start` (the Mac mini or laptop
-near the robot). It is never sent to the robot — the robot only executes action
-batches.
-
-OpenAI prompt guidance for `spokenMessage`:
-
-- Use it for sparse physical Herbert flavor: a quick spoken aside that brings
-  the scene to life.
-- In addition to reacting to the environment, Herbert may occasionally offer a
-  brief anecdote, make commentary on the room, or add a dry witticism when it
-  fits the moment.
-- Use null unless a spoken line would add charm without distracting from the
-  task.
-- Keep it at or under 800 characters.
-- Keep all operational information in `telegramMessage`.
-- Avoid urgent, time-sensitive, or frame-perfect remarks because audio is
-  based on a completed action batch/photo and usually plays 5-10 seconds after
-  Herbert's last physical action.
-
-See [ElevenLabs](./ELEVENLABS.md) for speech synthesis configuration and
-`audio:test`.
-
 ## Images
 
 `promptOpenAI` accepts either:
@@ -265,14 +110,9 @@ See [ElevenLabs](./ELEVENLABS.md) for speech synthesis configuration and
   `{ path, detail?, label? }`. The label is emitted as an `input_text` block
   immediately before the image so the model can attribute each picture.
 
-The Telegram task loop uses the `images` form. On a `batch_complete` turn it
-sends the latest batch report photo at `detail: "high"` and up to
-`includedBatchPhotoLimit - 1` earlier batch report photos at `detail: "low"`.
-OpenAI processes `low`-detail images at a fixed lower resolution, so older
-photos cost far fewer tokens than the current view while still giving the
-model continuity across batches. Each image's label identifies its batch
-report so the model knows which photo is the current view and which are
-older.
+Use `images` when a caller needs per-image labels or detail levels. OpenAI
+processes `low`-detail images at a fixed lower resolution, which reduces token
+cost when full visual detail is unnecessary.
 
 Supported extensions:
 
@@ -286,5 +126,3 @@ Sources:
 
 - [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses&lang=javascript)
 - [OpenAI image input detail levels](https://platform.openai.com/docs/guides/vision)
-- [SunFounder PiCar-X movement docs](https://docs.sunfounder.com/projects/picar-x-v20/en/latest/python/python_move.html)
-- [SunFounder PiCar-X SDK source](https://github.com/sunfounder/picar-x/blob/v2.0/picarx/picarx.py)
