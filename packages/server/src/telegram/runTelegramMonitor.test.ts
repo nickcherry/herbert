@@ -4,6 +4,7 @@ import {
   appendHerbertResponseHistory,
   readHerbertResponseHistory,
 } from "@herbert/server/persistence/operations/herbertResponseHistory";
+import { recordRobotTaskResponse } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
   appendTelegramMessageHistory,
   readTelegramMessageHistory,
@@ -247,6 +248,105 @@ describe("startTelegramPolling", () => {
         },
       ),
     );
+  });
+
+  test("keeps prior-task Herbert responses out of active task prompts", async () => {
+    const store = createMemoryDocumentStore();
+    const nowMs = Date.now();
+
+    await appendHerbertResponseHistory({
+      chatId: "123",
+      nowMs: nowMs - 10_000,
+      store,
+      response: {
+        telegramMessage: "Previous task is done.",
+        spokenMessage: "Previous task done.",
+      },
+    });
+    await recordRobotTaskResponse({
+      chatId: "123",
+      nowMs: nowMs - 5_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Active task is still pursuing the balcony.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+    await appendHerbertResponseHistory({
+      chatId: "123",
+      nowMs: nowMs - 1_000,
+      store,
+      response: {
+        telegramMessage: "Current task progress.",
+        spokenMessage: null,
+      },
+    });
+
+    const openAIRequests: PromptTelegramOpenAIOptions[] = [];
+
+    const handle = startTelegramPolling({
+      botToken: "token",
+      adminChatIds: ["123"],
+      timeoutSeconds: 1,
+      limit: 100,
+      coldPollIntervalMs: 10_000,
+      activePollIntervalMs: 2_000,
+      activePollWindowMs: 30_000,
+      once: true,
+      store,
+      async getUpdates() {
+        return {
+          updates: [
+            {
+              update_id: 20,
+              message: {
+                message_id: 21,
+                date: 1_800_000_021,
+                chat: {
+                  id: 123,
+                  type: "private",
+                  first_name: "Nick",
+                },
+                text: "keep going",
+              },
+            },
+          ],
+        };
+      },
+      async respondToMessage(options) {
+        openAIRequests.push(options);
+
+        return {
+          telegramMessage: null,
+          spokenMessage: null,
+          taskState: "Continuing active task.",
+          isFinished: false,
+          actions: [{ type: "take_photo" }],
+        };
+      },
+      async sendMessage() {
+        return {
+          messageId: 99,
+        };
+      },
+    });
+
+    await handle.done;
+
+    expect(openAIRequests).toHaveLength(1);
+    expect(openAIRequests[0]?.taskState).toBe(
+      "Active task is still pursuing the balcony.",
+    );
+    expect(openAIRequests[0]?.recentHerbertResponses).toEqual([
+      {
+        createdAtMs: nowMs - 1_000,
+        telegramMessage: "Current task progress.",
+        spokenMessage: null,
+      },
+    ]);
   });
 });
 

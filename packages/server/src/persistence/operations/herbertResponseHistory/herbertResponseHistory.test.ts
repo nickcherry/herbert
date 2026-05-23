@@ -104,6 +104,34 @@ describe("herbertResponseHistory operations", () => {
       },
     ]);
   });
+
+  test("filterRecentHerbertResponses can drop responses before an active task", () => {
+    expect(
+      filterRecentHerbertResponses({
+        nowMs: 600_000,
+        maxAgeMs: 180_000,
+        sinceMs: 520_000,
+        responses: [
+          {
+            createdAtMs: 500_000,
+            telegramMessage: "previous task result",
+            spokenMessage: null,
+          },
+          {
+            createdAtMs: 540_000,
+            telegramMessage: "current task progress",
+            spokenMessage: "Still moving.",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        createdAtMs: 540_000,
+        telegramMessage: "current task progress",
+        spokenMessage: "Still moving.",
+      },
+    ]);
+  });
 });
 
 function createMemoryDocumentStore(): DocumentStore {

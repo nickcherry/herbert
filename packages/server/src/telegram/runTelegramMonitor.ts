@@ -175,6 +175,7 @@ export function startTelegramPolling({
               store,
             }),
             maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
+            sinceMs: taskContext.session?.createdAtMs,
           });
           const response = await respondToMessage({
             chatId,

@@ -8,11 +8,17 @@ export function filterRecentHerbertResponses({
   responses,
   nowMs = Date.now(),
   maxAgeMs,
+  sinceMs,
 }: {
   readonly responses: readonly HerbertHistoryResponse[];
   readonly nowMs?: number;
   readonly maxAgeMs: number;
+  readonly sinceMs?: number;
 }): readonly HerbertHistoryResponse[] {
   const cutoffMs = nowMs - maxAgeMs;
-  return responses.filter((response) => response.createdAtMs >= cutoffMs);
+  const minimumCreatedAtMs =
+    sinceMs === undefined ? cutoffMs : Math.max(cutoffMs, sinceMs);
+  return responses.filter(
+    (response) => response.createdAtMs >= minimumCreatedAtMs,
+  );
 }

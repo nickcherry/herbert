@@ -47,14 +47,8 @@ export async function promptTelegramOpenAI({
   latestPhotoPath,
   nowMs = Date.now(),
 }: PromptTelegramOpenAIOptions): Promise<TelegramOpenAIResponse> {
-  const batchPhotos = buildBatchPhotoList({
-    batchReports,
-    latestPhotoPath,
-  });
-  const images: readonly PromptImageInput[] = [
-    floorplanImage(),
-    ...batchPhotos,
-  ];
+  const images = buildTelegramOpenAIImages({ batchReports, latestPhotoPath });
+  const attachedBatchPhotoCount = images.length - 1;
 
   const response = await promptOpenAI({
     prompt: buildTelegramOpenAIPrompt({
@@ -64,8 +58,8 @@ export async function promptTelegramOpenAI({
       turnTrigger,
       taskState,
       batchReports,
-      hasAttachedImages: batchPhotos.length > 0,
-      attachedImageCount: batchPhotos.length,
+      hasAttachedImages: attachedBatchPhotoCount > 0,
+      attachedImageCount: attachedBatchPhotoCount,
       nowMs,
     }),
     images,
@@ -78,6 +72,19 @@ export async function promptTelegramOpenAI({
   });
 
   return parseExecutableTelegramOpenAIResponse({ response });
+}
+
+export function buildTelegramOpenAIImages({
+  batchReports,
+  latestPhotoPath,
+}: {
+  readonly batchReports?: readonly TelegramPromptBatchReport[];
+  readonly latestPhotoPath?: string;
+}): readonly PromptImageInput[] {
+  return [
+    floorplanImage(),
+    ...buildBatchPhotoList({ batchReports, latestPhotoPath }),
+  ];
 }
 
 function floorplanImage(): PromptImageInput {
@@ -100,7 +107,9 @@ function buildBatchPhotoList({
   const photoCap = Math.max(1, telegramConfig.openAIBatchPhotoLimit);
 
   if (latestPhotoPath !== undefined) {
-    const earlier = entries.slice(0, -1).slice(-(photoCap - 1));
+    const earlierPhotoCap = photoCap - 1;
+    const earlier =
+      earlierPhotoCap <= 0 ? [] : entries.slice(0, -1).slice(-earlierPhotoCap);
     const images: PromptImageInput[] = earlier.map((entry, index) => ({
       path: entry.photoPath,
       detail: "low",
@@ -158,7 +167,7 @@ export const telegramOpenAIInstructions = [
   "    <persistence>The only things that carry across turns are `taskState` (which you wrote in your previous response) and the recent batch reports shown in the prompt. There is no hidden memory.</persistence>",
   "    <images>",
   "      <floorplan>FIRST attached image. Reference layout, NOT Herbert's current view. See &lt;floorplan&gt; in the prompt for the marker-to-room mapping.</floorplan>",
-  "      <batch_photos>After the floorplan: the latest batch report photo at full detail. It IS Herbert's current view. Older batch reports are text history with stored photo_observation fields rather than attached photos.</batch_photos>",
+  "      <batch_photos>After the floorplan: the latest batch report photo at full detail. It IS Herbert's current view. Recent older batch photos may be attached at lower detail; older un-attached reports carry stored photo_observation fields.</batch_photos>",
   "      <photo_observations>Stored descriptions of prior robot photos. Use them for continuity, but the latest attached photo is current ground truth if there is any conflict.</photo_observations>",
   "      <pose>Batch reports include camera_position and wheel_state when reported. Camera pan/tilt describe where the camera was pointed for the photo; wheel_state describes the front steering angle at the batch boundary, with motors stopped.</pose>",
   "    </images>",
@@ -202,8 +211,10 @@ export const telegramOpenAIInstructions = [
   "  <hazards>Refuse to drive ONLY on hazards visible in the latest photo: a wall directly in front of Herbert, a clear ledge or gap, a doorway physically too narrow for the car, or an object clearly blocking the wheel path. Furniture legs, chair bases, table frames, plants, cords, foreground clutter, partial occlusion, glare, and floor texture are NOT stop conditions by themselves.</hazards>",
   "  <perspective>Objects look larger and closer from Herbert's low camera than they are. Treat nearby-looking furniture as blocking only when it clearly crosses the wheel path or the latest ultrasonic reading corroborates a direct forward obstacle. Visible floor around, between, or beyond furniture means there is a route to pursue.</perspective>",
   "  <blockers>If furniture or clutter blocks the camera view but there is open floor, move boldly around or past it. A visually blocked shot usually calls for a chassis move toward a better vantage point, not more cautious looking.</blockers>",
-  "  <camera_only_limit>Do not do more than two camera-only batches from the same floor position when pursuing a visible target. After that, move the chassis or finish with the best available shot and explain the physical limit.</camera_only_limit>",
-  "  <practical_limit>If repeated bold movement still cannot produce an unobstructed view, finish honestly: state that the forwarded photo is the best available from this position and say what physical obstruction or repositioning would be needed.</practical_limit>",
+  "  <side_obstacle_escape>If a cabinet, wall, sofa, chair, or plant dominates one side of the frame but visible floor or the target remains on the other side, Herbert is not finished or trapped. Turn or arc away from the side obstacle, or back out with an away-from-obstacle arc, then re-aim and photograph.</side_obstacle_escape>",
+  "  <camera_only_limit>Do not do more than two camera-only batches from the same floor position when pursuing a visible target. After that, the next batch MUST move the chassis unless the latest photo shows no visible floor, no backward escape route, and a hard blocker across the wheel path.</camera_only_limit>",
+  "  <finish_bar>Do not set isFinished true for a show/look/photo target while the target is partial, edge-of-frame, or occluded and any visible floor route, backward escape route, or turn-away move remains. First try a chassis reposition or escape move, then re-shoot.</finish_bar>",
+  "  <practical_limit>If repeated bold movement and at least one turn-away/back-out reposition attempt still cannot produce an unobstructed view, finish honestly: state that the forwarded photo is the best available from this position and say what physical obstruction or repositioning would be needed.</practical_limit>",
   '  <user_overrides>If the user says "plenty of room" / "go further" / similar, drive a full pulse in the requested direction unless the latest photo clearly contradicts.</user_overrides>',
   "  <below_minimum_drive>Smaller drives don't exist. If the move you'd want is under ~25 cm, use take_photo, look, or set_steering instead.</below_minimum_drive>",
   "</movement_policy>",

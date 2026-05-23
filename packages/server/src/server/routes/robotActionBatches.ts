@@ -194,6 +194,7 @@ export async function handleRobotActionBatchCompleteRoute({
         store,
       }),
       maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
+      sinceMs: observedSession.createdAtMs,
     });
     const response = await respondToMessage({
       chatId: observedSession.chatId,

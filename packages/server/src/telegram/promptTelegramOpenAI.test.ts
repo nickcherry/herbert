@@ -1,4 +1,9 @@
-import { telegramOpenAIInstructions } from "@herbert/server/telegram/promptTelegramOpenAI";
+import { telegramConfig } from "@herbert/server/constants/telegram";
+import {
+  buildTelegramOpenAIImages,
+  telegramOpenAIInstructions,
+} from "@herbert/server/telegram/promptTelegramOpenAI";
+import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
 import { describe, expect, test } from "bun:test";
 
 describe("telegramOpenAIInstructions", () => {
@@ -31,7 +36,9 @@ describe("telegramOpenAIInstructions", () => {
       "  <hazards>",
       "  <perspective>",
       "  <blockers>",
+      "  <side_obstacle_escape>",
       "  <camera_only_limit>",
+      "  <finish_bar>",
       "  <practical_limit>",
       "  <user_overrides>",
       "  <below_minimum_drive>",
@@ -92,10 +99,16 @@ describe("telegramOpenAIInstructions", () => {
       "move boldly around or past it",
     );
     expect(telegramOpenAIInstructions).toContain(
-      "Do not do more than two camera-only batches",
+      "Turn or arc away from the side obstacle",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "the next batch MUST move the chassis",
     );
     expect(telegramOpenAIInstructions).toContain(
       "Objects look larger and closer",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "Do not set isFinished true for a show/look/photo target",
     );
   });
 
@@ -153,5 +166,37 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).not.toContain("smugness");
     expect(telegramOpenAIInstructions).not.toContain("anxiety");
     expect(telegramOpenAIInstructions).not.toContain("fussiness");
+  });
+});
+
+describe("buildTelegramOpenAIImages", () => {
+  test("attaches the floorplan and only the latest batch photo when photo limit is one", () => {
+    expect(telegramConfig.openAIBatchPhotoLimit).toBe(1);
+
+    const images = buildTelegramOpenAIImages({
+      batchReports: [
+        {
+          completedAtMs: 1,
+          photoPath: "data/robot-batch-photos/task/older-1.jpg",
+          actions: [{ type: "take_photo" }],
+        },
+        {
+          completedAtMs: 2,
+          photoPath: "data/robot-batch-photos/task/older-2.jpg",
+          actions: [{ type: "take_photo" }],
+        },
+        {
+          completedAtMs: 3,
+          photoPath: "data/robot-batch-photos/task/latest.jpg",
+          actions: [{ type: "take_photo" }],
+        },
+      ],
+      latestPhotoPath: "data/robot-batch-photos/task/latest.jpg",
+    });
+
+    expect(images.map((image) => image.path)).toEqual([
+      resolveFloorplanImagePath(),
+      "data/robot-batch-photos/task/latest.jpg",
+    ]);
   });
 });
