@@ -1,3 +1,4 @@
+import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   appendTelegramMessageHistory,
@@ -11,7 +12,11 @@ describe("telegramMessageHistory operations", () => {
   test("keeps only the most recent Telegram context messages per chat", async () => {
     const store = createMemoryDocumentStore();
 
-    for (let index = 1; index <= 12; index += 1) {
+    for (
+      let index = 1;
+      index <= telegramConfig.openAIContextMessageLimit + 2;
+      index += 1
+    ) {
       await appendTelegramMessageHistory({
         chatId: "123",
         store,
@@ -25,16 +30,19 @@ describe("telegramMessageHistory operations", () => {
     }
 
     expect(await readTelegramMessageHistory({ chatId: "123", store })).toEqual(
-      Array.from({ length: 10 }, (_value, index) => {
-        const messageId = index + 3;
+      Array.from(
+        { length: telegramConfig.openAIContextMessageLimit },
+        (_value, index) => {
+          const messageId = index + 3;
 
-        return {
-          messageId,
-          date: 1_800_000_000 + messageId,
-          text: `message ${messageId}`,
-          sender: "unknown",
-        };
-      }),
+          return {
+            messageId,
+            date: 1_800_000_000 + messageId,
+            text: `message ${messageId}`,
+            sender: "unknown",
+          };
+        },
+      ),
     );
   });
 
@@ -90,18 +98,22 @@ describe("telegramMessageHistory operations", () => {
       { messageId: 4, date: 580, text: "fresh", sender: "Nick" },
     ];
 
-    expect(
-      filterRecentTelegramMessages({ messages, nowMs, maxAgeMs }),
-    ).toEqual([
-      { messageId: 2, date: 500, text: "fresh enough", sender: "Nick" },
-      { messageId: 4, date: 580, text: "fresh", sender: "Nick" },
-    ]);
+    expect(filterRecentTelegramMessages({ messages, nowMs, maxAgeMs })).toEqual(
+      [
+        { messageId: 2, date: 500, text: "fresh enough", sender: "Nick" },
+        { messageId: 4, date: 580, text: "fresh", sender: "Nick" },
+      ],
+    );
   });
 
   test("appends batches while preserving the context limit", async () => {
     const store = createMemoryDocumentStore();
 
-    for (let index = 1; index <= 8; index += 1) {
+    for (
+      let index = 1;
+      index <= telegramConfig.openAIContextMessageLimit - 2;
+      index += 1
+    ) {
       await appendTelegramMessageHistory({
         chatId: "123",
         store,
@@ -117,7 +129,11 @@ describe("telegramMessageHistory operations", () => {
     await appendTelegramMessageHistoryBatch({
       chatId: "123",
       store,
-      messages: [9, 10, 11].map((messageId) => ({
+      messages: [
+        telegramConfig.openAIContextMessageLimit - 1,
+        telegramConfig.openAIContextMessageLimit,
+        telegramConfig.openAIContextMessageLimit + 1,
+      ].map((messageId) => ({
         messageId,
         date: 1_800_000_000 + messageId,
         text: `message ${messageId}`,
@@ -126,16 +142,19 @@ describe("telegramMessageHistory operations", () => {
     });
 
     expect(await readTelegramMessageHistory({ chatId: "123", store })).toEqual(
-      Array.from({ length: 10 }, (_value, index) => {
-        const messageId = index + 2;
+      Array.from(
+        { length: telegramConfig.openAIContextMessageLimit },
+        (_value, index) => {
+          const messageId = index + 2;
 
-        return {
-          messageId,
-          date: 1_800_000_000 + messageId,
-          text: `message ${messageId}`,
-          sender: "unknown",
-        };
-      }),
+          return {
+            messageId,
+            date: 1_800_000_000 + messageId,
+            text: `message ${messageId}`,
+            sender: "unknown",
+          };
+        },
+      ),
     );
   });
 });

@@ -1,3 +1,4 @@
+import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
   appendHerbertResponseHistory,
@@ -61,7 +62,11 @@ describe("startTelegramPolling", () => {
   test("sends authorized admin message batches with recent context to OpenAI", async () => {
     const store = createMemoryDocumentStore();
 
-    for (let index = 1; index <= 10; index += 1) {
+    for (
+      let index = 1;
+      index <= telegramConfig.openAIContextMessageLimit;
+      index += 1
+    ) {
       await appendTelegramMessageHistory({
         chatId: "123",
         store,
@@ -102,8 +107,9 @@ describe("startTelegramPolling", () => {
             {
               update_id: 10,
               message: {
-                message_id: 11,
-                date: 1_800_000_011,
+                message_id: telegramConfig.openAIContextMessageLimit + 1,
+                date:
+                  1_800_000_000 + telegramConfig.openAIContextMessageLimit + 1,
                 chat: {
                   id: 123,
                   type: "private",
@@ -115,8 +121,9 @@ describe("startTelegramPolling", () => {
             {
               update_id: 11,
               message: {
-                message_id: 12,
-                date: 1_800_000_012,
+                message_id: telegramConfig.openAIContextMessageLimit + 2,
+                date:
+                  1_800_000_000 + telegramConfig.openAIContextMessageLimit + 2,
                 chat: {
                   id: 123,
                   type: "private",
@@ -128,8 +135,9 @@ describe("startTelegramPolling", () => {
             {
               update_id: 12,
               message: {
-                message_id: 13,
-                date: 1_800_000_013,
+                message_id: telegramConfig.openAIContextMessageLimit + 3,
+                date:
+                  1_800_000_000 + telegramConfig.openAIContextMessageLimit + 3,
                 chat: {
                   id: 123,
                   type: "private",
@@ -165,7 +173,9 @@ describe("startTelegramPolling", () => {
 
     expect(openAIRequests).toHaveLength(1);
     expect(openAIRequests[0]?.turnTrigger).toBe("telegram_messages");
-    expect(openAIRequests[0]?.recentMessages).toHaveLength(10);
+    expect(openAIRequests[0]?.recentMessages).toHaveLength(
+      telegramConfig.openAIContextMessageLimit,
+    );
     expect(openAIRequests[0]?.recentHerbertResponses).toEqual([
       {
         createdAtMs: expect.any(Number),
@@ -175,20 +185,20 @@ describe("startTelegramPolling", () => {
     ]);
     expect(openAIRequests[0]?.newMessages).toEqual([
       {
-        messageId: 11,
-        date: 1_800_000_011,
+        messageId: telegramConfig.openAIContextMessageLimit + 1,
+        date: 1_800_000_000 + telegramConfig.openAIContextMessageLimit + 1,
         text: "drive forward a little",
         sender: "Nick",
       },
       {
-        messageId: 12,
-        date: 1_800_000_012,
+        messageId: telegramConfig.openAIContextMessageLimit + 2,
+        date: 1_800_000_000 + telegramConfig.openAIContextMessageLimit + 2,
         text: "then take a photo",
         sender: "Nick",
       },
       {
-        messageId: 13,
-        date: 1_800_000_013,
+        messageId: telegramConfig.openAIContextMessageLimit + 3,
+        date: 1_800_000_000 + telegramConfig.openAIContextMessageLimit + 3,
         text: "thanks",
         sender: "Nick",
       },
@@ -212,21 +222,30 @@ describe("startTelegramPolling", () => {
       },
     ]);
     expect(await readTelegramMessageHistory({ chatId: "123", store })).toEqual(
-      Array.from({ length: 10 }, (_value, index) => {
-        const messageId = index + 4;
+      Array.from(
+        { length: telegramConfig.openAIContextMessageLimit },
+        (_value, index) => {
+          const messageId = index + 4;
 
-        return {
-          messageId,
-          date: 1_800_000_000 + messageId,
-          text:
-            new Map([
-              [11, "drive forward a little"],
-              [12, "then take a photo"],
-              [13, "thanks"],
-            ]).get(messageId) ?? `prior ${messageId}`,
-          sender: "Nick",
-        };
-      }),
+          return {
+            messageId,
+            date: 1_800_000_000 + messageId,
+            text:
+              new Map([
+                [
+                  telegramConfig.openAIContextMessageLimit + 1,
+                  "drive forward a little",
+                ],
+                [
+                  telegramConfig.openAIContextMessageLimit + 2,
+                  "then take a photo",
+                ],
+                [telegramConfig.openAIContextMessageLimit + 3, "thanks"],
+              ]).get(messageId) ?? `prior ${messageId}`,
+            sender: "Nick",
+          };
+        },
+      ),
     );
   });
 });

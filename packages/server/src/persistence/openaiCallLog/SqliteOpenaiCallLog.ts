@@ -1,11 +1,15 @@
-import { executeSql } from "@herbert/server/persistence/querySql";
-import type { SqlClient, SqlRow, SqlValue } from "@herbert/server/persistence/sqlTypes";
 import type {
   AppendOpenaiCallLogEntry,
   ListOpenaiCallLogFilters,
   OpenaiCallLog,
   OpenaiCallLogEntry,
 } from "@herbert/server/persistence/openaiCallLog/openaiCallLog";
+import { executeSql } from "@herbert/server/persistence/querySql";
+import type {
+  SqlClient,
+  SqlRow,
+  SqlValue,
+} from "@herbert/server/persistence/sqlTypes";
 import { z } from "zod";
 
 interface UnsafeCapableSql {
@@ -111,7 +115,8 @@ export class SqliteOpenaiCallLog implements OpenaiCallLog {
       params.push(filters.sinceMs);
     }
 
-    const whereClause = where.length === 0 ? "" : ` WHERE ${where.join(" AND ")}`;
+    const whereClause =
+      where.length === 0 ? "" : ` WHERE ${where.join(" AND ")}`;
     const query = `
       SELECT
         id,
@@ -212,15 +217,22 @@ function clampLimit(limit: number | undefined): number {
   return Math.floor(limit);
 }
 
-function generateEntryId({ createdAtMs }: { readonly createdAtMs: number }): string {
+function generateEntryId({
+  createdAtMs,
+}: {
+  readonly createdAtMs: number;
+}): string {
   const suffix = Math.random().toString(36).slice(2, 10);
   return `${createdAtMs}_${suffix}`;
 }
 
 function parseImagePaths(json: string): readonly string[] {
   const parsed: unknown = JSON.parse(json);
-  if (!Array.isArray(parsed) || !parsed.every((value) => typeof value === "string")) {
+  if (
+    !Array.isArray(parsed) ||
+    !parsed.every((value) => typeof value === "string")
+  ) {
     return [];
   }
-  return parsed as readonly string[];
+  return parsed;
 }
