@@ -1,6 +1,7 @@
 import {
   executableTelegramOpenAIResponseSchema,
   telegramOpenAIResponseSchema,
+  telegramOpenAIResponseTypeScript,
 } from "@herbert/server/telegram/telegramOpenAIResponse";
 import { describe, expect, test } from "bun:test";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -223,5 +224,19 @@ describe("telegramOpenAIResponseSchema", () => {
     expect(schemaJson).not.toContain('"oneOf"');
     expect(schemaJson).not.toContain('"minLength"');
     expect(schemaJson).not.toContain('"maxLength"');
+  });
+
+  test("documents the expected TypeScript response shape", () => {
+    expect(telegramOpenAIResponseTypeScript).toContain(
+      "type TelegramOpenAIResponse = {",
+    );
+    expect(telegramOpenAIResponseTypeScript).toContain(
+      "telegramMessage: string | null;",
+    );
+    expect(telegramOpenAIResponseTypeScript).toContain("isFinished: boolean;");
+    expect(telegramOpenAIResponseTypeScript).toContain(
+      '| { type: "take_photo" }',
+    );
+    expect(telegramOpenAIResponseTypeScript).not.toContain("telegram_message");
   });
 });

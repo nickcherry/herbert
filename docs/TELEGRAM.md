@@ -89,7 +89,7 @@ OpenAI request with recent same-chat context. OpenAI returns:
   spokenMessage: string | null;
   taskState: string;
   isFinished: boolean;
-  actions: Action[];
+  actions: RobotTaskAction[];
 }
 ```
 
@@ -178,8 +178,9 @@ top-level XML sections:
   action composition guidance.
 - `<movement_policy>` — default movement bias, hazard rules, user overrides,
   and below-minimum-drive behavior.
-- `<response>` — `telegram_message`, `spoken_message`, `task_state`,
-  `is_finished`, action semantics, and the action-required rule.
+- `<response>` — JSON-only output format, exact TypeScript response shape,
+  `telegramMessage`, `spokenMessage`, `taskState`, `isFinished`, action
+  semantics, and the action-required rule.
 - `<special_commands>` — `/ping`, stop/halt, stop-only batches, and unable
   responses.
 
@@ -205,7 +206,6 @@ this turn":
 
 ```xml
 <floorplan>
-  <address>22 North 6th Street, Unit 10C</address>
   <rooms>
     <room number="1" name="Living / Dining Room" dimensions="27'9&quot; x 12'9&quot;" />
     ...
@@ -224,8 +224,45 @@ the markers change.
 ### Response Schema
 
 The schema is defined in `packages/server/src/telegram/telegramOpenAIResponse.ts`.
-It uses `z.union` for action variants so the OpenAI SDK emits nested `anyOf`,
-which is supported by Structured Outputs. Do not replace it with
+`promptOpenAI` sends that schema to the Responses API through `zodTextFormat`,
+so OpenAI is asked for Structured Outputs rather than free-form text. The
+Telegram instructions also explicitly say to return JSON only and include
+`telegramOpenAIResponseTypeScript`, a TypeScript view of the expected response
+object, so the prompt is readable even before looking at the Zod schema.
+
+Current response shape:
+
+```ts
+type TelegramOpenAIResponse = {
+  telegramMessage: string | null;
+  spokenMessage: string | null;
+  taskState: string;
+  isFinished: boolean;
+  actions: RobotTaskAction[];
+};
+
+type RobotTaskAction =
+  | {
+      type: "drive";
+      direction: "forward" | "backward";
+      speed: number;
+      durationMs: number;
+    }
+  | {
+      type: "drive_arc";
+      direction: "forward" | "backward";
+      angle: number;
+      speed: number;
+      durationMs: number;
+    }
+  | { type: "set_steering"; angle: number }
+  | { type: "look"; panDelta: number; tiltDelta: number }
+  | { type: "take_photo" }
+  | { type: "stop" };
+```
+
+The action variants use `z.union` so the OpenAI SDK emits nested `anyOf`, which
+is supported by Structured Outputs. Do not replace it with
 `z.discriminatedUnion` unless the emitted JSON Schema is checked again; the
 current SDK emits `oneOf` for discriminated unions.
 

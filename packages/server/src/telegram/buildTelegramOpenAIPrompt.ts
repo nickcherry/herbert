@@ -70,7 +70,6 @@ function formatTaskStateXml({
 function formatFloorplanXml(): string {
   return [
     "<floorplan>",
-    "  <address>22 North 6th Street, Unit 10C</address>",
     "  <rooms>",
     '    <room number="1" name="Living / Dining Room" dimensions="27\'9&quot; x 12\'9&quot;" />',
     '    <room number="2" name="Kitchen + Living Room" />',

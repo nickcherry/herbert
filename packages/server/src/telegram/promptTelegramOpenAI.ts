@@ -13,6 +13,7 @@ import {
   type TelegramOpenAIResponse,
   telegramOpenAIResponseLimits,
   telegramOpenAIResponseSchema,
+  telegramOpenAIResponseTypeScript,
 } from "@herbert/server/telegram/telegramOpenAIResponse";
 import type {
   HerbertHistoryResponse,
@@ -84,7 +85,7 @@ function floorplanImage(): PromptImageInput {
     path: resolveFloorplanImagePath(),
     detail: "high",
     label:
-      "Apartment floorplan reference (always attached, NOT a batch photo): annotated layout of Herbert's home at 22 North 6th Street, Unit 10C, with seven numbered markers (1-7) and matched reference photos of each room embedded in the same image. Use it to localize batch photos and plan routes. See <floorplan> in the prompt for details. The batch report images that follow are Herbert's actual current and recent views.",
+      "Apartment floorplan reference (always attached, NOT a batch photo): annotated layout of Herbert's home with seven numbered markers (1-7) and matched reference photos of each room embedded in the same image. Use it to localize batch photos and plan routes. See <floorplan> in the prompt for details. The batch report images that follow are Herbert's actual current and recent views.",
   };
 }
 
@@ -197,25 +198,44 @@ export const telegramOpenAIInstructions = [
   "  <below_minimum_drive>Smaller drives don't exist. If the move you'd want is under ~25 cm, use take_photo, look, or set_steering instead.</below_minimum_drive>",
   "</movement_policy>",
   "<response>",
+  "  <format>",
+  "    Return JSON only. Do not include Markdown, code fences, XML, or prose outside the JSON object.",
+  "    The JSON object must match this TypeScript shape exactly:",
+  ...indentInstructionBlock({
+    value: telegramOpenAIResponseTypeScript,
+    spaces: 4,
+  }),
+  "  </format>",
   "  <fields>",
-  `    <telegram_message>For the user. Short, useful, operational. &le;${telegramOpenAIResponseLimits.telegramMessage.max} chars (aim much shorter). null if there is nothing to say this turn.</telegram_message>`,
-  `    <spoken_message>Optional voice flavor played through speakers near the robot ~5-10 seconds after the last action — phrase so it still makes sense when heard late. No urgent or frame-perfect remarks. Operational info goes in telegram_message. &le;${telegramOpenAIResponseLimits.spokenMessage.max} chars. null unless it genuinely adds charm.</spoken_message>`,
-  `    <task_state>Required, non-empty, &le;${telegramOpenAIResponseLimits.taskState.max} chars. Self-contained: user goal, what Herbert has confirmed from batch reports so far, what he plans next, and any navigation constraints from recent photos. The next turn sees ONLY what you write here.</task_state>`,
-  "    <is_finished>true → task complete; actions MUST be empty. false → task continues.</is_finished>",
+  `    <telegramMessage>For the user. Short, useful, operational. &le;${telegramOpenAIResponseLimits.telegramMessage.max} chars (aim much shorter). null if there is nothing to say this turn.</telegramMessage>`,
+  `    <spokenMessage>Optional voice flavor played through speakers near the robot ~5-10 seconds after the last action — phrase so it still makes sense when heard late. No urgent or frame-perfect remarks. Operational info goes in telegramMessage. &le;${telegramOpenAIResponseLimits.spokenMessage.max} chars. null unless it genuinely adds charm.</spokenMessage>`,
+  `    <taskState>Required, non-empty, &le;${telegramOpenAIResponseLimits.taskState.max} chars. Self-contained: user goal, what Herbert has confirmed from batch reports so far, what he plans next, and any navigation constraints from recent photos. The next turn sees ONLY what you write here.</taskState>`,
+  "    <isFinished>true → task complete; actions MUST be empty. false → task continues.</isFinished>",
   `    <actions>Array, up to ${telegramOpenAIActionLimits.maxActions} actions.</actions>`,
   "  </fields>",
   "  <action_requirement>",
   "    Every turn MUST queue at least one action, with TWO exceptions:",
-  "      1. is_finished is true, OR",
-  "      2. the user must answer a real blocking question before Herbert can proceed (in which case telegram_message must state the question explicitly).",
+  "      1. isFinished is true, OR",
+  "      2. the user must answer a real blocking question before Herbert can proceed (in which case telegramMessage must state the question explicitly).",
   '    Wanting to "think" about a photo is not a blocking question — queue the take_photo (or other inspection action) yourself.',
   "  </action_requirement>",
   "  <continuity>Do not repeat prior Herbert responses verbatim. Use them for context only.</continuity>",
   "</response>",
   "<special_commands>",
-  `  <ping>For \`/ping\`: telegram_message exactly \`${telegramConfig.pingResponseText}\`, is_finished true, no actions.</ping>`,
-  "  <stop>For stop / halt / emergency stop: single `stop` action, is_finished false, brief Telegram acknowledgement.</stop>",
-  "  <stop_only_batch>On a batch_complete turn whose latest batch report contains only a completed `stop`: set is_finished true UNLESS a new user message asks to keep going.</stop_only_batch>",
+  `  <ping>For \`/ping\`: telegramMessage exactly \`${telegramConfig.pingResponseText}\`, isFinished true, no actions.</ping>`,
+  "  <stop>For stop / halt / emergency stop: single `stop` action, isFinished false, brief Telegram acknowledgement.</stop>",
+  "  <stop_only_batch>On a batch_complete turn whose latest batch report contains only a completed `stop`: set isFinished true UNLESS a new user message asks to keep going.</stop_only_batch>",
   "  <unable>If asked for something Herbert cannot do, say so plainly in character and suggest the nearest useful alternative.</unable>",
   "</special_commands>",
 ].join("\n");
+
+function indentInstructionBlock({
+  value,
+  spaces,
+}: {
+  readonly value: string;
+  readonly spaces: number;
+}): readonly string[] {
+  const prefix = " ".repeat(spaces);
+  return value.split("\n").map((line) => `${prefix}${line}`);
+}

@@ -27,6 +27,7 @@ describe("telegramOpenAIInstructions", () => {
       "  <user_overrides>",
       "  <below_minimum_drive>",
       "<response>",
+      "  <format>",
       "  <fields>",
       "  <action_requirement>",
       "<special_commands>",
@@ -69,12 +70,27 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain(
       "Every turn MUST queue at least one action",
     );
-    expect(telegramOpenAIInstructions).toContain("is_finished is true");
+    expect(telegramOpenAIInstructions).toContain("isFinished is true");
     expect(telegramOpenAIInstructions).toContain("blocking question");
   });
 
+  test("requires JSON only and includes the exact TypeScript response shape", () => {
+    expect(telegramOpenAIInstructions).toContain("Return JSON only");
+    expect(telegramOpenAIInstructions).toContain(
+      "type TelegramOpenAIResponse = {",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "telegramMessage: string | null;",
+    );
+    expect(telegramOpenAIInstructions).toContain("isFinished: boolean;");
+    expect(telegramOpenAIInstructions).toContain('type: "drive_arc";');
+    expect(telegramOpenAIInstructions).toContain("angle: number;");
+    expect(telegramOpenAIInstructions).not.toContain("<telegram_message>");
+    expect(telegramOpenAIInstructions).not.toContain("is_finished");
+  });
+
   test("keeps spoken-message guidance terse and delay-aware", () => {
-    expect(telegramOpenAIInstructions).toContain("<spoken_message>");
+    expect(telegramOpenAIInstructions).toContain("<spokenMessage>");
     expect(telegramOpenAIInstructions).toContain("5-10 seconds");
     expect(telegramOpenAIInstructions).toContain("800 chars");
   });

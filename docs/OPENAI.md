@@ -48,8 +48,8 @@ const result = await promptOpenAI({
   schema: SceneSchema,
   schemaName: "scene",
   logType: "scene_describe", // required: searchable type for openai_call_log
-  logChatId: "123",           // optional
-  logTaskId: "task-abc",      // optional
+  logChatId: "123", // optional
+  logTaskId: "task-abc", // optional
 });
 ```
 
@@ -65,6 +65,11 @@ returned response. Tests can stub logging by passing `log` (the
 Structured Outputs schemas should be compatible with OpenAI's supported subset.
 In practice, use a root `z.object(...)` and keep fields required unless there is
 a specific reason to model nullability.
+
+Because `promptOpenAI` sends `text.format = zodTextFormat(schema, schemaName)`,
+Responses API callers are using Structured Outputs rather than free-form text.
+Domain prompts can still say "return JSON only" for readability and redundancy,
+but the schema is the actual enforcement point.
 
 ## Domain Callers
 

@@ -9,6 +9,35 @@ export const telegramOpenAIResponseLimits = {
   taskState: { min: 1, max: 2_000 },
 } as const;
 
+export const telegramOpenAIResponseTypeScript = [
+  "type TelegramOpenAIResponse = {",
+  "  telegramMessage: string | null;",
+  "  spokenMessage: string | null;",
+  "  taskState: string;",
+  "  isFinished: boolean;",
+  "  actions: RobotTaskAction[];",
+  "};",
+  "",
+  "type RobotTaskAction =",
+  "  | {",
+  '      type: "drive";',
+  '      direction: "forward" | "backward";',
+  "      speed: number;",
+  "      durationMs: number;",
+  "    }",
+  "  | {",
+  '      type: "drive_arc";',
+  '      direction: "forward" | "backward";',
+  "      angle: number;",
+  "      speed: number;",
+  "      durationMs: number;",
+  "    }",
+  '  | { type: "set_steering"; angle: number }',
+  '  | { type: "look"; panDelta: number; tiltDelta: number }',
+  '  | { type: "take_photo" }',
+  '  | { type: "stop" };',
+].join("\n");
+
 export const telegramReplyTextSchema = z
   .string()
   .trim()

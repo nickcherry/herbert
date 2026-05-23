@@ -48,7 +48,8 @@ describe("buildTelegramOpenAIPrompt", () => {
     });
 
     expect(prompt).toContain("<floorplan>");
-    expect(prompt).toContain("22 North 6th Street, Unit 10C");
+    expect(prompt).not.toContain("<address>");
+    expect(prompt).not.toContain("22 North 6th Street, Unit 10C");
     expect(prompt).toContain('<room number="1" name="Living / Dining Room"');
     expect(prompt).toContain('<room number="7"');
     expect(prompt).toContain("<turn_context>");
