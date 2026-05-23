@@ -136,7 +136,7 @@ collection: telegram_message_history
 key: <admin chat id>
 ```
 
-Each document stores only the most recent 10 authorized text messages for that
+Each document stores only the most recent 20 authorized text messages for that
 chat id. This keeps prompt context bounded and preserves useful continuity
 across server restarts. Before history goes into an OpenAI prompt it is run
 through `filterRecentTelegramMessages` with
@@ -156,9 +156,12 @@ completed, and abandoned action batches. A task session carries `taskState`
 and recent batch report entries so subsequent OpenAI turns know the original
 request and what has happened since. Each batch report signals that a batch
 finished and includes the completed actions, the completion photo path, and
-the robot's absolute camera pan/tilt when the worker reported it. The robot
-worker treats the first batch it sees for a task session as the session start
-and tilts the camera fully up before executing that batch.
+the robot's absolute camera pan/tilt when the worker reported it. Batch reports
+can also include a stored `photoObservation`: a compact structured description
+of the batch completion photo used as text history once that photo is no longer
+the latest/current attached image. The robot worker treats the first batch it
+sees for a task session as the session start and tilts the camera fully up
+before executing that batch.
 
 `server:start` runs `abandonPendingRobotTaskWork` on boot. Any batch still in
 `queued` or `claimed` from a previous run is marked `abandoned`, and any

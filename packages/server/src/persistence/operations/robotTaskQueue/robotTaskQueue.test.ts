@@ -4,6 +4,7 @@ import {
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
   readRobotTaskContext,
+  recordRobotTaskBatchObservation,
   recordRobotTaskResponse,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
 import { describe, expect, test } from "bun:test";
@@ -75,7 +76,9 @@ describe("robotTaskQueue operations", () => {
     expect(sweep.abandonedBatchCount).toBe(1);
     expect(sweep.finishedSessionCount).toBe(1);
 
-    expect(await claimNextRobotTaskBatch({ nowMs: 6_000, store })).toBeUndefined();
+    expect(
+      await claimNextRobotTaskBatch({ nowMs: 6_000, store }),
+    ).toBeUndefined();
 
     const after = await readRobotTaskContext({ chatId: "101", store });
     expect(after.session).toBeUndefined();
@@ -120,6 +123,58 @@ describe("robotTaskQueue operations", () => {
     expect(result.session.batchReports.at(-1)?.cameraPosition).toEqual({
       pan: -10,
       tilt: 25,
+    });
+  });
+
+  test("records a stored observation on a completed batch report", async () => {
+    const store = createMemoryDocumentStore();
+
+    await recordRobotTaskResponse({
+      chatId: "101",
+      nowMs: 1_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const batch = expectDefined(
+      await claimNextRobotTaskBatch({ nowMs: 2_000, store }),
+    );
+
+    await completeRobotTaskBatch({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      photoPath: "/tmp/batch.jpg",
+      nowMs: 3_000,
+      store,
+    });
+
+    const result = await recordRobotTaskBatchObservation({
+      taskId: batch.taskId,
+      batchId: batch.id,
+      store,
+      observation: {
+        summary: "Window visible beyond a sofa.",
+        targetProgress: "The requested window is visible.",
+        navigableSpace: "Open floor remains ahead.",
+        notableObjects: ["sofa in foreground"],
+        viewQuality: "partial",
+        recommendedNextMove: "Drive toward the visible window.",
+      },
+    });
+
+    expect(result.session.batchReports.at(-1)?.photoObservation).toEqual({
+      summary: "Window visible beyond a sofa.",
+      targetProgress: "The requested window is visible.",
+      navigableSpace: "Open floor remains ahead.",
+      notableObjects: ["sofa in foreground"],
+      viewQuality: "partial",
+      recommendedNextMove: "Drive toward the visible window.",
     });
   });
 });

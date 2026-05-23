@@ -14,6 +14,21 @@ export type RobotTaskCameraPosition = z.infer<
   typeof robotTaskCameraPositionSchema
 >;
 
+const robotTaskPhotoObservationTextSchema = z.string().trim().min(1);
+
+export const robotTaskBatchPhotoObservationSchema = z.object({
+  summary: robotTaskPhotoObservationTextSchema.max(240),
+  targetProgress: robotTaskPhotoObservationTextSchema.max(240).nullable(),
+  navigableSpace: robotTaskPhotoObservationTextSchema.max(240),
+  notableObjects: z.array(robotTaskPhotoObservationTextSchema.max(120)).max(6),
+  viewQuality: z.enum(["poor", "partial", "good"]),
+  recommendedNextMove: robotTaskPhotoObservationTextSchema.max(240).nullable(),
+});
+
+export type RobotTaskBatchPhotoObservation = z.infer<
+  typeof robotTaskBatchPhotoObservationSchema
+>;
+
 /**
  * Single batch-report entry persisted on a task session: the actions the robot
  * just completed plus the on-disk path of the photo it captured at the end of
@@ -25,6 +40,7 @@ export const robotTaskBatchReportSchema = z.object({
   photoPath: z.string().min(1),
   cameraPosition: robotTaskCameraPositionSchema.optional(),
   distanceCm: z.number().finite().nonnegative().optional(),
+  photoObservation: robotTaskBatchPhotoObservationSchema.optional(),
   actions: z.array(robotTaskHistoricalActionSchema),
 });
 

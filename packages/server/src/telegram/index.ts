@@ -1,5 +1,6 @@
 export * from "@herbert/server/telegram/authorizeTelegramMessage";
 export * from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
+export * from "@herbert/server/telegram/describeTelegramBatchPhoto";
 export * from "@herbert/server/telegram/extractTelegramMessages";
 export * from "@herbert/server/telegram/getTelegramUpdates";
 export * from "@herbert/server/telegram/promptTelegramOpenAI";

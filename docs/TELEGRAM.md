@@ -37,12 +37,13 @@ Current polling cadence:
 - Active: poll every 2 seconds after any message has arrived in the last 30
   seconds.
 - The three cadence values live in `telegramConfig`.
-- OpenAI Telegram context keeps the most recent 10 authorized text messages per
+- OpenAI Telegram context keeps the most recent 20 authorized text messages per
   admin chat id, and additionally drops any message older than
-  `telegramConfig.openAIContextMessageMaxAgeMs` (default: 3 minutes) before
+  `telegramConfig.openAIContextMessageMaxAgeMs` (default: 30 minutes) before
   building the OpenAI prompt. Stale history is never replayed to the model.
 - `telegramConfig.openAIBatchPhotoLimit` controls how many batch report photos
-  are attached to a Telegram OpenAI turn.
+  are attached to a Telegram OpenAI turn. It is currently `1`, so only the
+  latest/current batch photo is attached.
 
 ## Getting The Chat Id
 
@@ -152,14 +153,31 @@ Herbert already sent to Telegram and what he already spoke aloud:
 
 Batch reports are also formatted as XML. When the turn trigger is
 `batch_complete`, there are usually no new Telegram messages; OpenAI should
-continue from `taskState`, the batch report XML, and the attached photos. The
-latest batch report photo is attached at `detail: "high"` (Herbert's current
-view) and up to `telegramConfig.openAIBatchPhotoLimit - 1` earlier batch
-report photos are attached at `detail: "low"` (downsampled by OpenAI for
-continuity at lower token cost). Each attached image is preceded by a label
-identifying which batch report it belongs to. Batch reports beyond the photo
-cap are still listed in the XML with their `photo_path` but have no attached
-image on that turn.
+continue from `taskState`, the batch report XML, and the attached latest photo.
+The latest batch report photo is attached at `detail: "high"` and is Herbert's
+current view. Older batch reports stay in XML as text history, using their
+stored `<photo_observation>` descriptions instead of reattaching old photos.
+Each report includes `<attached_image>` so the model can distinguish the
+current attached image from text-only history.
+
+After each robot batch completes, the server makes a separate structured
+OpenAI call (`telegram_batch_photo_observation`) to summarize the completion
+photo for future history. The stored observation includes a concise summary,
+target progress, navigable space, notable objects or occlusions, view quality,
+and a recommended next move. These observations are useful continuity, but the
+latest attached photo remains ground truth when there is a conflict.
+
+To inspect what happened in the latest persisted task session, run:
+
+```sh
+bun herbert telegram:session-summary
+```
+
+This writes an HTML report under `tmp/herbert-session-summary/` by default. The
+report combines the session's OpenAI Telegram turns, prompts, parsed JSON
+responses, attached image paths, robot batch reports, completion photos, and
+stored photo observations. Use `--session-id <id>` to inspect an older persisted
+session, or `--output <path>` to choose a destination file.
 
 When the robot worker completes a batch, it also reports Herbert's current
 absolute camera pan/tilt when available. That position is persisted on the
@@ -176,8 +194,9 @@ top-level XML sections:
 - `<turn>` — turn triggers, persistence model, and image attachment order.
 - `<actions>` — robot action inventory, hard limits, distance estimates, and
   action composition guidance.
-- `<movement_policy>` — default movement bias, hazard rules, user overrides,
-  and below-minimum-drive behavior.
+- `<movement_policy>` — target pursuit, bold default movement, hazard rules,
+  blocker handling, camera-only attempt limits, user overrides, and
+  below-minimum-drive behavior.
 - `<response>` — JSON-only output format, exact TypeScript response shape,
   `telegramMessage`, `spokenMessage`, `taskState`, `isFinished`, action
   semantics, and the action-required rule.
@@ -194,6 +213,14 @@ The precision rule is deliberately evidence-based: claims about Herbert's
 current environment must be grounded in robot photos and batch reports actually
 present in the prompt. The floorplan is only static layout and route context,
 not evidence of Herbert's current view.
+
+The movement policy is deliberately assertive. If a requested target or route
+is visible and there is open floor, Herbert should move the chassis toward it
+with a real pulse. Furniture legs, table frames, plants, cords, foreground
+clutter, glare, and partial occlusion are normal apartment context, not stop
+conditions by themselves. Repeated camera-only adjustment from the same floor
+position should give way to a chassis move or an honest "best available from
+here" finish.
 
 ### Floorplan Attachment
 
@@ -347,6 +374,6 @@ collection: telegram_message_history
 key: <admin chat id>
 ```
 
-Each document stores the most recent 10 authorized text messages for that chat
+Each document stores the most recent 20 authorized text messages for that chat
 id. Newly received messages are excluded when reading prior history for an
 OpenAI request and appended after the OpenAI response is produced.

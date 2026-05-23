@@ -41,6 +41,14 @@ describe("buildTelegramOpenAIPrompt", () => {
           photoPath: "data/robot-batch-photos/task/batch.jpg",
           cameraPosition: { pan: -10, tilt: 25 },
           distanceCm: 42.5,
+          photoObservation: {
+            summary: "A kitchen doorway is visible with open floor ahead.",
+            targetProgress: "The stove is not visible yet.",
+            navigableSpace: "Open floor continues through the doorway.",
+            notableObjects: ["chair leg at far right"],
+            viewQuality: "partial",
+            recommendedNextMove: "Drive through the doorway and re-shoot.",
+          },
           actions: [{ type: "take_photo" }],
         },
       ],
@@ -55,9 +63,7 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<turn_context>");
     expect(prompt).toContain("<trigger>telegram_messages</trigger>");
     expect(prompt).toContain("<new_message_count>2</new_message_count>");
-    expect(prompt).toContain(
-      "<batch_report_count>1</batch_report_count>",
-    );
+    expect(prompt).toContain("<batch_report_count>1</batch_report_count>");
     expect(prompt).toContain("<attached_image_count>1</attached_image_count>");
     expect(prompt).toContain("<user_messages>");
     expect(prompt).toContain("<sender>Nick</sender>");
@@ -73,17 +79,73 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("I can scoot forward and inspect.");
     expect(prompt).toContain("<spoken_message>");
     expect(prompt).toContain("A modest reconnaissance, then.");
-    expect(prompt).toContain("<task_state>\nChecking whether the stove is on.\n</task_state>");
+    expect(prompt).toContain(
+      "<task_state>\nChecking whether the stove is on.\n</task_state>",
+    );
     expect(prompt).toContain("<batch_reports>");
     expect(prompt).toContain("<batch_report>");
+    expect(prompt).toContain("<attached_image>1</attached_image>");
     expect(prompt).toContain("<completed_actions>");
     expect(prompt).toContain("<camera_position>");
     expect(prompt).toContain("<pan>-10</pan>");
     expect(prompt).toContain("<tilt>25</tilt>");
-    expect(prompt).toContain("<ultrasonic_distance_cm>42.5</ultrasonic_distance_cm>");
+    expect(prompt).toContain(
+      "<ultrasonic_distance_cm>42.5</ultrasonic_distance_cm>",
+    );
+    expect(prompt).not.toContain("<photo_observation>");
     expect(prompt).toContain(
       "<photo_path>data/robot-batch-photos/task/batch.jpg</photo_path>",
     );
+  });
+
+  test("includes stored photo observations for older batch reports", () => {
+    const prompt = buildTelegramOpenAIPrompt({
+      turnTrigger: "batch_complete",
+      recentMessages: [],
+      newMessages: [],
+      batchReports: [
+        {
+          completedAtMs: 1_800_000_000_000,
+          photoPath: "data/robot-batch-photos/task/older.jpg",
+          photoObservation: {
+            summary: "Window wall visible beyond sofa and table.",
+            targetProgress: "The balcony window is visible but partly blocked.",
+            navigableSpace: "Open floor extends toward the window side.",
+            notableObjects: ["sofa foreground", "glass table frame"],
+            viewQuality: "partial",
+            recommendedNextMove: "Drive boldly toward the visible window side.",
+          },
+          actions: [{ type: "take_photo" }],
+        },
+        {
+          completedAtMs: 1_800_000_001_000,
+          photoPath: "data/robot-batch-photos/task/latest.jpg",
+          photoObservation: {
+            summary: "Latest description should not be used in lieu of image.",
+            targetProgress: null,
+            navigableSpace: "Unknown.",
+            notableObjects: [],
+            viewQuality: "poor",
+            recommendedNextMove: null,
+          },
+          actions: [{ type: "take_photo" }],
+        },
+      ],
+      attachedImageCount: 1,
+    });
+
+    expect(prompt).toContain("<attached_image>0</attached_image>");
+    expect(prompt).toContain("<attached_image>1</attached_image>");
+    expect(prompt).toContain("<photo_observation>");
+    expect(prompt).toContain(
+      "<summary>Window wall visible beyond sofa and table.</summary>",
+    );
+    expect(prompt).toContain(
+      "<target_progress>The balcony window is visible but partly blocked.</target_progress>",
+    );
+    expect(prompt).toContain("<object>sofa foreground</object>");
+    expect(prompt).toContain("<view_quality>partial</view_quality>");
+    expect(prompt).not.toContain("Latest description should not be used");
   });
 
   test("marks batch_complete turns that have no new messages", () => {
@@ -98,7 +160,9 @@ describe("buildTelegramOpenAIPrompt", () => {
 
     expect(prompt).toContain("<trigger>batch_complete</trigger>");
     expect(prompt).toContain("<new_message_count>0</new_message_count>");
-    expect(prompt).toContain("<task_state>\nChecking the stove from the kitchen doorway.\n</task_state>");
+    expect(prompt).toContain(
+      "<task_state>\nChecking the stove from the kitchen doorway.\n</task_state>",
+    );
   });
 
   test("renders task_state as 'none' when not provided", () => {

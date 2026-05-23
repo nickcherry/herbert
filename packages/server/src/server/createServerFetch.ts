@@ -14,6 +14,7 @@ import {
   handleRobotPhotosRoute,
   robotPhotosRoutePath,
 } from "@herbert/server/server/routes/robotPhotos";
+import type { DescribeTelegramBatchPhoto } from "@herbert/server/telegram/describeTelegramBatchPhoto";
 import { type promptTelegramOpenAI } from "@herbert/server/telegram/promptTelegramOpenAI";
 import type { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
 import type { SendTelegramPhoto } from "@herbert/server/telegram/sendTelegramPhoto";
@@ -24,6 +25,7 @@ export interface CreateServerFetchOptions {
   readonly sendTelegramPhoto?: SendTelegramPhoto;
   readonly sendTelegramMessage?: typeof sendTelegramMessage;
   readonly respondToTelegramMessage?: typeof promptTelegramOpenAI;
+  readonly describeTelegramBatchPhoto?: DescribeTelegramBatchPhoto;
   readonly store?: DocumentStore;
 }
 
@@ -33,6 +35,7 @@ export function createServerFetch({
   sendTelegramPhoto,
   sendTelegramMessage,
   respondToTelegramMessage,
+  describeTelegramBatchPhoto,
   store,
 }: CreateServerFetchOptions = {}): (request: Request) => Promise<Response> {
   return async (request: Request): Promise<Response> => {
@@ -66,6 +69,7 @@ export function createServerFetch({
         sendMessage: sendTelegramMessage,
         sendPhoto: sendTelegramPhoto,
         respondToMessage: respondToTelegramMessage,
+        describeBatchPhoto: describeTelegramBatchPhoto,
       });
     }
 

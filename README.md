@@ -27,6 +27,7 @@ bun herbert --help
 bun herbert robot:keyboard --mock
 bun herbert robot:worker --mock --once
 bun herbert server:start --no-telegram
+bun herbert telegram:session-summary
 bun herbert audio:test "Testing Herbert audio."
 bun typecheck
 bun test

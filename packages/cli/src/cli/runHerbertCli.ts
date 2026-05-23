@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { CliUsageError } from "@herbert/cli/cli/CliUsageError";
+import { generateTelegramSessionSummaryHtml } from "@herbert/cli/cli/generateTelegramSessionSummaryHtml";
 import { herbertPythonPath } from "@herbert/robot/constants/env";
 import { robotServerConfig } from "@herbert/robot/constants/server";
 import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
@@ -62,6 +63,11 @@ interface TelegramFlags {
   readonly timeoutSeconds: number;
   readonly limit: number;
   readonly once: boolean;
+}
+
+interface TelegramSessionSummaryFlags {
+  readonly outputPath?: string;
+  readonly sessionId?: string;
 }
 
 interface AudioTestFlags {
@@ -274,6 +280,31 @@ export async function runHerbertCli({
     return;
   }
 
+  if (command === "telegram:session-summary") {
+    const flags = parseTelegramSessionSummaryFlags({ argv: rest });
+    const result = await generateTelegramSessionSummaryHtml({
+      outputPath: flags.outputPath,
+      sessionId: flags.sessionId,
+    });
+
+    process.stdout.write(
+      `${pc.green(pc.bold("generated"))} ${formatKeyValue({
+        key: "path",
+        value: result.outputPath,
+      })} ${formatKeyValue({
+        key: "session",
+        value: result.sessionId,
+      })} ${formatKeyValue({
+        key: "turns",
+        value: String(result.turnCount),
+      })} ${formatKeyValue({
+        key: "batches",
+        value: String(result.batchReportCount),
+      })}\n`,
+    );
+    return;
+  }
+
   if (command === "audio:test" || command === "speech:test") {
     const flags = parseAudioTestFlags({ argv: rest });
     requireElevenLabsApiKey();
@@ -385,6 +416,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:updates")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:monitor")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:session-summary")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("audio:test")} <text> [options]`,
     "",
     pc.bold("Robot options"),
@@ -414,6 +446,8 @@ export function renderUsage(): string {
     `  ${pc.cyan("--timeout-seconds <n>")}   Telegram getUpdates timeout (default: telegramConfig)`,
     `  ${pc.cyan("--limit <n>")}             update batch limit (default: telegramConfig)`,
     `  ${pc.cyan("--once")}                  poll one batch and exit`,
+    `  ${pc.cyan("--session-id <id>")}       summarize a specific robot task session instead of the latest`,
+    `  ${pc.cyan("--output <path>")}         write session summary HTML to this path (default: tmp/herbert-session-summary/<session>.html)`,
     "",
     pc.bold("ElevenLabs audio options"),
     `  ${pc.cyan("--text <text>")}           text for audio:test`,
@@ -822,6 +856,67 @@ function parseTelegramFlags({
   return telegramFlagsSchema.parse(raw);
 }
 
+function parseTelegramSessionSummaryFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): TelegramSessionSummaryFlags {
+  const raw: Record<string, string | undefined> = {};
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    const option = parseLongOption({ token });
+    const flag = option.flag;
+
+    if (flag === "--output") {
+      raw.outputPath = readOptionValue({
+        argv,
+        index,
+        flag,
+        value: option.value,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (flag === "--session-id") {
+      raw.sessionId = readOptionValue({
+        argv,
+        index,
+        flag,
+        value: option.value,
+      });
+      if (option.value === undefined) {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (token.startsWith("--")) {
+      throw new CliUsageError(
+        `Unknown telegram:session-summary option: ${token}`,
+      );
+    }
+
+    if (raw.outputPath !== undefined) {
+      throw new CliUsageError(
+        `Unexpected positional argument for telegram:session-summary: ${token}`,
+      );
+    }
+
+    raw.outputPath = token;
+  }
+
+  return telegramSessionSummaryFlagsSchema.parse(raw);
+}
+
 function parseAudioTestFlags({
   argv,
 }: {
@@ -1217,6 +1312,11 @@ const telegramFlagsSchema = z.object({
   timeoutSeconds: z.number().int().min(1).max(50),
   limit: z.number().int().min(1).max(100),
   once: z.boolean(),
+});
+
+const telegramSessionSummaryFlagsSchema = z.object({
+  outputPath: z.string().trim().min(1).optional(),
+  sessionId: z.string().trim().min(1).optional(),
 });
 
 const audioTestFlagsSchema = z.object({

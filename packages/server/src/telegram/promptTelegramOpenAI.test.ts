@@ -16,14 +16,19 @@ describe("telegramOpenAIInstructions", () => {
       "    <images>",
       "      <floorplan>",
       "      <batch_photos>",
+      "      <photo_observations>",
       "<actions>",
       "  <inventory>",
       "  <limits>",
       "  <distance_estimates>",
       "  <composition>",
       "<movement_policy>",
+      "  <target_pursuit>",
       "  <bias>",
       "  <hazards>",
+      "  <blockers>",
+      "  <camera_only_limit>",
+      "  <practical_limit>",
       "  <user_overrides>",
       "  <below_minimum_drive>",
       "<response>",
@@ -63,6 +68,27 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain("<composition>");
     expect(telegramOpenAIInstructions).toContain("prefer drive_arc");
     expect(telegramOpenAIInstructions).toContain("turn while moving");
+    expect(telegramOpenAIInstructions).toContain(
+      "Use take_photo only at the end",
+    );
+  });
+
+  test("pushes bold target pursuit instead of furniture paralysis", () => {
+    expect(telegramOpenAIInstructions).toContain(
+      "pursue it with chassis movement",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "speed 90-100 at 3000-5000 ms",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "Furniture legs, chair bases, table frames, plants, cords",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "move boldly around or past it",
+    );
+    expect(telegramOpenAIInstructions).toContain(
+      "Do not do more than two camera-only batches",
+    );
   });
 
   test("encodes the action-required-each-turn rule with its exceptions", () => {
@@ -72,6 +98,9 @@ describe("telegramOpenAIInstructions", () => {
     );
     expect(telegramOpenAIInstructions).toContain("isFinished is true");
     expect(telegramOpenAIInstructions).toContain("blocking question");
+    expect(telegramOpenAIInstructions).toContain(
+      "set telegramMessage to null unless",
+    );
   });
 
   test("requires JSON only and includes the exact TypeScript response shape", () => {

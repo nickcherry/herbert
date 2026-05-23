@@ -4,9 +4,9 @@ export const telegramConfig = {
   coldPollIntervalMs: 10_000,
   activePollIntervalMs: 2_000,
   activePollWindowMs: 30_000,
-  openAIContextMessageLimit: 10,
-  openAIContextMessageMaxAgeMs: 3 * 60 * 1_000,
-  openAIBatchPhotoLimit: 5,
+  openAIContextMessageLimit: 20,
+  openAIContextMessageMaxAgeMs: 30 * 60 * 1_000,
+  openAIBatchPhotoLimit: 1,
   testMessageText: "herbert server telegram test",
   pingResponseText: "herbert server: pong",
 } satisfies {

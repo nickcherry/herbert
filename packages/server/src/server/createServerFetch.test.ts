@@ -125,6 +125,8 @@ describe("createServerFetch", () => {
 
     const sentPhotos: string[] = [];
     const sentMessages: string[] = [];
+    const originalOpenAIKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
     const fetch = createServerFetch({
       telegramBotToken: "token",
       store,
@@ -136,6 +138,17 @@ describe("createServerFetch", () => {
         sentMessages.push(text);
         return { messageId: 202 };
       },
+      async describeTelegramBatchPhoto({ batchReport }) {
+        expect(batchReport.photoPath).toContain("batch.jpg");
+        return {
+          summary: "A window is visible beyond open floor.",
+          targetProgress: "The requested window is visible.",
+          navigableSpace: "Open floor leads toward the window.",
+          notableObjects: ["sofa in foreground"],
+          viewQuality: "partial",
+          recommendedNextMove: "Drive boldly toward the window and re-shoot.",
+        };
+      },
       async respondToTelegramMessage({ batchReports }) {
         const latestBatchReport = expectDefined(
           expectDefined(batchReports).at(-1),
@@ -143,6 +156,14 @@ describe("createServerFetch", () => {
         expect(latestBatchReport.cameraPosition).toEqual({
           pan: -10,
           tilt: 25,
+        });
+        expect(latestBatchReport.photoObservation).toEqual({
+          summary: "A window is visible beyond open floor.",
+          targetProgress: "The requested window is visible.",
+          navigableSpace: "Open floor leads toward the window.",
+          notableObjects: ["sofa in foreground"],
+          viewQuality: "partial",
+          recommendedNextMove: "Drive boldly toward the window and re-shoot.",
         });
         return {
           telegramMessage: "I have the photo now.",
@@ -170,18 +191,20 @@ describe("createServerFetch", () => {
     body.set("taskId", batch.taskId);
     body.set("cameraPan", "-10");
     body.set("cameraTilt", "25");
-    body.append(
-      "image",
-      new File(["image-bytes"], "batch.jpg"),
-      "batch.jpg",
-    );
+    body.append("image", new File(["image-bytes"], "batch.jpg"), "batch.jpg");
 
     const completeResponse = await fetch(
       new Request("http://localhost/robot/action-batches/complete", {
         method: "POST",
         body,
       }),
-    );
+    ).finally(() => {
+      if (originalOpenAIKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = originalOpenAIKey;
+      }
+    });
 
     expect(completeResponse.status).toBe(200);
     await expectJson(completeResponse, {

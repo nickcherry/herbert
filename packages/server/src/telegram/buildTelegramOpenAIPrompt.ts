@@ -1,19 +1,19 @@
 import type {
   HerbertHistoryResponse,
   RobotTaskAction,
+  RobotTaskBatchPhotoObservation,
   RobotTaskCameraPosition,
   TelegramHistoryMessage,
 } from "@herbert/shared";
 
-export type TelegramPromptTurnTrigger =
-  | "telegram_messages"
-  | "batch_complete";
+export type TelegramPromptTurnTrigger = "telegram_messages" | "batch_complete";
 
 export interface TelegramPromptBatchReport {
   readonly completedAtMs: number;
   readonly photoPath: string;
   readonly cameraPosition?: RobotTaskCameraPosition;
   readonly distanceCm?: number;
+  readonly photoObservation?: RobotTaskBatchPhotoObservation;
   readonly actions: readonly RobotTaskAction[];
 }
 
@@ -40,7 +40,8 @@ export function buildTelegramOpenAIPrompt({
   attachedImageCount,
   nowMs: _nowMs = Date.now(),
 }: BuildTelegramOpenAIPromptOptions): string {
-  const resolvedAttachedCount = attachedImageCount ?? (hasAttachedImages ? 1 : 0);
+  const resolvedAttachedCount =
+    attachedImageCount ?? (hasAttachedImages ? 1 : 0);
   return [
     formatFloorplanXml(),
     formatTurnContextXml({
@@ -52,7 +53,10 @@ export function buildTelegramOpenAIPrompt({
     formatTelegramMessagesXml({ recentMessages, newMessages }),
     formatHerbertResponsesXml({ responses: recentHerbertResponses }),
     formatTaskStateXml({ taskState }),
-    formatBatchReportsXml({ batchReports }),
+    formatBatchReportsXml({
+      attachedImageCount: resolvedAttachedCount,
+      batchReports,
+    }),
   ].join("\n\n");
 }
 
@@ -183,25 +187,42 @@ function formatHerbertResponseXml({
 }
 
 function formatBatchReportsXml({
+  attachedImageCount,
   batchReports,
 }: {
+  readonly attachedImageCount: number;
   readonly batchReports: readonly TelegramPromptBatchReport[];
 }): string {
+  const attachedStartIndex = Math.max(
+    0,
+    batchReports.length - attachedImageCount,
+  );
   return [
     "<batch_reports>",
-    ...batchReports.map((entry) => formatBatchReportXml({ entry })),
+    ...batchReports.map((entry, index) =>
+      formatBatchReportXml({
+        entry,
+        isImageAttached: index >= attachedStartIndex,
+        isLatest: index === batchReports.length - 1,
+      }),
+    ),
     "</batch_reports>",
   ].join("\n");
 }
 
 function formatBatchReportXml({
   entry,
+  isImageAttached,
+  isLatest,
 }: {
   readonly entry: TelegramPromptBatchReport;
+  readonly isImageAttached: boolean;
+  readonly isLatest: boolean;
 }): string {
   const lines = [
     "  <batch_report>",
     `    <timestamp>${formatMillisecondsTimestamp({ milliseconds: entry.completedAtMs })}</timestamp>`,
+    `    <attached_image>${isImageAttached ? "1" : "0"}</attached_image>`,
     `    <completed_actions>${escapeXmlText(JSON.stringify(entry.actions))}</completed_actions>`,
   ];
 
@@ -215,7 +236,15 @@ function formatBatchReportXml({
   }
 
   if (entry.distanceCm !== undefined) {
-    lines.push(`    <ultrasonic_distance_cm>${entry.distanceCm}</ultrasonic_distance_cm>`);
+    lines.push(
+      `    <ultrasonic_distance_cm>${entry.distanceCm}</ultrasonic_distance_cm>`,
+    );
+  }
+
+  if (entry.photoObservation !== undefined && !isLatest) {
+    lines.push(
+      formatPhotoObservationXml({ observation: entry.photoObservation }),
+    );
   }
 
   lines.push(
@@ -224,6 +253,31 @@ function formatBatchReportXml({
   );
 
   return lines.join("\n");
+}
+
+function formatPhotoObservationXml({
+  observation,
+}: {
+  readonly observation: RobotTaskBatchPhotoObservation;
+}): string {
+  return [
+    "    <photo_observation>",
+    `      <summary>${escapeXmlText(observation.summary)}</summary>`,
+    observation.targetProgress === null
+      ? "      <target_progress>null</target_progress>"
+      : `      <target_progress>${escapeXmlText(observation.targetProgress)}</target_progress>`,
+    `      <navigable_space>${escapeXmlText(observation.navigableSpace)}</navigable_space>`,
+    "      <notable_objects>",
+    ...observation.notableObjects.map(
+      (object) => `        <object>${escapeXmlText(object)}</object>`,
+    ),
+    "      </notable_objects>",
+    `      <view_quality>${observation.viewQuality}</view_quality>`,
+    observation.recommendedNextMove === null
+      ? "      <recommended_next_move>null</recommended_next_move>"
+      : `      <recommended_next_move>${escapeXmlText(observation.recommendedNextMove)}</recommended_next_move>`,
+    "    </photo_observation>",
+  ].join("\n");
 }
 
 function formatTelegramTimestamp({

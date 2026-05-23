@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 
+import { env } from "@herbert/server/constants/env";
 import { persistenceConfig } from "@herbert/server/constants/persistence";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
@@ -11,6 +12,7 @@ import {
 import {
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
+  recordRobotTaskBatchObservation,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
   filterRecentTelegramMessages,
@@ -18,6 +20,10 @@ import {
 } from "@herbert/server/persistence/operations/telegramMessageHistory";
 import { handleRobotTaskResponse } from "@herbert/server/robotTasks/handleRobotTaskResponse";
 import { jsonResponse } from "@herbert/server/server/jsonResponse";
+import {
+  type DescribeTelegramBatchPhoto,
+  describeTelegramBatchPhoto,
+} from "@herbert/server/telegram/describeTelegramBatchPhoto";
 import { promptTelegramOpenAI } from "@herbert/server/telegram/promptTelegramOpenAI";
 import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
 import {
@@ -47,6 +53,7 @@ export interface HandleRobotActionBatchCompleteRouteOptions {
   readonly sendMessage?: typeof sendTelegramMessage;
   readonly sendPhoto?: SendTelegramPhoto;
   readonly respondToMessage?: typeof promptTelegramOpenAI;
+  readonly describeBatchPhoto?: DescribeTelegramBatchPhoto;
 }
 
 export async function handleRobotActionBatchPollRoute({
@@ -79,6 +86,7 @@ export async function handleRobotActionBatchCompleteRoute({
   sendMessage = sendTelegramMessage,
   sendPhoto = sendTelegramPhoto,
   respondToMessage = promptTelegramOpenAI,
+  describeBatchPhoto = describeTelegramBatchPhoto,
 }: HandleRobotActionBatchCompleteRouteOptions): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse(
@@ -141,7 +149,7 @@ export async function handleRobotActionBatchCompleteRoute({
       batchId,
       image,
     });
-    const { session } = await completeRobotTaskBatch({
+    const { batchReport, session } = await completeRobotTaskBatch({
       batchId,
       taskId,
       photoPath,
@@ -157,35 +165,42 @@ export async function handleRobotActionBatchCompleteRoute({
       filename: filenameForBlob({ blob: image }),
     });
 
+    const observedSession = await maybeRecordBatchPhotoObservation({
+      batchReport,
+      describeBatchPhoto,
+      session,
+      store,
+    });
+
     const recentMessages = filterRecentTelegramMessages({
       messages: await readTelegramMessageHistory({
-        chatId: session.chatId,
+        chatId: observedSession.chatId,
         store,
       }),
       maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
     });
     const recentHerbertResponses = filterRecentHerbertResponses({
       responses: await readHerbertResponseHistory({
-        chatId: session.chatId,
+        chatId: observedSession.chatId,
         store,
       }),
       maxAgeMs: telegramConfig.openAIContextMessageMaxAgeMs,
     });
     const response = await respondToMessage({
-      chatId: session.chatId,
-      taskId: session.id,
+      chatId: observedSession.chatId,
+      taskId: observedSession.id,
       recentMessages,
       newMessages: [],
       recentHerbertResponses,
       turnTrigger: "batch_complete",
-      taskState: session.taskState,
-      batchReports: session.batchReports,
+      taskState: observedSession.taskState,
+      batchReports: observedSession.batchReports,
       latestPhotoPath: photoPath,
     });
 
     await handleRobotTaskResponse({
       botToken: telegramBotToken,
-      chatId: session.chatId,
+      chatId: observedSession.chatId,
       response,
       store,
       sendMessage,
@@ -203,6 +218,45 @@ export async function handleRobotActionBatchCompleteRoute({
       error: "robot_batch_completion_failed",
       message: formatError(error),
     });
+  }
+}
+
+async function maybeRecordBatchPhotoObservation({
+  batchReport,
+  describeBatchPhoto,
+  session,
+  store,
+}: {
+  readonly batchReport: Awaited<
+    ReturnType<typeof completeRobotTaskBatch>
+  >["batchReport"];
+  readonly describeBatchPhoto: DescribeTelegramBatchPhoto;
+  readonly session: Awaited<
+    ReturnType<typeof completeRobotTaskBatch>
+  >["session"];
+  readonly store: DocumentStore | undefined;
+}): Promise<Awaited<ReturnType<typeof completeRobotTaskBatch>>["session"]> {
+  if (env.openaiApiKey === undefined) {
+    return session;
+  }
+
+  try {
+    const observation = await describeBatchPhoto({
+      batchReport,
+      taskState: session.taskState,
+    });
+    const result = await recordRobotTaskBatchObservation({
+      taskId: session.id,
+      batchId: batchReport.batchId,
+      observation,
+      store,
+    });
+    return result.session;
+  } catch (error) {
+    process.stderr.write(
+      `batch photo observation failed: ${formatError(error)}\n`,
+    );
+    return session;
   }
 }
 

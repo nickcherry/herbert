@@ -63,7 +63,8 @@ Telegram admin message
   -> herbert_bridge.py
   -> end-of-batch photo
   -> POST /robot/action-batches/complete
-  -> OpenAI follow-up turn (with latest photo + downsampled earlier photos)
+  -> OpenAI photo observation for history
+  -> OpenAI follow-up turn (with latest photo + older photo observations)
   -> spokenMessage synthesized by ElevenLabs and played server-side
 ```
 
