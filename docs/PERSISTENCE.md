@@ -164,6 +164,11 @@ robot worker treats the first batch it sees for a task session as the session
 start, centers the steering, and tilts the camera fully up before executing
 that batch.
 
+If the robot worker reports that a local action batch failed, the server marks
+that batch `abandoned`, appends a concise failure note to the active session's
+`taskState`, and leaves the session active. Completed batches ignore late
+failure reports, so a lost HTTP response cannot undo a successful completion.
+
 `server:start` runs `abandonPendingRobotTaskWork` on boot. Any batch still in
 `queued` or `claimed` from a previous run is marked `abandoned`, and any
 `active` session is marked `finished`. The server cannot tell whether the

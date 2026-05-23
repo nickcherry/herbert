@@ -3,10 +3,13 @@ import { basename } from "node:path";
 import {
   apiErrorResponseSchema,
   robotActionBatchCompletePath,
+  robotActionBatchFailPath,
   robotActionBatchPollPath,
   type RobotTaskActionBatch,
   type RobotTaskActionBatchCompleteResponse,
   robotTaskActionBatchCompleteResponseSchema,
+  type RobotTaskActionBatchFailResponse,
+  robotTaskActionBatchFailResponseSchema,
   robotTaskActionBatchPollResponseSchema,
   type RobotTaskCameraPosition,
 } from "@herbert/shared";
@@ -22,6 +25,12 @@ export interface CompleteRobotActionBatchOptions {
   readonly cameraPosition?: RobotTaskCameraPosition;
   readonly steeringAngle?: number;
   readonly distanceCm?: number | null;
+}
+
+export interface FailRobotActionBatchOptions {
+  readonly serverUrl: string;
+  readonly batch: RobotTaskActionBatch;
+  readonly errorMessage: string;
 }
 
 export async function pollRobotActionBatch({
@@ -94,6 +103,40 @@ export async function completeRobotActionBatch({
   return robotTaskActionBatchCompleteResponseSchema.parse(payload);
 }
 
+export async function failRobotActionBatch({
+  serverUrl,
+  batch,
+  errorMessage,
+}: FailRobotActionBatchOptions): Promise<RobotTaskActionBatchFailResponse> {
+  const response = await fetch(actionBatchFailUrl({ serverUrl }), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      errorMessage,
+    }),
+  });
+  const rawBody = await response.text();
+  const payload = parseJsonPayload({
+    rawBody,
+    context: "robot action batch failure report",
+  });
+
+  if (!response.ok) {
+    throw apiError({
+      payload,
+      rawBody,
+      response,
+      context: "Action failure report",
+    });
+  }
+
+  return robotTaskActionBatchFailResponseSchema.parse(payload);
+}
+
 function actionBatchPollUrl({
   serverUrl,
 }: {
@@ -108,6 +151,14 @@ function actionBatchCompleteUrl({
   readonly serverUrl: string;
 }): URL {
   return new URL(robotActionBatchCompletePath, serverUrl);
+}
+
+function actionBatchFailUrl({
+  serverUrl,
+}: {
+  readonly serverUrl: string;
+}): URL {
+  return new URL(robotActionBatchFailPath, serverUrl);
 }
 
 function apiError({

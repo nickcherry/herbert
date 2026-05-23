@@ -6,12 +6,14 @@ import { persistenceConfig } from "@herbert/server/constants/persistence";
 import { telegramConfig } from "@herbert/server/constants/telegram";
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import {
+  appendHerbertResponseHistory,
   filterRecentHerbertResponses,
   readHerbertResponseHistory,
 } from "@herbert/server/persistence/operations/herbertResponseHistory";
 import {
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
+  failRobotTaskBatch,
   recordRobotTaskBatchObservation,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
 import {
@@ -32,15 +34,19 @@ import {
 } from "@herbert/server/telegram/sendTelegramPhoto";
 import {
   robotActionBatchCompletePath,
+  robotActionBatchFailPath,
   robotActionBatchPollPath,
   robotTaskActionBatchCompleteResponseSchema,
+  robotTaskActionBatchFailResponseSchema,
   robotTaskActionBatchPollResponseSchema,
   robotTaskCameraPositionSchema,
   steeringAngleSchema,
 } from "@herbert/shared";
+import { z } from "zod";
 
 export const robotActionBatchPollRoutePath = robotActionBatchPollPath;
 export const robotActionBatchCompleteRoutePath = robotActionBatchCompletePath;
+export const robotActionBatchFailRoutePath = robotActionBatchFailPath;
 
 export interface HandleRobotActionBatchPollRouteOptions {
   readonly request: Request;
@@ -55,6 +61,13 @@ export interface HandleRobotActionBatchCompleteRouteOptions {
   readonly sendPhoto?: SendTelegramPhoto;
   readonly respondToMessage?: typeof promptTelegramOpenAI;
   readonly describeBatchPhoto?: DescribeTelegramBatchPhoto;
+}
+
+export interface HandleRobotActionBatchFailRouteOptions {
+  readonly request: Request;
+  readonly telegramBotToken?: string;
+  readonly store?: DocumentStore;
+  readonly sendMessage?: typeof sendTelegramMessage;
 }
 
 export async function handleRobotActionBatchPollRoute({
@@ -231,6 +244,60 @@ export async function handleRobotActionBatchCompleteRoute({
   }
 }
 
+export async function handleRobotActionBatchFailRoute({
+  request,
+  telegramBotToken,
+  store,
+  sendMessage = sendTelegramMessage,
+}: HandleRobotActionBatchFailRouteOptions): Promise<Response> {
+  if (request.method !== "POST") {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "method_not_allowed",
+      },
+      { status: 405 },
+    );
+  }
+
+  const payloadResult = await readFailureJson({ request });
+  if (payloadResult instanceof Response) {
+    return payloadResult;
+  }
+
+  try {
+    const result = await failRobotTaskBatch({
+      batchId: payloadResult.batchId,
+      taskId: payloadResult.taskId,
+      errorMessage: payloadResult.errorMessage,
+      store,
+    });
+
+    if (result.changed && telegramBotToken !== undefined) {
+      await sendBatchFailureMessage({
+        botToken: telegramBotToken,
+        chatId: result.session.chatId,
+        errorMessage: payloadResult.errorMessage,
+        sendMessage,
+        store,
+      });
+    }
+
+    return jsonResponse(
+      robotTaskActionBatchFailResponseSchema.parse({
+        ok: true,
+        accepted: true,
+      }),
+    );
+  } catch (error) {
+    return errorResponse({
+      status: 500,
+      error: "robot_batch_failure_report_failed",
+      message: formatError(error),
+    });
+  }
+}
+
 async function maybeRecordBatchPhotoObservation({
   batchReport,
   describeBatchPhoto,
@@ -303,6 +370,74 @@ async function readFormData({ request }: { readonly request: Request }) {
       message: formatError(error),
     });
   }
+}
+
+const robotActionBatchFailureRequestSchema = z.object({
+  batchId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+  errorMessage: z.string().trim().min(1).max(1_000).optional(),
+});
+
+async function readFailureJson({
+  request,
+}: {
+  readonly request: Request;
+}): Promise<z.infer<typeof robotActionBatchFailureRequestSchema> | Response> {
+  try {
+    return robotActionBatchFailureRequestSchema.parse(await request.json());
+  } catch (error) {
+    return errorResponse({
+      status: 400,
+      error: "invalid_batch_failure_report",
+      message: formatError(error),
+    });
+  }
+}
+
+async function sendBatchFailureMessage({
+  botToken,
+  chatId,
+  errorMessage,
+  sendMessage,
+  store,
+}: {
+  readonly botToken: string;
+  readonly chatId: string;
+  readonly errorMessage: string | undefined;
+  readonly sendMessage: typeof sendTelegramMessage;
+  readonly store: DocumentStore | undefined;
+}): Promise<void> {
+  const text = `Robot worker hit an error and stopped the current batch, but it is still monitoring: ${shortFailureMessage(errorMessage)}`;
+
+  try {
+    await sendMessage({
+      botToken,
+      chatId,
+      text,
+    });
+    await appendHerbertResponseHistory({
+      chatId,
+      response: {
+        telegramMessage: text,
+        spokenMessage: null,
+      },
+      store,
+    });
+  } catch (error) {
+    process.stderr.write(
+      `batch failure Telegram message failed: ${formatError(error)}\n`,
+    );
+  }
+}
+
+function shortFailureMessage(errorMessage: string | undefined): string {
+  const value = errorMessage?.trim();
+
+  if (value === undefined || value.length === 0) {
+    return "unknown error";
+  }
+
+  return value.replaceAll(/\s+/g, " ").slice(0, 300);
 }
 
 function filenameForBlob({ blob }: { readonly blob: Blob }): string {

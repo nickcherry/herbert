@@ -59,6 +59,11 @@ the image under `data/robot-batch-photos`, sends the photo to Telegram, and
 sends the resulting `batch_complete` turn back to OpenAI to decide whether to
 continue.
 
+`POST /robot/action-batches/fail` accepts a JSON failure report with `batchId`,
+`taskId`, and `errorMessage`. The server marks the batch abandoned, records the
+failure in task state, sends a Telegram note when configured, and leaves the
+task session active so the next admin instruction can recover cleanly.
+
 When `server:start` exits from `SIGINT` or `SIGTERM`, it stops Telegram polling
 and then stops the HTTP server.
 

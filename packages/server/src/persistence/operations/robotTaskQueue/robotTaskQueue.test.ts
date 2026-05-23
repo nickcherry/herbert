@@ -3,6 +3,7 @@ import {
   abandonPendingRobotTaskWork,
   claimNextRobotTaskBatch,
   completeRobotTaskBatch,
+  failRobotTaskBatch,
   readRobotTaskContext,
   recordRobotTaskBatchObservation,
   recordRobotTaskResponse,
@@ -179,6 +180,89 @@ describe("robotTaskQueue operations", () => {
       viewQuality: "partial",
       recommendedNextMove: "Drive toward the visible window.",
     });
+  });
+
+  test("marks a failed claimed batch abandoned and keeps the task active", async () => {
+    const store = createMemoryDocumentStore();
+
+    await recordRobotTaskResponse({
+      chatId: "101",
+      nowMs: 1_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const batch = expectDefined(
+      await claimNextRobotTaskBatch({ nowMs: 2_000, store }),
+    );
+    const result = await failRobotTaskBatch({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      errorMessage: "camera process exited with code 1",
+      nowMs: 3_000,
+      store,
+    });
+
+    expect(result.changed).toBe(true);
+    expect(result.batch.status).toBe("abandoned");
+    expect(result.batch.abandonedAtMs).toBe(3_000);
+    expect(result.session.status).toBe("active");
+    expect(result.session.taskState).toContain("Robot worker failed batch");
+    expect(result.session.taskState).toContain(
+      "camera process exited with code 1",
+    );
+    expect(
+      await claimNextRobotTaskBatch({ nowMs: 4_000, store }),
+    ).toBeUndefined();
+
+    const context = await readRobotTaskContext({ chatId: "101", store });
+    expect(context.session?.status).toBe("active");
+  });
+
+  test("ignores late failure reports for completed batches", async () => {
+    const store = createMemoryDocumentStore();
+
+    await recordRobotTaskResponse({
+      chatId: "101",
+      nowMs: 1_000,
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+
+    const batch = expectDefined(
+      await claimNextRobotTaskBatch({ nowMs: 2_000, store }),
+    );
+    await completeRobotTaskBatch({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      photoPath: "/tmp/batch.jpg",
+      nowMs: 3_000,
+      store,
+    });
+
+    const result = await failRobotTaskBatch({
+      batchId: batch.id,
+      taskId: batch.taskId,
+      errorMessage: "response was lost",
+      nowMs: 4_000,
+      store,
+    });
+
+    expect(result.changed).toBe(false);
+    expect(result.batch.status).toBe("completed");
+    expect(result.session.taskState).not.toContain("response was lost");
   });
 });
 

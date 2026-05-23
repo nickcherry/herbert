@@ -79,6 +79,11 @@ angle, and an ultrasonic distance reading. If the batch ended with
 `take_photo`, that photo is reused as the completion photo; otherwise the
 worker takes a fresh final photo after movement or camera changes.
 
+Unexpected per-batch failures are recoverable. If polling fails, the worker logs
+the error and keeps polling. If local action execution or completion reporting
+fails, the worker attempts to stop the robot, reports the failed batch to the
+server, and continues monitoring instead of exiting the process.
+
 After the photo, the worker calls `HerbertController.getDistance()` which
 issues a `get_distance` command to the Python bridge. The bridge wraps the
 PiCar-X v2.0 SDK's `px.get_distance()` (ultrasonic, cm). The result is sent

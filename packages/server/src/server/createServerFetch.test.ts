@@ -1,5 +1,9 @@
 import type { DocumentStore } from "@herbert/server/persistence/documentStore";
-import { recordRobotTaskResponse } from "@herbert/server/persistence/operations/robotTaskQueue";
+import {
+  claimNextRobotTaskBatch,
+  readRobotTaskContext,
+  recordRobotTaskResponse,
+} from "@herbert/server/persistence/operations/robotTaskQueue";
 import { createServerFetch } from "@herbert/server/server/createServerFetch";
 import { robotTaskActionBatchPollResponseSchema } from "@herbert/shared";
 import { describe, expect, test } from "bun:test";
@@ -215,6 +219,55 @@ describe("createServerFetch", () => {
     });
     expect(sentPhotos).toEqual(["101"]);
     expect(sentMessages).toEqual(["I have the photo now."]);
+  });
+
+  test("accepts robot action batch failure reports without crashing the task", async () => {
+    const store = createMemoryDocumentStore();
+    await recordRobotTaskResponse({
+      chatId: "101",
+      store,
+      response: {
+        telegramMessage: null,
+        spokenMessage: null,
+        taskState: "Need an initial look.",
+        isFinished: false,
+        actions: [{ type: "take_photo" }],
+      },
+    });
+    const batch = expectDefined(await claimNextRobotTaskBatch({ store }));
+    const sentMessages: string[] = [];
+    const fetch = createServerFetch({
+      telegramBotToken: "token",
+      store,
+      async sendTelegramMessage({ text }) {
+        sentMessages.push(text);
+        return { messageId: 301 };
+      },
+    });
+
+    const response = await fetch(
+      new Request("http://localhost/robot/action-batches/fail", {
+        method: "POST",
+        body: JSON.stringify({
+          batchId: batch.id,
+          taskId: batch.taskId,
+          errorMessage: "camera process exited with code 1",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expectJson(response, {
+      ok: true,
+      accepted: true,
+    });
+    expect(sentMessages).toEqual([
+      "Robot worker hit an error and stopped the current batch, but it is still monitoring: camera process exited with code 1",
+    ]);
+    const context = await readRobotTaskContext({ chatId: "101", store });
+    expect(context.session?.status).toBe("active");
+    expect(context.session?.taskState).toContain("Robot worker failed batch");
+    expect(await claimNextRobotTaskBatch({ store })).toBeUndefined();
   });
 });
 

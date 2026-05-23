@@ -6,8 +6,10 @@ import {
 } from "@herbert/server/server/routes/ping";
 import {
   handleRobotActionBatchCompleteRoute,
+  handleRobotActionBatchFailRoute,
   handleRobotActionBatchPollRoute,
   robotActionBatchCompleteRoutePath,
+  robotActionBatchFailRoutePath,
   robotActionBatchPollRoutePath,
 } from "@herbert/server/server/routes/robotActionBatches";
 import {
@@ -70,6 +72,15 @@ export function createServerFetch({
         sendPhoto: sendTelegramPhoto,
         respondToMessage: respondToTelegramMessage,
         describeBatchPhoto: describeTelegramBatchPhoto,
+      });
+    }
+
+    if (url.pathname === robotActionBatchFailRoutePath) {
+      return await handleRobotActionBatchFailRoute({
+        request,
+        telegramBotToken,
+        store,
+        sendMessage: sendTelegramMessage,
       });
     }
 
