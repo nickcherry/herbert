@@ -53,7 +53,7 @@ describe("createServerFetch", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     const html = await response.text();
-    expect(html).toContain("Herbert Live");
+    expect(html).toContain("Herbert Cam");
     expect(html).toContain("/video.mjpeg");
     expect(html).toContain("/control");
     expect(html).toContain('data-control-action="forward"');
