@@ -77,7 +77,11 @@ export async function runHerbertCli({
     return;
   }
 
-  if (command === "robot:video-stream" || command === "video:stream") {
+  if (
+    command === "robot:stream" ||
+    command === "robot:video-stream" ||
+    command === "video:stream"
+  ) {
     await runVideoStream(parseRobotVideoFlags({ argv: rest }));
     return;
   }
@@ -235,7 +239,7 @@ export function renderUsage(): string {
   return [
     pc.bold("Usage"),
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:keyboard")} [options]`,
-    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:video-stream")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:stream")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:photo-check")} [options]`,
@@ -491,7 +495,7 @@ function parseRobotVideoFlags({
       continue;
     }
 
-    throw new CliUsageError(`Unknown robot:video-stream option: ${token}`);
+    throw new CliUsageError(`Unknown robot:stream option: ${token}`);
   }
 
   return robotVideoFlagsSchema.parse(raw);

@@ -44,7 +44,7 @@ keyboard photo command
 Live video:
 
 ```text
-bun herbert robot:video-stream
+bun herbert robot:stream
   -> Python capture_frame JPEG result
   -> POST /robot/video/frames
   -> Mac mini server keeps latest frame and broadcasts /video.mjpeg
@@ -65,7 +65,7 @@ domain caller
 
 The current operator path is manual driving. There is no active autonomous
 Telegram/OpenAI task loop. The only server-side robot queue is the transient
-manual-control handoff consumed by `robot:video-stream`.
+manual-control handoff consumed by `robot:stream`.
 
 ## CLI
 

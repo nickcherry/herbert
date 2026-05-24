@@ -125,7 +125,7 @@ The server validates the command and queues it in memory. `stop` clears older
 queued movement first so stale browser taps do not execute after an emergency
 stop.
 
-`GET /robot/control/next` is polled by `robot:video-stream` and returns the next
+`GET /robot/control/next` is polled by `robot:stream` and returns the next
 queued command or `null`. `GET /robot/control/status` reports queue depth and is
 used by the web UI.
 
