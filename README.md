@@ -39,3 +39,8 @@ Run without `--mock` on Herbert's Raspberry Pi.
 For browser driving, run `bun herbert server:start` on the Mac mini, run
 `bun herbert robot:video-stream` on Herbert, then open the Mac mini server URL
 in a browser.
+
+`server:start` requires `HERBERT_BASIC_AUTH_USERNAME` and
+`HERBERT_BASIC_AUTH_PASSWORD`. Use the same values on Herbert so robot uploads
+and control polling can authenticate. Optional direct HTTPS uses
+`HERBERT_TLS_CERT_PATH` and `HERBERT_TLS_KEY_PATH`.

@@ -1,3 +1,4 @@
+import { robotServerBasicAuthHeaders } from "@herbert/robot/server/basicAuth";
 import {
   apiErrorResponseSchema,
   robotVideoFrameUploadPath,
@@ -75,6 +76,7 @@ async function fetchVideoFrameUpload({
     return await fetch(url, {
       method: "POST",
       headers: {
+        ...robotServerBasicAuthHeaders(),
         "content-type": contentType,
         "x-herbert-captured-at-ms": String(capturedAtMs),
         "x-herbert-frame-width": String(width),

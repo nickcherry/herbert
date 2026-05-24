@@ -4,6 +4,12 @@
  * and deployment-local identities, not normal runtime tuning config.
  */
 export const env = {
+  get basicAuthPassword(): string | undefined {
+    return optionalEnv("HERBERT_BASIC_AUTH_PASSWORD");
+  },
+  get basicAuthUsername(): string | undefined {
+    return optionalEnv("HERBERT_BASIC_AUTH_USERNAME");
+  },
   get openaiApiKey(): string | undefined {
     return optionalEnv("OPENAI_API_KEY");
   },
@@ -12,6 +18,12 @@ export const env = {
   },
   get telegramAdminChatIds(): readonly string[] {
     return commaListEnv("TELEGRAM_ADMIN_CHAT_IDS");
+  },
+  get tlsCertPath(): string | undefined {
+    return optionalEnv("HERBERT_TLS_CERT_PATH");
+  },
+  get tlsKeyPath(): string | undefined {
+    return optionalEnv("HERBERT_TLS_KEY_PATH");
   },
 };
 

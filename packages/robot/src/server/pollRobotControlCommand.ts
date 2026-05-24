@@ -1,3 +1,4 @@
+import { robotServerBasicAuthHeaders } from "@herbert/robot/server/basicAuth";
 import {
   apiErrorResponseSchema,
   type RemoteControlQueuedCommand,
@@ -54,6 +55,7 @@ async function fetchRobotControlNext({
       method: "GET",
       signal: abortController.signal,
       headers: {
+        ...robotServerBasicAuthHeaders(),
         accept: "application/json",
       },
     });

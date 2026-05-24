@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 
+import { robotServerBasicAuthHeaders } from "@herbert/robot/server/basicAuth";
 import {
   apiErrorResponseSchema,
   robotPhotoUploadPath,
@@ -59,6 +60,7 @@ async function fetchPhotoUpload({
   try {
     return await fetch(url, {
       method: "POST",
+      headers: robotServerBasicAuthHeaders(),
       body: formData,
     });
   } catch (error) {

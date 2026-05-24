@@ -141,6 +141,18 @@ one command at a time through the Python bridge, and keeps capture commands
 serialized with movement so a frame capture cannot delay the stop at the end of
 a drive pulse.
 
+If the Mac mini server is protected with Basic Auth, run Herbert with the same
+credentials in its environment:
+
+```sh
+HERBERT_BASIC_AUTH_USERNAME=nick
+HERBERT_BASIC_AUTH_PASSWORD='a long password'
+bun herbert robot:video-stream
+```
+
+The robot process sends those credentials on photo uploads, video frame uploads,
+and control polling requests.
+
 Defaults are 640x480 at 2 fps. Increase them only after checking LAN latency
 and CPU load:
 

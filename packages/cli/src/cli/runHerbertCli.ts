@@ -266,6 +266,8 @@ export function renderUsage(): string {
     pc.bold("Server options"),
     `  ${pc.cyan("--host <host>")}           listen host (default: serverConfig)`,
     `  ${pc.cyan("--port <port>")}           listen port (default: serverConfig)`,
+    `  ${pc.cyan("env HERBERT_BASIC_AUTH_*")} required Basic Auth username/password`,
+    `  ${pc.cyan("env HERBERT_TLS_*")}        optional cert/key paths for direct HTTPS`,
     "",
     pc.bold("Telegram options"),
     `  ${pc.cyan("--text <text>")}           message for telegram:test`,

@@ -21,6 +21,7 @@ Update docs when changing:
 - motor or camera angle limits
 - safety timeout behavior
 - live video stream contracts
+- authentication or TLS behavior
 - Telegram admin command contracts
 - OpenAI prompt contracts, schemas, model defaults, or image input handling
 

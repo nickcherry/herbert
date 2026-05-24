@@ -1,3 +1,4 @@
+export * from "@herbert/server/server/basicAuth";
 export * from "@herbert/server/server/createServerFetch";
 export * from "@herbert/server/server/remoteControlQueue";
 export * from "@herbert/server/server/routes/ping";

@@ -32,6 +32,21 @@ relay requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ADMIN_CHAT_IDS`; without those
 env vars the server still starts, but `POST /robot/photos` returns a
 configuration error.
 
+`server:start` requires Basic Auth credentials:
+
+```sh
+HERBERT_BASIC_AUTH_USERNAME=nick
+HERBERT_BASIC_AUTH_PASSWORD='a long password'
+bun herbert server:start
+```
+
+Every HTTP route is behind Basic Auth, including `/ping`, the web app, video
+streams, browser control commands, robot video uploads, and robot control
+polling. Browsers will show a Basic Auth prompt. Herbert's robot process must
+run with the same `HERBERT_BASIC_AUTH_USERNAME` and
+`HERBERT_BASIC_AUTH_PASSWORD` values so its frame uploads and control polling
+can authenticate.
+
 The default robot upload target is the Mac mini at `http://mac-mini.local:8787`.
 
 `telegram:updates` reads one batch of updates and prints chat ids. Use this to
@@ -43,7 +58,24 @@ discover the chat id after sending a message to the bot. This command only needs
 
 When `server:start` exits from `SIGINT` or `SIGTERM`, it stops the HTTP server.
 
+## HTTPS
+
+The server can terminate TLS directly through Bun when cert and key files are
+provided:
+
+```sh
+HERBERT_TLS_CERT_PATH=/path/to/fullchain.pem
+HERBERT_TLS_KEY_PATH=/path/to/privkey.pem
+bun herbert server:start --port 443
+```
+
+Both TLS env vars must be set together. If neither is set, the server runs HTTP.
+Use HTTPS for any public internet exposure; Basic Auth over plain HTTP is only
+base64-encoded and is not encrypted.
+
 ## Routes
+
+All route examples below assume the request has passed Basic Auth.
 
 `GET /ping` returns:
 
@@ -105,6 +137,10 @@ in typed constants.
 - `TELEGRAM_BOT_TOKEN` is read from env.
 - `TELEGRAM_ADMIN_CHAT_IDS` is a comma-separated env list of authorized admin
   chat ids.
+- `HERBERT_BASIC_AUTH_USERNAME` and `HERBERT_BASIC_AUTH_PASSWORD` are required
+  by `server:start` and protect every route.
+- `HERBERT_TLS_CERT_PATH` and `HERBERT_TLS_KEY_PATH` optionally enable direct
+  HTTPS in Bun.
 - `OPENAI_API_KEY` is read from env only by generic OpenAI callers.
 - Server host, port, and HTTP idle timeout live in `serverConfig`.
 - Telegram helper defaults live in `telegramConfig`.

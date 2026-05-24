@@ -1,3 +1,9 @@
+import {
+  assertValidBasicAuthCredentials,
+  basicAuthChallengeResponse,
+  type BasicAuthCredentials,
+  isBasicAuthAuthorized,
+} from "@herbert/server/server/basicAuth";
 import { jsonResponse } from "@herbert/server/server/jsonResponse";
 import {
   createRemoteControlQueue,
@@ -46,6 +52,7 @@ export interface CreateServerFetchOptions {
   readonly sendTelegramPhoto?: SendTelegramPhoto;
   readonly videoFrameHub?: VideoFrameHub;
   readonly remoteControlQueue?: RemoteControlQueue;
+  readonly basicAuthCredentials?: BasicAuthCredentials;
 }
 
 export function createServerFetch({
@@ -54,8 +61,23 @@ export function createServerFetch({
   sendTelegramPhoto,
   videoFrameHub = createVideoFrameHub(),
   remoteControlQueue = createRemoteControlQueue(),
+  basicAuthCredentials,
 }: CreateServerFetchOptions = {}): (request: Request) => Promise<Response> {
+  if (basicAuthCredentials !== undefined) {
+    assertValidBasicAuthCredentials(basicAuthCredentials);
+  }
+
   return async (request: Request): Promise<Response> => {
+    if (
+      basicAuthCredentials !== undefined &&
+      !isBasicAuthAuthorized({
+        request,
+        credentials: basicAuthCredentials,
+      })
+    ) {
+      return basicAuthChallengeResponse();
+    }
+
     const url = new URL(request.url);
 
     if (

@@ -10,6 +10,74 @@ import {
 import { describe, expect, test } from "bun:test";
 
 describe("createServerFetch", () => {
+  test("requires basic auth before dispatching any route when configured", async () => {
+    const fetch = createServerFetch({
+      basicAuthCredentials: testBasicAuthCredentials,
+    });
+    const requests = [
+      new Request("http://localhost/"),
+      new Request("http://localhost/ping"),
+      new Request("http://localhost/robot/photos", { method: "POST" }),
+      new Request("http://localhost/robot/video/frames", { method: "POST" }),
+      new Request("http://localhost/robot/control/next"),
+      new Request("http://localhost/robot/control/status"),
+      new Request("http://localhost/control", { method: "POST" }),
+      new Request("http://localhost/video/latest.jpg"),
+      new Request("http://localhost/video.mjpeg"),
+      new Request("http://localhost/video/status"),
+      new Request("http://localhost/missing"),
+    ];
+
+    for (const request of requests) {
+      const response = await fetch(request);
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe(
+        'Basic realm="Herbert Cam", charset="UTF-8"',
+      );
+      await expectJson(response, {
+        ok: false,
+        error: "unauthorized",
+        message: "Basic authentication is required.",
+      });
+    }
+  });
+
+  test("accepts valid basic auth credentials", async () => {
+    const fetch = createServerFetch({
+      basicAuthCredentials: testBasicAuthCredentials,
+    });
+    const response = await fetch(
+      new Request("http://localhost/ping", {
+        headers: basicAuthHeaders(),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expectJson(response, {
+      ok: true,
+      service: "herbert-server",
+    });
+  });
+
+  test("rejects invalid basic auth credentials", async () => {
+    const fetch = createServerFetch({
+      basicAuthCredentials: testBasicAuthCredentials,
+    });
+    const response = await fetch(
+      new Request("http://localhost/ping", {
+        headers: {
+          authorization: basicAuthHeaderValue({
+            username: "driver",
+            password: "wrong",
+          }),
+        },
+      }),
+    );
+
+    expect(response.status).toBe(401);
+  });
+
   test("responds to /ping", async () => {
     const fetch = createServerFetch();
     const response = await fetch(new Request("http://localhost/ping"));
@@ -374,3 +442,24 @@ function expectDefined<T>(value: T | null | undefined): T {
   expect(value).not.toBeNull();
   return value as T;
 }
+
+function basicAuthHeaders(): Record<string, string> {
+  return {
+    authorization: basicAuthHeaderValue(testBasicAuthCredentials),
+  };
+}
+
+function basicAuthHeaderValue({
+  username,
+  password,
+}: {
+  readonly username: string;
+  readonly password: string;
+}): string {
+  return `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
+}
+
+const testBasicAuthCredentials = {
+  username: "driver",
+  password: "open-sesame:please",
+};
