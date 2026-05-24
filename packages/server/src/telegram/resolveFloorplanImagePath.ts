@@ -1,9 +1,0 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-export function resolveFloorplanImagePath(): string {
-  return resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    "assets/generated/floorplan-grid.png",
-  );
-}

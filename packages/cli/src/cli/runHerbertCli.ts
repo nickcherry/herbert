@@ -1,26 +1,13 @@
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
-
 import { CliUsageError } from "@herbert/cli/cli/CliUsageError";
-import { generateTelegramSessionSummaryHtml } from "@herbert/cli/cli/generateTelegramSessionSummaryHtml";
 import { herbertPythonPath } from "@herbert/robot/constants/env";
 import { robotServerConfig } from "@herbert/robot/constants/server";
 import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
 import { HerbertController } from "@herbert/robot/robot/HerbertController";
-import { runRobotTaskWorker } from "@herbert/robot/tasks/runRobotTaskWorker";
-import { playAudioFile } from "@herbert/server/audio/playAudioFile";
-import { elevenLabsConfig } from "@herbert/server/constants/elevenlabs";
 import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
-import {
-  fileExtensionForElevenLabsOutputFormat,
-  resolveElevenLabsOutputFormat,
-  synthesizeSpeech,
-} from "@herbert/server/elevenlabs/synthesizeSpeech";
 import { startHerbertServer } from "@herbert/server/server/startHerbertServer";
 import { getTelegramUpdates } from "@herbert/server/telegram/getTelegramUpdates";
-import { runTelegramMonitor } from "@herbert/server/telegram/runTelegramMonitor";
 import { sendTelegramMessage } from "@herbert/server/telegram/sendTelegramMessage";
 import {
   type CameraCheckResult,
@@ -53,44 +40,15 @@ interface RobotSayFlags extends RobotFlags {
   readonly lang: string;
 }
 
-interface RobotWorkerFlags extends RobotFlags {
-  readonly pollIntervalMs: number;
-  readonly once: boolean;
-}
-
 interface TelegramFlags {
   readonly text: string;
   readonly timeoutSeconds: number;
   readonly limit: number;
-  readonly once: boolean;
-}
-
-interface TelegramSessionSummaryFlags {
-  readonly outputPath?: string;
-  readonly sessionId?: string;
-}
-
-interface AudioTestFlags {
-  readonly text: string;
-  readonly model: string;
-  readonly voiceId: string;
-  readonly outputFormat: string;
-  readonly stability: number;
-  readonly similarityBoost: number;
-  readonly style: number;
-  readonly useSpeakerBoost: boolean;
-  readonly speechSpeed: number;
-  readonly outputPath?: string;
-  readonly player?: string;
-  readonly generationTimeoutMs: number;
-  readonly playbackTimeoutMs: number;
-  readonly playback: boolean;
 }
 
 interface ServerFlags {
   readonly host: string;
   readonly port: number;
-  readonly telegramPolling: boolean;
 }
 
 export async function runHerbertCli({
@@ -188,24 +146,15 @@ export async function runHerbertCli({
     return;
   }
 
-  if (command === "robot:worker" || command === "worker") {
-    await runRobotTaskWorker(parseRobotWorkerFlags({ argv: rest }));
-    return;
-  }
-
   if (command === "server:start") {
     const flags = parseServerFlags({ argv: rest });
     const handle = await startHerbertServer({
       host: flags.host,
       port: flags.port,
-      telegramPolling: flags.telegramPolling,
     });
 
     process.stdout.write(
-      `${pc.bold("server")} listening ${pc.cyan(handle.url)} ${formatKeyValue({
-        key: "telegram",
-        value: handle.telegramPolling ? "on" : "off",
-      })}\n`,
+      `${pc.bold("server")} listening ${pc.cyan(handle.url)}\n`,
     );
 
     await waitForShutdown(async () => {
@@ -264,142 +213,6 @@ export async function runHerbertCli({
     return;
   }
 
-  if (command === "telegram:monitor") {
-    const flags = parseTelegramFlags({ argv: rest });
-    requireOpenAIApiKey();
-    await runTelegramMonitor({
-      botToken: requireTelegramBotToken(),
-      adminChatIds: requireTelegramAdminChatIds(),
-      timeoutSeconds: flags.timeoutSeconds,
-      limit: flags.limit,
-      coldPollIntervalMs: telegramConfig.coldPollIntervalMs,
-      activePollIntervalMs: telegramConfig.activePollIntervalMs,
-      activePollWindowMs: telegramConfig.activePollWindowMs,
-      once: flags.once,
-    });
-    return;
-  }
-
-  if (command === "telegram:session-summary") {
-    const flags = parseTelegramSessionSummaryFlags({ argv: rest });
-    const result = await generateTelegramSessionSummaryHtml({
-      outputPath: flags.outputPath,
-      sessionId: flags.sessionId,
-    });
-
-    process.stdout.write(
-      `${pc.green(pc.bold("generated"))} ${formatKeyValue({
-        key: "path",
-        value: result.outputPath,
-      })} ${formatKeyValue({
-        key: "session",
-        value: result.sessionId,
-      })} ${formatKeyValue({
-        key: "turns",
-        value: String(result.turnCount),
-      })} ${formatKeyValue({
-        key: "batches",
-        value: String(result.batchReportCount),
-      })}\n`,
-    );
-    return;
-  }
-
-  if (command === "audio:test" || command === "speech:test") {
-    const flags = parseAudioTestFlags({ argv: rest });
-    requireElevenLabsApiKey();
-
-    process.stdout.write(
-      `${pc.bold("generating")} ${formatKeyValue({
-        key: "model",
-        value: flags.model,
-      })} ${formatKeyValue({
-        key: "voice_id",
-        value: flags.voiceId,
-      })} ${formatKeyValue({
-        key: "speed",
-        value: String(flags.speechSpeed),
-      })} ${formatKeyValue({
-        key: "output_format",
-        value: flags.outputFormat,
-      })} ${formatKeyValue({
-        key: "timeoutMs",
-        value: String(flags.generationTimeoutMs),
-      })}\n`,
-    );
-
-    const outputPath =
-      flags.outputPath ?? (await defaultAudioTestOutputPath({ flags }));
-    const speech = await synthesizeSpeech({
-      text: flags.text,
-      model: flags.model,
-      voiceId: flags.voiceId,
-      outputFormat: flags.outputFormat,
-      stability: flags.stability,
-      similarityBoost: flags.similarityBoost,
-      style: flags.style,
-      useSpeakerBoost: flags.useSpeakerBoost,
-      speed: flags.speechSpeed,
-      requestTimeoutMs: flags.generationTimeoutMs,
-      outputPath,
-    });
-
-    process.stdout.write(
-      `${pc.green(pc.bold("generated"))} ${formatKeyValue({
-        key: "path",
-        value: speech.path,
-      })} ${formatKeyValue({
-        key: "model",
-        value: flags.model,
-      })} ${formatKeyValue({
-        key: "voice_id",
-        value: flags.voiceId,
-      })} ${formatKeyValue({
-        key: "output_format",
-        value: speech.outputFormat,
-      })} ${formatKeyValue({
-        key: "speed",
-        value: String(flags.speechSpeed),
-      })} ${formatKeyValue({
-        key: "extension",
-        value: speech.fileExtension,
-      })}\n`,
-    );
-
-    if (!flags.playback) {
-      return;
-    }
-
-    process.stdout.write(
-      `${pc.bold("playing")} ${formatKeyValue({
-        key: "path",
-        value: speech.path,
-      })} ${formatKeyValue({
-        key: "player",
-        value: flags.player ?? "default",
-      })} ${formatKeyValue({
-        key: "timeoutMs",
-        value: String(flags.playbackTimeoutMs),
-      })}\n`,
-    );
-
-    if (flags.player === undefined) {
-      await playAudioFile({
-        path: speech.path,
-        timeoutMs: flags.playbackTimeoutMs,
-      });
-    } else {
-      await playAudioFile({
-        path: speech.path,
-        player: flags.player,
-        timeoutMs: flags.playbackTimeoutMs,
-      });
-    }
-
-    process.stdout.write(`${pc.green(pc.bold("played"))} ${speech.path}\n`);
-    return;
-  }
-
   throw new CliUsageError(`Unknown command: ${command}`);
 }
 
@@ -411,13 +224,9 @@ export function renderUsage(): string {
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:photo-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:say")} <text> [options]`,
-    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:worker")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("server:start")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:test")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:updates")} [options]`,
-    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:monitor")} [options]`,
-    `  ${pc.cyan("bun herbert")} ${pc.bold("telegram:session-summary")} [options]`,
-    `  ${pc.cyan("bun herbert")} ${pc.bold("audio:test")} <text> [options]`,
     "",
     pc.bold("Robot options"),
     `  ${pc.cyan("--mock")}                  use the mock Python bridge`,
@@ -429,8 +238,6 @@ export function renderUsage(): string {
     `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
     `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: ${robotServerConfig.baseUrl})`,
     `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
-    `  ${pc.cyan("--poll-ms <ms>")}          robot worker poll interval (default: 2000)`,
-    `  ${pc.cyan("--once")}                  robot worker polls or Telegram monitor runs one cycle`,
     "",
     pc.bold("Speech options"),
     `  ${pc.cyan("--text <text>")}           text for robot:say`,
@@ -439,33 +246,11 @@ export function renderUsage(): string {
     pc.bold("Server options"),
     `  ${pc.cyan("--host <host>")}           listen host (default: serverConfig)`,
     `  ${pc.cyan("--port <port>")}           listen port (default: serverConfig)`,
-    `  ${pc.cyan("--no-telegram")}           start HTTP server without Telegram polling`,
     "",
     pc.bold("Telegram options"),
     `  ${pc.cyan("--text <text>")}           message for telegram:test`,
     `  ${pc.cyan("--timeout-seconds <n>")}   Telegram getUpdates timeout (default: telegramConfig)`,
     `  ${pc.cyan("--limit <n>")}             update batch limit (default: telegramConfig)`,
-    `  ${pc.cyan("--once")}                  poll one batch and exit`,
-    `  ${pc.cyan("--session-id <id>")}       summarize a specific robot task session instead of the latest`,
-    `  ${pc.cyan("--output <path>")}         write session summary HTML to this path (default: tmp/herbert-session-summary/<session>.html)`,
-    "",
-    pc.bold("ElevenLabs audio options"),
-    `  ${pc.cyan("--text <text>")}           text for audio:test`,
-    `  ${pc.cyan("--voice-id <id>")}         ElevenLabs voice id (default: ELEVENLABS_VOICE_ID or ${elevenLabsConfig.defaultSpeechVoiceName}/${elevenLabsConfig.defaultSpeechVoiceId})`,
-    `  ${pc.cyan("--voice <id>")}            alias for --voice-id`,
-    `  ${pc.cyan("--model <model>")}         ElevenLabs speech model (default: ${elevenLabsConfig.defaultSpeechModel})`,
-    `  ${pc.cyan("--format <format>")}       ElevenLabs output format or alias mp3/wav/opus (default: ${elevenLabsConfig.defaultSpeechOutputFormat})`,
-    `  ${pc.cyan("--stability <0-1>")}       voice stability (default: ${elevenLabsConfig.defaultSpeechStability})`,
-    `  ${pc.cyan("--similarity-boost <0-1>")} voice similarity boost (default: ${elevenLabsConfig.defaultSpeechSimilarityBoost})`,
-    `  ${pc.cyan("--style <0-1>")}           style exaggeration (default: ${elevenLabsConfig.defaultSpeechStyle})`,
-    `  ${pc.cyan("--speaker-boost")}         enable ElevenLabs speaker boost`,
-    `  ${pc.cyan("--no-speaker-boost")}      disable ElevenLabs speaker boost`,
-    `  ${pc.cyan("--speech-speed <n>")}      speech speed from 0.7 to 1.2 (default: ${elevenLabsConfig.defaultSpeechSpeed})`,
-    `  ${pc.cyan("--output <path>")}         write the generated audio to a specific file (default: tmp/herbert-audio)`,
-    `  ${pc.cyan("--player <cmd>")}          playback command (default: afplay on macOS, aplay on Linux)`,
-    `  ${pc.cyan("--generate-timeout-ms <ms>")} fail if ElevenLabs generation does not finish (default: ${elevenLabsConfig.defaultSpeechRequestTimeoutMs})`,
-    `  ${pc.cyan("--play-timeout-ms <ms>")}  fail if playback does not finish (default: 30000)`,
-    `  ${pc.cyan("--no-play")}               generate the file without playing it`,
     "",
   ].join("\n");
 }
@@ -626,50 +411,6 @@ function parseRobotSayFlags({
   return robotSayFlagsSchema.parse(raw);
 }
 
-function parseRobotWorkerFlags({
-  argv,
-}: {
-  readonly argv: readonly string[];
-}): RobotWorkerFlags {
-  const raw: Record<string, string | boolean | number | undefined> = {
-    ...defaultRobotFlags(),
-    pollIntervalMs: 2_000,
-    once: false,
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-
-    if (token === undefined) {
-      continue;
-    }
-
-    const nextIndex = readRobotOption({ argv, index, raw });
-    if (nextIndex !== undefined) {
-      index = nextIndex;
-      continue;
-    }
-
-    if (token === "--poll-ms") {
-      raw.pollIntervalMs = parseNumberFlag({
-        value: readFlagValue({ argv, index, flag: token }),
-        flag: token,
-      });
-      index += 1;
-      continue;
-    }
-
-    if (token === "--once") {
-      raw.once = true;
-      continue;
-    }
-
-    throw new CliUsageError(`Unknown robot:worker option: ${token}`);
-  }
-
-  return robotWorkerFlagsSchema.parse(raw);
-}
-
 function defaultRobotFlags(): Record<string, string | boolean | number> {
   return {
     mock: false,
@@ -763,21 +504,15 @@ function parseServerFlags({
 }: {
   readonly argv: readonly string[];
 }): ServerFlags {
-  const raw: Record<string, string | boolean | number> = {
+  const raw: Record<string, string | number> = {
     host: serverConfig.host,
     port: serverConfig.port,
-    telegramPolling: true,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
 
     if (token === undefined) {
-      continue;
-    }
-
-    if (token === "--no-telegram") {
-      raw.telegramPolling = false;
       continue;
     }
 
@@ -807,22 +542,16 @@ function parseTelegramFlags({
 }: {
   readonly argv: readonly string[];
 }): TelegramFlags {
-  const raw: Record<string, string | number | boolean> = {
+  const raw: Record<string, string | number> = {
     text: telegramConfig.testMessageText,
     timeoutSeconds: telegramConfig.longPollTimeoutSeconds,
     limit: telegramConfig.pollLimit,
-    once: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
 
     if (token === undefined) {
-      continue;
-    }
-
-    if (token === "--once") {
-      raw.once = true;
       continue;
     }
 
@@ -856,272 +585,6 @@ function parseTelegramFlags({
   return telegramFlagsSchema.parse(raw);
 }
 
-function parseTelegramSessionSummaryFlags({
-  argv,
-}: {
-  readonly argv: readonly string[];
-}): TelegramSessionSummaryFlags {
-  const raw: Record<string, string | undefined> = {};
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-
-    if (token === undefined) {
-      continue;
-    }
-
-    const option = parseLongOption({ token });
-    const flag = option.flag;
-
-    if (flag === "--output") {
-      raw.outputPath = readOptionValue({
-        argv,
-        index,
-        flag,
-        value: option.value,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--session-id") {
-      raw.sessionId = readOptionValue({
-        argv,
-        index,
-        flag,
-        value: option.value,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (token.startsWith("--")) {
-      throw new CliUsageError(
-        `Unknown telegram:session-summary option: ${token}`,
-      );
-    }
-
-    if (raw.outputPath !== undefined) {
-      throw new CliUsageError(
-        `Unexpected positional argument for telegram:session-summary: ${token}`,
-      );
-    }
-
-    raw.outputPath = token;
-  }
-
-  return telegramSessionSummaryFlagsSchema.parse(raw);
-}
-
-function parseAudioTestFlags({
-  argv,
-}: {
-  readonly argv: readonly string[];
-}): AudioTestFlags {
-  const raw: Record<string, string | number | boolean | undefined> = {
-    model: elevenLabsConfig.defaultSpeechModel,
-    voiceId: env.elevenLabsVoiceId ?? elevenLabsConfig.defaultSpeechVoiceId,
-    outputFormat: elevenLabsConfig.defaultSpeechOutputFormat,
-    stability: elevenLabsConfig.defaultSpeechStability,
-    similarityBoost: elevenLabsConfig.defaultSpeechSimilarityBoost,
-    style: elevenLabsConfig.defaultSpeechStyle,
-    useSpeakerBoost: elevenLabsConfig.defaultSpeechUseSpeakerBoost,
-    speechSpeed: elevenLabsConfig.defaultSpeechSpeed,
-    generationTimeoutMs: elevenLabsConfig.defaultSpeechRequestTimeoutMs,
-    playbackTimeoutMs: 30_000,
-    playback: true,
-  };
-  const textParts: string[] = [];
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-
-    if (token === undefined) {
-      continue;
-    }
-
-    const option = parseLongOption({ token });
-    const flag = option.flag;
-
-    if (flag === "--text") {
-      raw.text = readOptionValue({ argv, index, flag, value: option.value });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--voice" || flag === "--voice-id") {
-      raw.voiceId = readOptionValue({ argv, index, flag, value: option.value });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--model") {
-      raw.model = readOptionValue({ argv, index, flag, value: option.value });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--format") {
-      raw.outputFormat = readOptionValue({
-        argv,
-        index,
-        flag,
-        value: option.value,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--stability") {
-      raw.stability = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--similarity-boost") {
-      raw.similarityBoost = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--style") {
-      raw.style = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--speaker-boost") {
-      rejectUnexpectedOptionValue({ flag, value: option.value });
-      raw.useSpeakerBoost = true;
-      continue;
-    }
-
-    if (flag === "--no-speaker-boost") {
-      rejectUnexpectedOptionValue({ flag, value: option.value });
-      raw.useSpeakerBoost = false;
-      continue;
-    }
-
-    if (flag === "--speech-speed") {
-      raw.speechSpeed = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--output") {
-      raw.outputPath = readOptionValue({
-        argv,
-        index,
-        flag,
-        value: option.value,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--player") {
-      raw.player = readOptionValue({ argv, index, flag, value: option.value });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--generate-timeout-ms") {
-      raw.generationTimeoutMs = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--play-timeout-ms") {
-      raw.playbackTimeoutMs = parseNumberFlag({
-        value: readOptionValue({ argv, index, flag, value: option.value }),
-        flag,
-      });
-      if (option.value === undefined) {
-        index += 1;
-      }
-      continue;
-    }
-
-    if (flag === "--no-play") {
-      rejectUnexpectedOptionValue({ flag, value: option.value });
-      raw.playback = false;
-      continue;
-    }
-
-    if (token.startsWith("--")) {
-      throw new CliUsageError(`Unknown audio:test option: ${token}`);
-    }
-
-    textParts.push(token);
-  }
-
-  if (raw.text === undefined && textParts.length > 0) {
-    raw.text = textParts.join(" ");
-  }
-
-  return audioTestFlagsSchema.parse(raw);
-}
-
-async function defaultAudioTestOutputPath({
-  flags,
-}: {
-  readonly flags: AudioTestFlags;
-}): Promise<string> {
-  const outputDirectory = join("tmp", "herbert-audio");
-  await mkdir(outputDirectory, { recursive: true });
-
-  const outputFormat = resolveElevenLabsOutputFormat({
-    format: flags.outputFormat,
-  });
-  const extension = fileExtensionForElevenLabsOutputFormat({ outputFormat });
-
-  return join(
-    outputDirectory,
-    `herbert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`,
-  );
-}
-
 function requireTelegramBotToken(): string {
   const botToken = env.telegramBotToken;
 
@@ -1140,26 +603,6 @@ function requireTelegramAdminChatIds(): readonly string[] {
   }
 
   return chatIds;
-}
-
-function requireOpenAIApiKey(): string {
-  const apiKey = env.openaiApiKey;
-
-  if (apiKey === undefined) {
-    throw new Error("OPENAI_API_KEY is not set in the environment.");
-  }
-
-  return apiKey;
-}
-
-function requireElevenLabsApiKey(): string {
-  const apiKey = env.elevenLabsApiKey;
-
-  if (apiKey === undefined) {
-    throw new Error("ELEVENLABS_API_KEY is not set in the environment.");
-  }
-
-  return apiKey;
 }
 
 function requirePrimaryTelegramAdminChatId(): string {
@@ -1217,52 +660,6 @@ function readFlagValue({
   return value;
 }
 
-function readOptionValue({
-  argv,
-  index,
-  flag,
-  value,
-}: {
-  readonly argv: readonly string[];
-  readonly index: number;
-  readonly flag: string;
-  readonly value?: string;
-}): string {
-  return value ?? readFlagValue({ argv, index, flag });
-}
-
-function parseLongOption({ token }: { readonly token: string }): {
-  readonly flag: string;
-  readonly value?: string;
-} {
-  const separatorIndex = token.indexOf("=");
-
-  if (!token.startsWith("--") || separatorIndex === -1) {
-    return { flag: token };
-  }
-
-  const flag = token.slice(0, separatorIndex);
-  const value = token.slice(separatorIndex + 1);
-
-  if (value.length === 0) {
-    throw new CliUsageError(`Missing value for ${flag}`);
-  }
-
-  return { flag, value };
-}
-
-function rejectUnexpectedOptionValue({
-  flag,
-  value,
-}: {
-  readonly flag: string;
-  readonly value?: string;
-}): void {
-  if (value !== undefined) {
-    throw new CliUsageError(`Unexpected value for ${flag}`);
-  }
-}
-
 function parseNumberFlag({
   value,
   flag,
@@ -1296,42 +693,13 @@ const robotSayFlagsSchema = robotFlagsSchema.extend({
   lang: speechLanguageSchema,
 });
 
-const robotWorkerFlagsSchema = robotFlagsSchema.extend({
-  pollIntervalMs: z.number().int().min(250).max(60_000),
-  once: z.boolean(),
-});
-
 const serverFlagsSchema = z.object({
   host: z.string().min(1),
   port: z.number().int().min(0).max(65_535),
-  telegramPolling: z.boolean(),
 });
 
 const telegramFlagsSchema = z.object({
   text: z.string().min(1),
   timeoutSeconds: z.number().int().min(1).max(50),
   limit: z.number().int().min(1).max(100),
-  once: z.boolean(),
-});
-
-const telegramSessionSummaryFlagsSchema = z.object({
-  outputPath: z.string().trim().min(1).optional(),
-  sessionId: z.string().trim().min(1).optional(),
-});
-
-const audioTestFlagsSchema = z.object({
-  text: z.string().trim().min(1).max(4096),
-  model: z.string().trim().min(1),
-  voiceId: z.string().trim().min(1),
-  outputFormat: z.string().trim().min(1),
-  stability: z.number().min(0).max(1),
-  similarityBoost: z.number().min(0).max(1),
-  style: z.number().min(0).max(1),
-  useSpeakerBoost: z.boolean(),
-  speechSpeed: z.number().min(0.7).max(1.2),
-  outputPath: z.string().trim().min(1).optional(),
-  player: z.string().trim().min(1).optional(),
-  generationTimeoutMs: z.number().int().min(1_000).max(300_000),
-  playbackTimeoutMs: z.number().int().min(1_000).max(300_000),
-  playback: z.boolean(),
 });

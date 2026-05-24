@@ -7,12 +7,10 @@ operator interfaces, and network coordination in TypeScript.
 ## Docs
 
 - [Architecture](./docs/ARCHITECTURE.md) - package boundaries and runtime flows.
-- [Robot Package](./docs/ROBOT.md) - keyboard control, robot worker, and hardware assumptions.
-- [Server Package](./docs/SERVER.md) - HTTP server, Telegram admin, and robot action queue.
-- [Telegram](./docs/TELEGRAM.md) - Bot API setup and Telegram-to-OpenAI task loop.
-- [OpenAI](./docs/OPENAI.md) - schema-first prompt helper and image inputs.
-- [ElevenLabs](./docs/ELEVENLABS.md) - server-side speech synthesis and audio testing.
-- [Persistence](./docs/PERSISTENCE.md) - SQLite document store and stored collections.
+- [Robot Package](./docs/ROBOT.md) - keyboard control and hardware assumptions.
+- [Server Package](./docs/SERVER.md) - HTTP server and Telegram photo relay.
+- [Telegram](./docs/TELEGRAM.md) - Bot API setup and helper commands.
+- [OpenAI](./docs/OPENAI.md) - generic schema-first prompt helper and image inputs.
 - [Python Bridge](./docs/PYTHON_BRIDGE.md) - JSONL protocol and PiCar-X SDK isolation.
 - [Shared Package](./docs/SHARED.md) - schemas and types shared across process boundaries.
 - [Coding Conventions](./docs/CODING_CONVENTIONS.md) - TypeScript style and repo expectations.
@@ -25,10 +23,11 @@ operator interfaces, and network coordination in TypeScript.
 bun install
 bun herbert --help
 bun herbert robot:keyboard --mock
-bun herbert robot:worker --mock --once
-bun herbert server:start --no-telegram
-bun herbert telegram:session-summary
-bun herbert audio:test "Testing Herbert audio."
+bun herbert robot:bridge-check --mock
+bun herbert robot:camera-check --mock
+bun herbert robot:photo-check --mock
+bun herbert server:start
+bun herbert telegram:updates
 bun typecheck
 bun test
 ```

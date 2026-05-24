@@ -12,7 +12,6 @@ bun herbert robot:photo-check --mock
 bun herbert robot:say --mock "hello from Herbert"
 bun herbert robot:keyboard --mock
 bun herbert robot:keyboard
-bun herbert robot:worker
 ```
 
 Use `--mock` anywhere without the PiCar-X SDK. Run without `--mock` on
@@ -40,9 +39,7 @@ q       stop and quit
 The PiCar-X steers like a car. Left and right do not spin in place and do not
 drive the motors. Each left or right press adjusts the current wheel angle by
 `--turn-angle` and leaves it there until another steering command, space, or
-quit changes it. Repeated presses walk the wheels through intermediate angles up
-to the steering limits. Press up or down after steering to drive in an arc.
-Motor pulses stop when the pulse ends; space stops motors and centers steering.
+quit changes it. Press up or down after steering to drive in an arc.
 
 Keyboard mode runs the terminal in raw mode, so typed keys do not echo as
 characters. Each recognized keypress prints a status line instead.
@@ -62,45 +59,6 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 - `--server-url` sets the Herbert server used for photo upload. The current
   default points at Nick's laptop: `http://Nicks-MacBook-Pro.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
-- `--poll-ms` controls how often `robot:worker` checks for queued server
-  actions. The default is 2000 ms.
-- `--once` makes `robot:worker` poll once, execute at most one batch, and exit.
-
-## Server Action Worker
-
-```sh
-bun herbert robot:worker
-```
-
-`robot:worker` polls the server for queued action batches. For each batch it
-executes the actions in order, captures an end-of-turn photo, and reports
-completion back to the server with the current camera pan/tilt, front steering
-angle, and an ultrasonic distance reading. If the batch ended with
-`take_photo`, that photo is reused as the completion photo; otherwise the
-worker takes a fresh final photo after movement or camera changes.
-
-Unexpected per-batch failures are recoverable. If polling fails, the worker logs
-the error and keeps polling. If local action execution or completion reporting
-fails, the worker attempts to stop the robot, reports the failed batch to the
-server, and continues monitoring instead of exiting the process.
-
-After the photo, the worker calls `HerbertController.getDistance()` which
-issues a `get_distance` command to the Python bridge. The bridge wraps the
-PiCar-X v2.0 SDK's `px.get_distance()` (ultrasonic, cm). The result is sent
-back with the batch as a `distanceCm` multipart field. In mock mode, and
-when the sensor returns no echo or fails, the value is omitted from the
-report rather than fabricated. The Telegram OpenAI prompt surfaces it as
-`<ultrasonic_distance_cm>` inside each batch report and treats it as ground
-truth for clearance ahead.
-
-The same prompt surfaces camera pose and wheel pose. Camera pan/tilt is the
-camera's viewing direction for the completion photo, not necessarily Herbert's
-chassis-forward direction. The steering angle is the front wheel angle at the
-batch boundary; motors are stopped at that point.
-
-The server-side grouping for one user request is called a task session. Before
-the first action batch it sees for a task session, `robot:worker` centers the
-steering and tilts the camera fully up to the bridge maximum angle.
 
 ## Physical Size
 
@@ -110,20 +68,12 @@ main clearance constraint: Herbert can fit under many chairs, coffee tables,
 side tables, and furniture overhangs when the underside clearance is roughly
 above 12 cm / 5 inches and the floor path is wider than the body plus a margin.
 
-Supported queued actions are:
-
-- `drive`: center steering, drive straight briefly, then stop.
-- `drive_arc`: set steering, drive briefly, stop, then center steering.
-- `set_steering`: turn the front wheels in place.
-- `look`: move camera pan/tilt.
-- `take_photo`
-- `stop`
-
 ## Photos
 
 `p` takes a photo through the Python bridge. In hardware mode, keyboard control
 uploads the saved image to `POST /robot/photos` on the Herbert server, and the
-server relays it to the configured Telegram admin chats.
+server relays it to the configured Telegram admin chats. In mock mode, keyboard
+control saves the photo path but skips upload.
 
 To upload photos while the server is running on Nick's laptop, start the server
 there:
@@ -159,15 +109,14 @@ This reports Picamera2's camera count and the output of
 `rpicam-hello --list-cameras` without using sudo. It confirms camera
 enumeration, but it does not capture a frame.
 
-To test the same Picamera2 capture path used by keyboard mode and
-`robot:worker`, run:
+To test the same Picamera2 capture path used by keyboard mode, run:
 
 ```sh
 bun herbert robot:photo-check
 ```
 
 Herbert captures stills at `1296x972`, which matches a faster OV5647 camera
-mode than the full-resolution default and is sufficient for robot feedback.
+mode than the full-resolution default and is sufficient for operator feedback.
 
 ## Speaker
 

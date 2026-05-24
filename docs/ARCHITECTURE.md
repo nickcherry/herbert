@@ -2,13 +2,13 @@
 
 Herbert is a TypeScript repo that keeps Python isolated to the hardware edge.
 
-| Package                 | Role                                                                                   |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| `packages/cli`          | single operator entrypoint for `bun herbert`                                           |
-| `packages/robot`        | robot-side TypeScript for keyboard control, server polling, and Python bridge calls    |
-| `packages/robot/python` | persistent Python subprocess that owns PiCar-X, Picamera2, and Robot HAT calls         |
-| `packages/server`       | Bun HTTP server, Telegram admin channel, OpenAI interpretation, and robot action queue |
-| `packages/shared`       | Zod schemas and TypeScript types for cross-process contracts                           |
+| Package                 | Role                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `packages/cli`          | single operator entrypoint for `bun herbert`                                        |
+| `packages/robot`        | robot-side TypeScript for keyboard control and Python bridge calls                  |
+| `packages/robot/python` | persistent Python subprocess that owns PiCar-X, Picamera2, and Robot HAT calls      |
+| `packages/server`       | Bun HTTP server, Telegram photo relay, generic Telegram helpers, generic OpenAI lib |
+| `packages/shared`       | Zod schemas and TypeScript types for cross-process contracts                        |
 
 The important boundary is the JSONL command protocol. TypeScript sends atomic
 commands such as `set_motor`, `set_steering`, `set_camera_pan`,
@@ -16,8 +16,8 @@ commands such as `set_motor`, `set_steering`, `set_camera_pan`,
 executes those commands against the PiCar-X SDK and Robot HAT APIs.
 
 Higher-level behavior belongs in TypeScript. Driving pulses, steering holds,
-keyboard mapping, network polling, and policy decisions compose atomic bridge
-commands instead of expanding the Python layer.
+keyboard mapping, and network upload code compose atomic bridge commands instead
+of expanding the Python layer.
 
 ## Runtime Shape
 
@@ -32,16 +32,6 @@ bun herbert robot:keyboard
   -> packages/robot/python/herbert_bridge.py
 ```
 
-Server-directed robot work:
-
-```text
-server action batch
-  -> packages/robot/src/tasks/runRobotTaskWorker.ts
-  -> HerbertController
-  -> PythonBridgeClient
-  -> herbert_bridge.py
-```
-
 Manual photo upload:
 
 ```text
@@ -51,34 +41,17 @@ keyboard photo command
   -> packages/server Telegram sendPhoto
 ```
 
-Telegram-administered task loop:
+Generic OpenAI calls:
 
 ```text
-Telegram admin message
-  -> packages/server Telegram polling
-  -> OpenAI structured response (gpt-5.5)
-  -> SQLite robot task queue
-  -> packages/robot worker polls GET /robot/action-batches/next
-  -> PythonBridgeClient
-  -> herbert_bridge.py
-  -> end-of-batch photo
-  -> POST /robot/action-batches/complete
-  -> OpenAI photo observation for history
-  -> OpenAI follow-up turn (with latest photo + older photo observations)
-  -> spokenMessage synthesized by ElevenLabs and played server-side
+domain caller
+  -> packages/server/src/openai/promptOpenAI.ts
+  -> OpenAI Responses API structured output
+  -> caller-owned schema and behavior
 ```
 
-Each queued action batch is deliberately small. After a batch runs, the robot
-captures a photo and the server uses that batch report to decide the next
-turn.
-
-On `server:start`, any robot action batches still in `queued` or `claimed`
-state from a previous run are marked `abandoned` and their owning sessions
-are marked `finished`. Crashed or killed work is never replayed.
-
-`spokenMessage` is rendered to audio on the server (the machine running
-`server:start`) and played through its local speaker. The robot only executes
-queued action batches; it never receives speech.
+The current operator path is manual driving. There is no active autonomous
+Telegram/OpenAI task loop or server-side robot action queue.
 
 ## CLI
 
@@ -93,6 +66,6 @@ CLI binaries.
 
 ## Safety
 
-Driving should be finite and inspectable. TypeScript uses short motor pulses and
-small server action batches; Python also stops the motors if no motor command
-arrives before the safety timeout.
+Driving should be finite and inspectable. TypeScript uses short motor pulses,
+and Python also stops the motors if no motor command arrives before the safety
+timeout.

@@ -6,11 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./commands": "./src/commands.ts",
-    "./robotTaskQueue": "./src/robotTaskQueue.ts",
-    "./robotTasks": "./src/robotTasks.ts",
-    "./serverApi": "./src/serverApi.ts",
-    "./telegramMessageHistory": "./src/telegramMessageHistory.ts",
-    "./telegramState": "./src/telegramState.ts"
+    "./serverApi": "./src/serverApi.ts"
   },
   "scripts": {
     "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",

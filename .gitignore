@@ -7,10 +7,5 @@ __pycache__
 dist
 build
 coverage
-data/*.sqlite
-data/*.sqlite-*
-data/robot-batch-photos
-data/robot-commentary
-data/robot-observations
 tmp
 runtime
