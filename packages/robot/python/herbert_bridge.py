@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import getpass
 import json
@@ -27,8 +28,26 @@ SPEECH_TEXT_MAX = 800
 SPEECH_LANGUAGES = {"en-US", "en-GB", "zh-CN", "de-DE", "es-ES"}
 PHOTO_WARMUP_S = 1.5
 PHOTO_CAPTURE_SIZE = (1296, 972)
+VIDEO_FRAME_WARMUP_S = 0.5
+VIDEO_FRAME_DEFAULT_SIZE = (640, 480)
+VIDEO_FRAME_WIDTH_MIN = 160
+VIDEO_FRAME_WIDTH_MAX = 1920
+VIDEO_FRAME_HEIGHT_MIN = 120
+VIDEO_FRAME_HEIGHT_MAX = 1080
 DEFAULT_PICARX_CONFIG_PATH = Path("/opt/picar-x/picar-x.conf")
 HERBERT_PICARX_CONFIG_PATH = Path.home() / ".config" / "herbert" / "picar-x.conf"
+MOCK_JPEG_BASE64 = (
+    "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof"
+    "Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwh"
+    "MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAAR"
+    "CAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAA"
+    "AAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/"
+    "xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/AV//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/"
+    "9oACAECAQE/AV//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAY/Al//xAAUEAEAAAAA"
+    "AAAAAAAAAAAA/9oACAEBAAE/IV//2gAMAwEAAgADAAAAEP/EABQRAQAAAAAAAAAAAAAAAAAA"
+    "ABD/2gAIAQMBAT8QH//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8QH//EABQQAQA"
+    "AAAAAAAAAAAAAAAAAABD/2gAIAQEAAT8QH//Z"
+)
 NO_SUDO_MESSAGE = (
     "Herbert runtime never runs sudo. Fix device permissions or hardware setup "
     "outside the robot process."
@@ -94,6 +113,8 @@ class Hardware:
         self._last_motor_command_at = time.monotonic()
         self._px: Any | None = None
         self._tts: Any | None = None
+        self._frame_camera: Any | None = None
+        self._frame_camera_size: tuple[int, int] | None = None
 
         if not self.mock:
             install_no_sudo_guard()
@@ -192,9 +213,45 @@ class Hardware:
             return {"path": str(photo_path)}
 
         with self._lock:
+            self._close_frame_camera_locked()
             self._capture_photo(photo_path)
 
         return {"path": str(photo_path)}
+
+    def capture_frame(self, *, width: int | None, height: int | None) -> dict[str, Any]:
+        frame_width = require_int(
+            value=width if width is not None else VIDEO_FRAME_DEFAULT_SIZE[0],
+            name="width",
+            minimum=VIDEO_FRAME_WIDTH_MIN,
+            maximum=VIDEO_FRAME_WIDTH_MAX,
+        )
+        frame_height = require_int(
+            value=height if height is not None else VIDEO_FRAME_DEFAULT_SIZE[1],
+            name="height",
+            minimum=VIDEO_FRAME_HEIGHT_MIN,
+            maximum=VIDEO_FRAME_HEIGHT_MAX,
+        )
+        captured_at_ms = int(time.time() * 1000)
+
+        if self.mock:
+            return {
+                "imageBase64": MOCK_JPEG_BASE64,
+                "contentType": "image/jpeg",
+                "width": frame_width,
+                "height": frame_height,
+                "capturedAtMs": captured_at_ms,
+            }
+
+        with self._lock:
+            image_bytes = self._capture_frame_jpeg((frame_width, frame_height))
+
+        return {
+            "imageBase64": base64.b64encode(image_bytes).decode("ascii"),
+            "contentType": "image/jpeg",
+            "width": frame_width,
+            "height": frame_height,
+            "capturedAtMs": captured_at_ms,
+        }
 
     def get_distance(self) -> dict[str, Any]:
         if self.mock:
@@ -269,6 +326,64 @@ class Hardware:
         if not photo_path.is_file() or photo_path.stat().st_size == 0:
             raise BridgeError(f"Camera did not write a non-empty photo: {photo_path}")
 
+    def _capture_frame_jpeg(self, size: tuple[int, int]) -> bytes:
+        picam2 = self._require_frame_camera(size)
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as frame_file:
+            frame_path = Path(frame_file.name)
+
+        try:
+            with contextlib.redirect_stdout(sys.stderr):
+                picam2.capture_file(str(frame_path))
+            image_bytes = frame_path.read_bytes()
+        except Exception as error:  # noqa: BLE001
+            raise BridgeError(f"Video frame capture failed: {error}") from error
+        finally:
+            with contextlib.suppress(OSError):
+                frame_path.unlink()
+
+        if len(image_bytes) == 0:
+            raise BridgeError("Video frame capture produced an empty image.")
+
+        return image_bytes
+
+    def _require_frame_camera(self, size: tuple[int, int]) -> Any:
+        if self._frame_camera is not None and self._frame_camera_size == size:
+            return self._frame_camera
+
+        self._close_frame_camera_locked()
+
+        try:
+            with contextlib.redirect_stdout(sys.stderr):
+                from picamera2 import Picamera2
+
+                picam2 = Picamera2()
+                capture_config = create_still_configuration(picam2, size=size)
+                picam2.configure(capture_config)
+                picam2.start()
+                time.sleep(VIDEO_FRAME_WARMUP_S)
+        except IndexError as error:
+            raise BridgeError(camera_detection_error_message()) from error
+        except BridgeError:
+            raise
+        except Exception as error:  # noqa: BLE001
+            raise BridgeError(f"Video camera startup failed: {error}") from error
+
+        self._frame_camera = picam2
+        self._frame_camera_size = size
+        return picam2
+
+    def _close_frame_camera_locked(self) -> None:
+        if self._frame_camera is None:
+            self._frame_camera_size = None
+            return
+
+        with contextlib.suppress(Exception), contextlib.redirect_stdout(sys.stderr):
+            self._frame_camera.close()
+
+        self._frame_camera = None
+        self._frame_camera_size = None
+
     def say(self, *, text: str, lang: str | None) -> None:
         text = require_string(text, name="text")
 
@@ -301,10 +416,12 @@ class Hardware:
             self._motor_active = False
 
             if self.mock or self._px is None:
+                self._close_frame_camera_locked()
                 return
 
             with contextlib.redirect_stdout(sys.stderr):
                 self._stop_locked()
+                self._close_frame_camera_locked()
 
     def _require_px(self) -> Any:
         if self._px is None:
@@ -434,6 +551,11 @@ def handle_line(*, hardware: Hardware, line: str) -> bool:
                 directory=optional_string(command.get("directory"), name="directory"),
                 name=optional_string(command.get("name"), name="name"),
             )
+        elif command_type == "capture_frame":
+            result = hardware.capture_frame(
+                width=optional_int(command.get("width"), name="width"),
+                height=optional_int(command.get("height"), name="height"),
+            )
         elif command_type == "camera_check":
             result = hardware.camera_check()
         elif command_type == "get_distance":
@@ -499,6 +621,16 @@ def optional_string(value: Any, *, name: str) -> str | None:
     return require_string(value, name=name)
 
 
+def optional_int(value: Any, *, name: str) -> int | None:
+    if value is None:
+        return None
+
+    if not isinstance(value, int):
+        raise BridgeError(f"{name} must be an integer.")
+
+    return value
+
+
 def require_int(*, value: Any, name: str, minimum: int, maximum: int) -> int:
     if not isinstance(value, int):
         raise BridgeError(f"{name} must be an integer.")
@@ -518,9 +650,9 @@ def normalize_photo_stem(name: str | None) -> str:
     return name[:-4] if name.lower().endswith(".jpg") else name
 
 
-def create_still_configuration(picam2: Any) -> Any:
+def create_still_configuration(picam2: Any, *, size: tuple[int, int] = PHOTO_CAPTURE_SIZE) -> Any:
     try:
-        return picam2.create_still_configuration(main={"size": PHOTO_CAPTURE_SIZE})
+        return picam2.create_still_configuration(main={"size": size})
     except TypeError:
         return picam2.create_still_configuration()
 

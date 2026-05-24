@@ -66,6 +66,7 @@ Photo response:
 - `set_camera_pan` with `angle` from `-35` to `35`
 - `set_camera_tilt` with `angle` from `-35` to `35`
 - `take_photo`
+- `capture_frame`
 - `camera_check`
 - `say` with `text` and optional `lang`
 - `stop`
@@ -87,6 +88,11 @@ initialize and warm up. The bridge does not apply an image orientation
 transform; Herbert's current camera mount produces upright stills from
 Picamera2's default still configuration. Camera detection failures are returned
 as bridge errors rather than letting the command hang.
+
+`capture_frame` returns a base64 JPEG for the live video path. The bridge keeps
+a Picamera2 instance warm for repeated frame captures at the requested size
+(default 640x480). `take_photo` closes that warm video camera before capturing a
+full still so only one Picamera2 owner is active at a time.
 
 `camera_check` returns Picamera2 camera enumeration and
 `rpicam-hello --list-cameras` output for no-sudo diagnostics. It does not

@@ -2,13 +2,13 @@
 
 Herbert is a TypeScript repo that keeps Python isolated to the hardware edge.
 
-| Package                 | Role                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `packages/cli`          | single operator entrypoint for `bun herbert`                                        |
-| `packages/robot`        | robot-side TypeScript for keyboard control and Python bridge calls                  |
-| `packages/robot/python` | persistent Python subprocess that owns PiCar-X, Picamera2, and Robot HAT calls      |
-| `packages/server`       | Bun HTTP server, Telegram photo relay, generic Telegram helpers, generic OpenAI lib |
-| `packages/shared`       | Zod schemas and TypeScript types for cross-process contracts                        |
+| Package                 | Role                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `packages/cli`          | single operator entrypoint for `bun herbert`                                         |
+| `packages/robot`        | robot-side TypeScript for keyboard control, video streaming, and Python bridge calls |
+| `packages/robot/python` | persistent Python subprocess that owns PiCar-X, Picamera2, and Robot HAT calls       |
+| `packages/server`       | Bun HTTP server, Telegram photo relay, generic Telegram helpers, generic OpenAI lib  |
+| `packages/shared`       | Zod schemas and TypeScript types for cross-process contracts                         |
 
 The important boundary is the JSONL command protocol. TypeScript sends atomic
 commands such as `set_motor`, `set_steering`, `set_camera_pan`,
@@ -41,6 +41,19 @@ keyboard photo command
   -> packages/server Telegram sendPhoto
 ```
 
+Live video:
+
+```text
+bun herbert robot:video-stream
+  -> Python capture_frame JPEG result
+  -> POST /robot/video/frames
+  -> Mac mini server keeps latest frame and broadcasts /video.mjpeg
+  -> browser opens Mac mini /
+  -> browser posts manual controls to POST /control
+  -> robot polls GET /robot/control/next
+  -> Python set_motor/set_steering/set_camera_* commands
+```
+
 Generic OpenAI calls:
 
 ```text
@@ -51,7 +64,8 @@ domain caller
 ```
 
 The current operator path is manual driving. There is no active autonomous
-Telegram/OpenAI task loop or server-side robot action queue.
+Telegram/OpenAI task loop. The only server-side robot queue is the transient
+manual-control handoff consumed by `robot:video-stream`.
 
 ## CLI
 

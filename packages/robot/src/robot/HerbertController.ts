@@ -7,6 +7,8 @@ import {
   cameraAngleSchema,
   type CameraCheckResult,
   cameraCheckResultSchema,
+  type CaptureFrameResult,
+  captureFrameResultSchema,
   type GetDistanceResult,
   getDistanceResultSchema,
   motorSpeedSchema,
@@ -37,6 +39,11 @@ export interface CameraPosition {
 export interface TakePhotoOptions {
   readonly directory?: string;
   readonly name?: string;
+}
+
+export interface CaptureFrameOptions {
+  readonly width?: number;
+  readonly height?: number;
 }
 
 export interface SayOptions {
@@ -173,6 +180,20 @@ export class HerbertController {
     return takePhotoResultSchema.parse(response.result);
   }
 
+  public async captureFrame(
+    options: CaptureFrameOptions = {},
+  ): Promise<CaptureFrameResult> {
+    const response = await this.bridge.send(
+      {
+        type: "capture_frame",
+        ...options,
+      },
+      { timeoutMs: captureFrameTimeoutMs },
+    );
+
+    return captureFrameResultSchema.parse(response.result);
+  }
+
   public async cameraCheck(): Promise<CameraCheckResult> {
     const response = await this.bridge.send(
       {
@@ -222,5 +243,6 @@ function speechTimeoutMs({ text }: { readonly text: string }): number {
 }
 
 const photoTimeoutMs = 30_000;
+const captureFrameTimeoutMs = 10_000;
 const cameraCheckTimeoutMs = 15_000;
 const getDistanceTimeoutMs = 5_000;

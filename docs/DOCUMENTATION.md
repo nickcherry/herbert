@@ -20,6 +20,7 @@ Update docs when changing:
 - Python SDK usage
 - motor or camera angle limits
 - safety timeout behavior
+- live video stream contracts
 - Telegram admin command contracts
 - OpenAI prompt contracts, schemas, model defaults, or image input handling
 

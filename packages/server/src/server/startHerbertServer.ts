@@ -20,6 +20,7 @@ export async function startHerbertServer({
   const server = Bun.serve({
     hostname: host,
     port,
+    idleTimeout: serverConfig.idleTimeoutSeconds,
     fetch: createServerFetch({
       telegramBotToken: env.telegramBotToken,
       telegramAdminChatIds: env.telegramAdminChatIds,

@@ -3,6 +3,7 @@ import { herbertPythonPath } from "@herbert/robot/constants/env";
 import { robotServerConfig } from "@herbert/robot/constants/server";
 import { runKeyboardDrive } from "@herbert/robot/keyboard/runKeyboardDrive";
 import { HerbertController } from "@herbert/robot/robot/HerbertController";
+import { runVideoStream } from "@herbert/robot/video/runVideoStream";
 import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import { telegramConfig } from "@herbert/server/constants/telegram";
@@ -15,6 +16,8 @@ import {
   speechLanguageSchema,
   speechTextSchema,
   steeringAngleSchema,
+  videoFrameHeightSchema,
+  videoFrameWidthSchema,
 } from "@herbert/shared";
 import pc from "picocolors";
 import { z } from "zod";
@@ -38,6 +41,13 @@ interface RobotFlags {
 interface RobotSayFlags extends RobotFlags {
   readonly text: string;
   readonly lang: string;
+}
+
+interface RobotVideoFlags extends RobotFlags {
+  readonly fps: number;
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly once: boolean;
 }
 
 interface TelegramFlags {
@@ -64,6 +74,11 @@ export async function runHerbertCli({
 
   if (command === "robot:keyboard" || command === "keyboard") {
     await runKeyboardDrive(parseRobotFlags({ argv: rest }));
+    return;
+  }
+
+  if (command === "robot:video-stream" || command === "video:stream") {
+    await runVideoStream(parseRobotVideoFlags({ argv: rest }));
     return;
   }
 
@@ -220,6 +235,7 @@ export function renderUsage(): string {
   return [
     pc.bold("Usage"),
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:keyboard")} [options]`,
+    `  ${pc.cyan("bun herbert")} ${pc.bold("robot:video-stream")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:bridge-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:camera-check")} [options]`,
     `  ${pc.cyan("bun herbert")} ${pc.bold("robot:photo-check")} [options]`,
@@ -236,8 +252,12 @@ export function renderUsage(): string {
     `  ${pc.cyan("--camera-step <1-20>")}    camera pan/tilt step per keypress (default: 5)`,
     `  ${pc.cyan("--pulse-ms <ms>")}         drive pulse duration after keypress (default: 250)`,
     `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
-    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo upload (default: ${robotServerConfig.baseUrl})`,
+    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo/video upload (default: ${robotServerConfig.baseUrl})`,
     `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
+    `  ${pc.cyan("--fps <n>")}               video stream frames per second (default: 2)`,
+    `  ${pc.cyan("--frame-width <px>")}      video stream frame width (default: 640)`,
+    `  ${pc.cyan("--frame-height <px>")}     video stream frame height (default: 480)`,
+    `  ${pc.cyan("--once")}                  send one video frame and exit`,
     "",
     pc.bold("Speech options"),
     `  ${pc.cyan("--text <text>")}           text for robot:say`,
@@ -409,6 +429,70 @@ function parseRobotSayFlags({
   }
 
   return robotSayFlagsSchema.parse(raw);
+}
+
+function parseRobotVideoFlags({
+  argv,
+}: {
+  readonly argv: readonly string[];
+}): RobotVideoFlags {
+  const raw: Record<string, string | boolean | number | undefined> = {
+    ...defaultRobotFlags(),
+    fps: 2,
+    frameWidth: 640,
+    frameHeight: 480,
+    once: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === undefined) {
+      continue;
+    }
+
+    const nextIndex = readRobotOption({ argv, index, raw });
+    if (nextIndex !== undefined) {
+      index = nextIndex;
+      continue;
+    }
+
+    if (token === "--fps") {
+      raw.fps = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--frame-width") {
+      raw.frameWidth = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--frame-height") {
+      raw.frameHeight = parseNumberFlag({
+        value: readFlagValue({ argv, index, flag: token }),
+        flag: token,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (token === "--once") {
+      raw.once = true;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown robot:video-stream option: ${token}`);
+  }
+
+  return robotVideoFlagsSchema.parse(raw);
 }
 
 function defaultRobotFlags(): Record<string, string | boolean | number> {
@@ -691,6 +775,13 @@ const robotFlagsSchema = z.object({
 const robotSayFlagsSchema = robotFlagsSchema.extend({
   text: speechTextSchema,
   lang: speechLanguageSchema,
+});
+
+const robotVideoFlagsSchema = robotFlagsSchema.extend({
+  fps: z.number().min(0.2).max(10),
+  frameWidth: videoFrameWidthSchema,
+  frameHeight: videoFrameHeightSchema,
+  once: z.boolean(),
 });
 
 const serverFlagsSchema = z.object({

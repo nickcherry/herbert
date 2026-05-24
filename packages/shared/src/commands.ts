@@ -42,6 +42,9 @@ export const photoNameSchema = z
   .min(1)
   .regex(/^[A-Za-z0-9_.-]+$/);
 
+export const videoFrameWidthSchema = z.number().int().min(160).max(1920);
+export const videoFrameHeightSchema = z.number().int().min(120).max(1080);
+
 export const speechTextSchema = z.string().trim().min(1).max(800);
 
 export const speechLanguageSchema = z.enum([
@@ -79,6 +82,11 @@ export const robotCommandPayloadSchema = z.discriminatedUnion("type", [
     type: z.literal("take_photo"),
     directory: z.string().min(1).optional(),
     name: photoNameSchema.optional(),
+  }),
+  z.object({
+    type: z.literal("capture_frame"),
+    width: videoFrameWidthSchema.optional(),
+    height: videoFrameHeightSchema.optional(),
   }),
   z.object({
     type: z.literal("camera_check"),
@@ -133,6 +141,12 @@ export const robotCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     id: commandIdSchema,
+    type: z.literal("capture_frame"),
+    width: videoFrameWidthSchema.optional(),
+    height: videoFrameHeightSchema.optional(),
+  }),
+  z.object({
+    id: commandIdSchema,
     type: z.literal("camera_check"),
   }),
   z.object({
@@ -166,6 +180,14 @@ export const bridgeOkResponseSchema = z.object({
 
 export const takePhotoResultSchema = z.object({
   path: z.string().min(1),
+});
+
+export const captureFrameResultSchema = z.object({
+  imageBase64: z.string().min(1),
+  contentType: z.literal("image/jpeg"),
+  width: videoFrameWidthSchema,
+  height: videoFrameHeightSchema,
+  capturedAtMs: z.number().int().nonnegative(),
 });
 
 export const getDistanceResultSchema = z.object({
@@ -210,5 +232,6 @@ export type BridgeErrorResponse = z.infer<typeof bridgeErrorResponseSchema>;
 export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
 export type SpeechLanguage = z.infer<typeof speechLanguageSchema>;
 export type TakePhotoResult = z.infer<typeof takePhotoResultSchema>;
+export type CaptureFrameResult = z.infer<typeof captureFrameResultSchema>;
 export type CameraCheckResult = z.infer<typeof cameraCheckResultSchema>;
 export type GetDistanceResult = z.infer<typeof getDistanceResultSchema>;

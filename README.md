@@ -23,6 +23,7 @@ operator interfaces, and network coordination in TypeScript.
 bun install
 bun herbert --help
 bun herbert robot:keyboard --mock
+bun herbert robot:video-stream --mock --once
 bun herbert robot:bridge-check --mock
 bun herbert robot:camera-check --mock
 bun herbert robot:photo-check --mock
@@ -34,3 +35,7 @@ bun test
 
 Use `--mock` from a laptop or any machine without the PiCar-X SDK installed.
 Run without `--mock` on Herbert's Raspberry Pi.
+
+For browser driving, run `bun herbert server:start` on the Mac mini, run
+`bun herbert robot:video-stream` on Herbert, then open the Mac mini server URL
+in a browser.

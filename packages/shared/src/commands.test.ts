@@ -1,6 +1,7 @@
 import {
   bridgeProtocolVersion,
   bridgeResponseSchema,
+  captureFrameResultSchema,
   robotCommandPayloadSchema,
   robotCommandSchema,
 } from "@herbert/shared";
@@ -67,6 +68,36 @@ describe("robot command schemas", () => {
     });
   });
 
+  test("accept video frame capture commands", () => {
+    expect(
+      robotCommandPayloadSchema.parse({
+        type: "capture_frame",
+        width: 640,
+        height: 480,
+      }),
+    ).toEqual({
+      type: "capture_frame",
+      width: 640,
+      height: 480,
+    });
+
+    expect(
+      captureFrameResultSchema.parse({
+        imageBase64: "abc123",
+        contentType: "image/jpeg",
+        width: 640,
+        height: 480,
+        capturedAtMs: 123,
+      }),
+    ).toEqual({
+      imageBase64: "abc123",
+      contentType: "image/jpeg",
+      width: 640,
+      height: 480,
+      capturedAtMs: 123,
+    });
+  });
+
   test("reject unsafe out-of-range commands", () => {
     expect(() =>
       robotCommandPayloadSchema.parse({
@@ -79,6 +110,14 @@ describe("robot command schemas", () => {
       robotCommandPayloadSchema.parse({
         type: "set_camera_tilt",
         angle: 90,
+      }),
+    ).toThrow();
+
+    expect(() =>
+      robotCommandPayloadSchema.parse({
+        type: "capture_frame",
+        width: 80,
+        height: 480,
       }),
     ).toThrow();
 

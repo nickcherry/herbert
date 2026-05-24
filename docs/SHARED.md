@@ -18,6 +18,7 @@ It defines:
 ## Subpath Exports
 
 - `@herbert/shared/commands` - JSONL command and bridge response shapes.
-- `@herbert/shared/serverApi` - HTTP path constants and response shapes used by
-  both server and robot packages.
+- `@herbert/shared/serverApi` - HTTP path constants and response shapes for
+  photo upload, video frame upload, video status, browser video routes, and
+  remote manual-control commands.
 - `@herbert/shared` - aggregate export for the same public schemas.

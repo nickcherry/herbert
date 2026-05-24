@@ -11,6 +11,7 @@ bun herbert robot:camera-check --mock
 bun herbert robot:photo-check --mock
 bun herbert robot:say --mock "hello from Herbert"
 bun herbert robot:keyboard --mock
+bun herbert robot:video-stream --mock --once
 bun herbert robot:keyboard
 ```
 
@@ -56,9 +57,11 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 - `--pulse-ms` controls how long the car keeps moving after a drive keypress.
 - `--safety-ms` controls the Python watchdog timeout.
 - `--python` overrides the Python executable. `HERBERT_PYTHON` can also set it.
-- `--server-url` sets the Herbert server used for photo upload. The current
-  default points at Nick's laptop: `http://Nicks-MacBook-Pro.local:8787`.
+- `--server-url` sets the Herbert server used for photo and video upload. The current
+  default points at the Mac mini: `http://mac-mini.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
+- `--fps`, `--frame-width`, and `--frame-height` tune `robot:video-stream`.
+- `--once` makes `robot:video-stream` send one frame and exit.
 
 ## Physical Size
 
@@ -75,7 +78,7 @@ uploads the saved image to `POST /robot/photos` on the Herbert server, and the
 server relays it to the configured Telegram admin chats. In mock mode, keyboard
 control saves the photo path but skips upload.
 
-To upload photos while the server is running on Nick's laptop, start the server
+To upload photos while the server is running on the Mac mini, start the server
 there:
 
 ```sh
@@ -88,10 +91,10 @@ Then run keyboard control on Herbert:
 bun herbert robot:keyboard
 ```
 
-If the laptop's Bonjour hostname changes, pass the LAN URL explicitly:
+If the Mac mini's Bonjour hostname changes, pass the LAN URL explicitly:
 
 ```sh
-bun herbert robot:keyboard --server-url http://<laptop-hostname>.local:8787
+bun herbert robot:keyboard --server-url http://<mac-mini-hostname>.local:8787
 ```
 
 The bridge captures photos with Picamera2 directly instead of Vilib. Herbert's
@@ -117,6 +120,37 @@ bun herbert robot:photo-check
 
 Herbert captures stills at `1296x972`, which matches a faster OV5647 camera
 mode than the full-resolution default and is sufficient for operator feedback.
+
+## Live Video
+
+```sh
+bun herbert server:start
+bun herbert robot:video-stream
+```
+
+The Mac mini runs the server and hosts the browser UI at `/`. Herbert runs
+`robot:video-stream`, captures JPEG frames through the Python bridge, and pushes
+them to `POST /robot/video/frames`. The server keeps the latest frame in memory
+and exposes it to browsers as `/video.mjpeg`, `/video/latest.jpg`, and
+`/video/status`.
+
+The same page also exposes manual controls for forward and backward drive
+pulses, steering, and camera pan/tilt. Browser controls post to `POST /control`
+on the Mac mini. `robot:video-stream` polls `GET /robot/control/next`, executes
+one command at a time through the Python bridge, and keeps capture commands
+serialized with movement so a frame capture cannot delay the stop at the end of
+a drive pulse.
+
+Defaults are 640x480 at 2 fps. Increase them only after checking LAN latency
+and CPU load:
+
+```sh
+bun herbert robot:video-stream --fps 4 --frame-width 960 --frame-height 720
+```
+
+The video stream uses Picamera2 directly. It keeps a camera instance warm for
+frame capture; taking a full still photo closes that warm video camera first so
+Picamera2 does not fight over the device.
 
 ## Speaker
 

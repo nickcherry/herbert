@@ -5,7 +5,8 @@
   "private": true,
   "exports": {
     "./keyboard": "./src/keyboard/runKeyboardDrive.ts",
-    "./robot": "./src/robot/HerbertController.ts"
+    "./robot": "./src/robot/HerbertController.ts",
+    "./video": "./src/video/runVideoStream.ts"
   },
   "scripts": {
     "typecheck": "bun x --bun tsc -p ../../tsconfig.json --noEmit",
