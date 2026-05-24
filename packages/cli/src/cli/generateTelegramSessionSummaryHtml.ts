@@ -449,8 +449,30 @@ function renderPhotoObservation({
       "notable objects",
       observation.notableObjects.join(", ") || "none",
     ),
+    renderMeta(
+      "distance estimates",
+      formatPhotoObservationDistanceEstimates({ observation }),
+    ),
     "        </dl>",
   ].join("\n");
+}
+
+function formatPhotoObservationDistanceEstimates({
+  observation,
+}: {
+  readonly observation: NonNullable<RobotTaskBatchReport["photoObservation"]>;
+}): string {
+  if (observation.distanceEstimates.length === 0) {
+    return "none";
+  }
+
+  return observation.distanceEstimates
+    .map((estimate) => {
+      const distance =
+        estimate.distanceCm === null ? "unknown" : `${estimate.distanceCm} cm`;
+      return `${estimate.subject} (${estimate.category}, ${distance}, ${estimate.confidence} confidence)`;
+    })
+    .join("; ");
 }
 
 function renderDetails({

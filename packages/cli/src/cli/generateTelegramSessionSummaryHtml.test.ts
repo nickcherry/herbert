@@ -92,6 +92,14 @@ describe("generateTelegramSessionSummaryHtml", () => {
             targetProgress: "The balcony window is visible.",
             navigableSpace: "Open floor continues toward the window.",
             notableObjects: ["sofa foreground"],
+            distanceEstimates: [
+              {
+                subject: "balcony window",
+                category: "target",
+                distanceCm: 210,
+                confidence: "medium",
+              },
+            ],
             viewQuality: "partial",
             recommendedNextMove: "Drive boldly toward the window.",
           },
@@ -147,6 +155,8 @@ describe("generateTelegramSessionSummaryHtml", () => {
     expect(html).toContain("Pursuing the balcony window.");
     expect(html).toContain("Window visible beyond furniture.");
     expect(html).toContain("sofa foreground");
+    expect(html).toContain("balcony window");
+    expect(html).toContain("210 cm");
     expect(html).toContain("-5 deg");
     expect(html).toContain("Full Prompt");
   });

@@ -47,6 +47,14 @@ describe("buildTelegramOpenAIPrompt", () => {
             targetProgress: "The stove is not visible yet.",
             navigableSpace: "Open floor continues through the doorway.",
             notableObjects: ["chair leg at far right"],
+            distanceEstimates: [
+              {
+                subject: "chair leg at far right",
+                category: "possible_blocker",
+                distanceCm: 120,
+                confidence: "low",
+              },
+            ],
             viewQuality: "partial",
             recommendedNextMove: "Drive through the doorway and re-shoot.",
           },
@@ -118,6 +126,20 @@ describe("buildTelegramOpenAIPrompt", () => {
             targetProgress: "The balcony window is visible but partly blocked.",
             navigableSpace: "Open floor extends toward the window side.",
             notableObjects: ["sofa foreground", "glass table frame"],
+            distanceEstimates: [
+              {
+                subject: "balcony window",
+                category: "target",
+                distanceCm: 240,
+                confidence: "medium",
+              },
+              {
+                subject: "glass table frame",
+                category: "possible_blocker",
+                distanceCm: 55,
+                confidence: "low",
+              },
+            ],
             viewQuality: "partial",
             recommendedNextMove: "Drive boldly toward the visible window side.",
           },
@@ -131,6 +153,7 @@ describe("buildTelegramOpenAIPrompt", () => {
             targetProgress: null,
             navigableSpace: "Unknown.",
             notableObjects: [],
+            distanceEstimates: [],
             viewQuality: "poor",
             recommendedNextMove: null,
           },
@@ -150,6 +173,12 @@ describe("buildTelegramOpenAIPrompt", () => {
       "<target_progress>The balcony window is visible but partly blocked.</target_progress>",
     );
     expect(prompt).toContain("<object>sofa foreground</object>");
+    expect(prompt).toContain("<distance_estimates>");
+    expect(prompt).toContain("<subject>balcony window</subject>");
+    expect(prompt).toContain("<category>target</category>");
+    expect(prompt).toContain("<distance_cm>240</distance_cm>");
+    expect(prompt).toContain("<confidence>medium</confidence>");
+    expect(prompt).toContain("<subject>glass table frame</subject>");
     expect(prompt).toContain("<view_quality>partial</view_quality>");
     expect(prompt).not.toContain("Latest description should not be used");
   });

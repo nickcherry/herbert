@@ -19,14 +19,45 @@ export type RobotTaskCameraPosition = z.infer<
 
 const robotTaskPhotoObservationTextSchema = z.string().trim().min(1);
 
-export const robotTaskBatchPhotoObservationSchema = z.object({
+export const robotTaskPhotoObservationDistanceEstimateSchema = z.object({
+  subject: robotTaskPhotoObservationTextSchema.max(120),
+  category: z.enum([
+    "target",
+    "route_marker",
+    "possible_blocker",
+    "landmark",
+    "other",
+  ]),
+  distanceCm: z.number().int().nonnegative().max(1_000).nullable(),
+  confidence: z.enum(["low", "medium", "high"]),
+});
+
+export const robotTaskBatchPhotoObservationOpenAISchema = z.object({
   summary: robotTaskPhotoObservationTextSchema.max(240),
   targetProgress: robotTaskPhotoObservationTextSchema.max(240).nullable(),
   navigableSpace: robotTaskPhotoObservationTextSchema.max(240),
   notableObjects: z.array(robotTaskPhotoObservationTextSchema.max(120)).max(6),
+  distanceEstimates: z
+    .array(robotTaskPhotoObservationDistanceEstimateSchema)
+    .max(6),
   viewQuality: z.enum(["poor", "partial", "good"]),
   recommendedNextMove: robotTaskPhotoObservationTextSchema.max(240).nullable(),
 });
+
+export const robotTaskBatchPhotoObservationSchema = z.preprocess((value) => {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  return record.distanceEstimates === undefined
+    ? { ...record, distanceEstimates: [] }
+    : value;
+}, robotTaskBatchPhotoObservationOpenAISchema);
+
+export type RobotTaskPhotoObservationDistanceEstimate = z.infer<
+  typeof robotTaskPhotoObservationDistanceEstimateSchema
+>;
 
 export type RobotTaskBatchPhotoObservation = z.infer<
   typeof robotTaskBatchPhotoObservationSchema

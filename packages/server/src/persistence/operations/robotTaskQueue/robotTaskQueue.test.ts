@@ -8,6 +8,7 @@ import {
   recordRobotTaskBatchObservation,
   recordRobotTaskResponse,
 } from "@herbert/server/persistence/operations/robotTaskQueue";
+import { robotTaskBatchPhotoObservationSchema } from "@herbert/shared/robotTaskQueue";
 import { describe, expect, test } from "bun:test";
 
 describe("robotTaskQueue operations", () => {
@@ -167,6 +168,14 @@ describe("robotTaskQueue operations", () => {
         targetProgress: "The requested window is visible.",
         navigableSpace: "Open floor remains ahead.",
         notableObjects: ["sofa in foreground"],
+        distanceEstimates: [
+          {
+            subject: "window",
+            category: "target",
+            distanceCm: 180,
+            confidence: "medium",
+          },
+        ],
         viewQuality: "partial",
         recommendedNextMove: "Drive toward the visible window.",
       },
@@ -177,6 +186,35 @@ describe("robotTaskQueue operations", () => {
       targetProgress: "The requested window is visible.",
       navigableSpace: "Open floor remains ahead.",
       notableObjects: ["sofa in foreground"],
+      distanceEstimates: [
+        {
+          subject: "window",
+          category: "target",
+          distanceCm: 180,
+          confidence: "medium",
+        },
+      ],
+      viewQuality: "partial",
+      recommendedNextMove: "Drive toward the visible window.",
+    });
+  });
+
+  test("parses old stored photo observations without distance estimates", () => {
+    expect(
+      robotTaskBatchPhotoObservationSchema.parse({
+        summary: "Window visible beyond a sofa.",
+        targetProgress: "The requested window is visible.",
+        navigableSpace: "Open floor remains ahead.",
+        notableObjects: ["sofa in foreground"],
+        viewQuality: "partial",
+        recommendedNextMove: "Drive toward the visible window.",
+      }),
+    ).toEqual({
+      summary: "Window visible beyond a sofa.",
+      targetProgress: "The requested window is visible.",
+      navigableSpace: "Open floor remains ahead.",
+      notableObjects: ["sofa in foreground"],
+      distanceEstimates: [],
       viewQuality: "partial",
       recommendedNextMove: "Drive toward the visible window.",
     });

@@ -149,6 +149,14 @@ describe("createServerFetch", () => {
           targetProgress: "The requested window is visible.",
           navigableSpace: "Open floor leads toward the window.",
           notableObjects: ["sofa in foreground"],
+          distanceEstimates: [
+            {
+              subject: "window",
+              category: "target",
+              distanceCm: 180,
+              confidence: "medium",
+            },
+          ],
           viewQuality: "partial",
           recommendedNextMove: "Drive boldly toward the window and re-shoot.",
         };
@@ -167,6 +175,14 @@ describe("createServerFetch", () => {
           targetProgress: "The requested window is visible.",
           navigableSpace: "Open floor leads toward the window.",
           notableObjects: ["sofa in foreground"],
+          distanceEstimates: [
+            {
+              subject: "window",
+              category: "target",
+              distanceCm: 180,
+              confidence: "medium",
+            },
+          ],
           viewQuality: "partial",
           recommendedNextMove: "Drive boldly toward the window and re-shoot.",
         });

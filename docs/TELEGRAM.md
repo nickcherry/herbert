@@ -163,9 +163,18 @@ current attached image from text-only history.
 After each robot batch completes, the server makes a separate structured
 OpenAI call (`telegram_batch_photo_observation`) to summarize the completion
 photo for future history. The stored observation includes a concise summary,
-target progress, navigable space, notable objects or occlusions, view quality,
-and a recommended next move. These observations are useful continuity, but the
-latest attached photo remains ground truth when there is a conflict.
+target progress, navigable space, notable objects or occlusions, approximate
+distance estimates for visible targets, route markers, and possible blockers,
+view quality, and a recommended next move. These observations are useful
+continuity, but the latest attached photo remains ground truth when there is a
+conflict.
+
+Distance estimates in stored photo observations are approximate
+camera-to-subject distances in centimeters. Each estimate carries a subject,
+category (`target`, `route_marker`, `possible_blocker`, `landmark`, or
+`other`), `distanceCm`, and confidence. They are prompt context, not automatic
+stop conditions; a nearby possible blocker still has to be interpreted together
+with visible floor, wheel path, and the current target.
 
 To inspect what happened in the latest persisted task session, run:
 
@@ -176,8 +185,9 @@ bun herbert telegram:session-summary
 This writes an HTML report under `tmp/herbert-session-summary/` by default. The
 report combines the session's OpenAI Telegram turns, prompts, parsed JSON
 responses, attached image paths, robot batch reports, completion photos, and
-stored photo observations. Use `--session-id <id>` to inspect an older persisted
-session, or `--output <path>` to choose a destination file.
+stored photo observations including their distance estimates. Use
+`--session-id <id>` to inspect an older persisted session, or `--output <path>`
+to choose a destination file.
 
 When the robot worker completes a batch, it also reports Herbert's current
 absolute camera pan/tilt and front steering angle when available. Those values

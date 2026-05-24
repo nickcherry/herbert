@@ -282,6 +282,20 @@ function formatPhotoObservationXml({
       (object) => `        <object>${escapeXmlText(object)}</object>`,
     ),
     "      </notable_objects>",
+    "      <distance_estimates>",
+    ...observation.distanceEstimates.map((estimate) =>
+      [
+        "        <distance_estimate>",
+        `          <subject>${escapeXmlText(estimate.subject)}</subject>`,
+        `          <category>${estimate.category}</category>`,
+        estimate.distanceCm === null
+          ? "          <distance_cm>null</distance_cm>"
+          : `          <distance_cm>${estimate.distanceCm}</distance_cm>`,
+        `          <confidence>${estimate.confidence}</confidence>`,
+        "        </distance_estimate>",
+      ].join("\n"),
+    ),
+    "      </distance_estimates>",
     `      <view_quality>${observation.viewQuality}</view_quality>`,
     observation.recommendedNextMove === null
       ? "      <recommended_next_move>null</recommended_next_move>"
