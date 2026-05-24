@@ -6,7 +6,11 @@ import {
   type TelegramPromptBatchReport,
   type TelegramPromptTurnTrigger,
 } from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
-import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
+import {
+  latestFloorplanPositionEstimate,
+  resolveFloorplanPromptImagePath,
+} from "@herbert/server/telegram/resolveFloorplanPromptImagePath";
+import { resolveRoomReferenceImages } from "@herbert/server/telegram/roomReferenceImages";
 import {
   parseExecutableTelegramOpenAIResponse,
   telegramOpenAIActionLimits,
@@ -17,6 +21,7 @@ import {
 } from "@herbert/server/telegram/telegramOpenAIResponse";
 import type {
   HerbertHistoryResponse,
+  RobotTaskFloorplanPositionEstimate,
   TelegramHistoryMessage,
 } from "@herbert/shared";
 
@@ -47,8 +52,15 @@ export async function promptTelegramOpenAI({
   latestPhotoPath,
   nowMs = Date.now(),
 }: PromptTelegramOpenAIOptions): Promise<TelegramOpenAIResponse> {
-  const images = buildTelegramOpenAIImages({ batchReports, latestPhotoPath });
-  const attachedBatchPhotoCount = images.length - 1;
+  const batchPhotoImages = buildTelegramOpenAIBatchPhotoImages({
+    batchReports,
+    latestPhotoPath,
+  });
+  const images = [
+    ...buildTelegramOpenAIReferenceImages({ batchReports }),
+    ...batchPhotoImages,
+  ];
+  const attachedBatchPhotoCount = batchPhotoImages.length;
 
   const response = await promptOpenAI({
     prompt: buildTelegramOpenAIPrompt({
@@ -76,27 +88,63 @@ export async function promptTelegramOpenAI({
 
 export function buildTelegramOpenAIImages({
   batchReports,
+  floorplanImagePathResolver = resolveFloorplanPromptImagePath,
   latestPhotoPath,
 }: {
   readonly batchReports?: readonly TelegramPromptBatchReport[];
+  readonly floorplanImagePathResolver?: FloorplanImagePathResolver;
   readonly latestPhotoPath?: string;
 }): readonly PromptImageInput[] {
   return [
-    floorplanImage(),
-    ...buildBatchPhotoList({ batchReports, latestPhotoPath }),
+    ...buildTelegramOpenAIReferenceImages({
+      batchReports,
+      floorplanImagePathResolver,
+    }),
+    ...buildTelegramOpenAIBatchPhotoImages({ batchReports, latestPhotoPath }),
   ];
 }
 
-function floorplanImage(): PromptImageInput {
+function buildTelegramOpenAIReferenceImages({
+  batchReports,
+  floorplanImagePathResolver = resolveFloorplanPromptImagePath,
+}: {
+  readonly batchReports?: readonly TelegramPromptBatchReport[];
+  readonly floorplanImagePathResolver?: FloorplanImagePathResolver;
+}): readonly PromptImageInput[] {
+  const position = latestFloorplanPositionEstimate({ batchReports });
+  return [
+    floorplanImage({ floorplanImagePathResolver, position }),
+    ...resolveRoomReferenceImages().map((image) => ({
+      path: image.path,
+      detail: "low" as const,
+      label: `Static room reference photo for roomId=${image.roomId} (${image.label}). Use for visual room matching only; this is not Herbert's current view.`,
+    })),
+  ];
+}
+
+export type FloorplanImagePathResolver = (options: {
+  readonly position?: RobotTaskFloorplanPositionEstimate;
+}) => string;
+
+function floorplanImage({
+  floorplanImagePathResolver,
+  position,
+}: {
+  readonly floorplanImagePathResolver: FloorplanImagePathResolver;
+  readonly position?: RobotTaskFloorplanPositionEstimate;
+}): PromptImageInput {
+  const positionLabel =
+    position === undefined
+      ? "No persisted floorplan position estimate is available yet."
+      : `A red dot marks Herbert's latest estimated floorplan position at xPct=${position.xPct}, yPct=${position.yPct}, confidence=${position.confidence}. Treat it as approximate context, not ground truth.`;
   return {
-    path: resolveFloorplanImagePath(),
+    path: floorplanImagePathResolver({ position }),
     detail: "high",
-    label:
-      "Apartment floorplan reference (always attached, NOT a batch photo): annotated layout of Herbert's home with seven numbered markers (1-7) and matched reference photos of each room embedded in the same image. Use it to localize batch photos and plan routes. See <floorplan> in the prompt for details. The batch report images that follow are Herbert's actual current and recent views.",
+    label: `Apartment floorplan reference (always attached, NOT a batch photo): layout of Herbert's home with a 0-100 x/y grid and named rooms. Room photos are attached separately. ${positionLabel} Use it to localize batch photos and plan routes. See <floorplan> in the prompt for details. The batch report images that follow the static references are Herbert's actual current and recent views.`,
   };
 }
 
-function buildBatchPhotoList({
+function buildTelegramOpenAIBatchPhotoImages({
   batchReports,
   latestPhotoPath,
 }: {
@@ -171,9 +219,10 @@ export const telegramOpenAIInstructions = [
   "  <state>",
   "    <persistence>The only things that carry across turns are `taskState` (which you wrote in your previous response) and the recent batch reports shown in the prompt. There is no hidden memory.</persistence>",
   "    <images>",
-  "      <floorplan>FIRST attached image. Reference layout, NOT Herbert's current view. See &lt;floorplan&gt; in the prompt for the marker-to-room mapping.</floorplan>",
-  "      <batch_photos>After the floorplan: the latest batch report photo at full detail. It IS Herbert's current view. Recent older batch photos may be attached at lower detail; older un-attached reports carry stored photo_observation fields.</batch_photos>",
-  "      <photo_observations>Stored descriptions of prior robot photos. Use them for continuity, but the latest attached photo is current ground truth if there is any conflict.</photo_observations>",
+  "      <floorplan>FIRST attached image. Reference layout with a 0-100 x/y grid, NOT Herbert's current view. See &lt;floorplan&gt; in the prompt for the coordinate convention and room ids. If a prior photo was localized, the floorplan may include a red dot marking Herbert's latest estimated position; treat it as approximate context, not ground truth.</floorplan>",
+  "      <room_references>After the floorplan: static room reference photos, one per known room/view. They are visual matching aids only, not Herbert's current view.</room_references>",
+  "      <batch_photos>After the static references: the latest batch report photo at full detail. It IS Herbert's current view. Recent older batch photos may be attached at lower detail; older un-attached reports carry stored photo_observation fields.</batch_photos>",
+  "      <photo_observations>Stored descriptions of prior robot photos. They can include floorplan_position estimates, distance estimates, and recommended next moves. Use them for continuity, but the latest attached photo is current ground truth if there is any conflict.</photo_observations>",
   "      <pose>Batch reports include camera_position and wheel_state when reported. Camera pan/tilt describe where the camera was pointed for the photo; wheel_state describes the front steering angle at the batch boundary, with motors stopped.</pose>",
   "    </images>",
   "  </state>",

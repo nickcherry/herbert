@@ -72,20 +72,23 @@ function formatTaskStateXml({
     : `<task_state>\n${value}\n</task_state>`;
 }
 
-function formatFloorplanXml(): string {
+export function formatFloorplanXml(): string {
   return [
     "<floorplan>",
     "  <rooms>",
-    '    <room number="1" name="Living / Dining Room" dimensions="27\'9&quot; x 12\'9&quot;" />',
-    '    <room number="2" name="Kitchen + Living Room" />',
-    '    <room number="3" name="Master Bath" />',
-    '    <room number="4" name="Hall to Master Bedroom" />',
-    '    <room number="5" name="Master Bedroom" dimensions="14\'8&quot; x 13\'10&quot;" />',
-    '    <room number="6" name="Entry / Kitchen / Office" />',
-    '    <room number="7" name="Second Bedroom / Office" dimensions="10\'3&quot; x 12\'7&quot;" />',
+    '    <room id="living_dining" name="Living / Dining Room" dimensions="27\'9&quot; x 12\'9&quot;" />',
+    '    <room id="kitchen" name="Kitchen" />',
+    '    <room id="bath" name="Bath" />',
+    '    <room id="master_bath" name="Master Bath" />',
+    '    <room id="bedroom_hall" name="Hall to Master Bedroom" />',
+    '    <room id="entrance" name="Entry / Kitchen / Office" />',
+    '    <room id="master_bedroom" name="Master Bedroom" dimensions="14\'8&quot; x 13\'10&quot;" />',
+    '    <room id="office_bedroom" name="Second Bedroom / Office" dimensions="10\'3&quot; x 12\'7&quot;" />',
+    '    <room id="balcony" name="Balcony" dimensions="7\' x 13\'" />',
     "  </rooms>",
-    "  <other_features>Balcony (7' x 13') off Living/Dining; second Bath off the hallway near room 7; W/D closet; several CL closets along interior walls.</other_features>",
-    "  <usage>When a batch photo resembles a numbered reference photo, Herbert is roughly at that marker. Use the layout for room boundaries, doorways, and distances. NOT Herbert's current view.</usage>",
+    "  <other_features>Balcony (7' x 13') off Living/Dining; second Bath off the hallway near office_bedroom; W/D closet; several CL closets along interior walls.</other_features>",
+    "  <coordinates>xPct is 0 at the left edge and 100 at the right edge; yPct is 0 at the top edge and 100 at the bottom edge. Use the grid printed on the floorplan image for approximate localization.</coordinates>",
+    "  <usage>Use the layout and grid for room boundaries, doorways, distances, and approximate floorplanPosition. Use the separate room reference images for visual matching. NOT Herbert's current view.</usage>",
     "</floorplan>",
   ].join("\n");
 }
@@ -251,6 +254,15 @@ function formatBatchReportXml({
     );
   }
 
+  if (entry.photoObservation !== undefined && isLatest) {
+    lines.push(
+      formatFloorplanPositionXml({
+        position: entry.photoObservation.floorplanPosition,
+        indent: "    ",
+      }),
+    );
+  }
+
   if (entry.photoObservation !== undefined && !isLatest) {
     lines.push(
       formatPhotoObservationXml({ observation: entry.photoObservation }),
@@ -296,11 +308,39 @@ function formatPhotoObservationXml({
       ].join("\n"),
     ),
     "      </distance_estimates>",
+    formatFloorplanPositionXml({
+      position: observation.floorplanPosition,
+      indent: "      ",
+    }),
     `      <view_quality>${observation.viewQuality}</view_quality>`,
     observation.recommendedNextMove === null
       ? "      <recommended_next_move>null</recommended_next_move>"
       : `      <recommended_next_move>${escapeXmlText(observation.recommendedNextMove)}</recommended_next_move>`,
     "    </photo_observation>",
+  ].join("\n");
+}
+
+function formatFloorplanPositionXml({
+  indent,
+  position,
+}: {
+  readonly indent: string;
+  readonly position: RobotTaskBatchPhotoObservation["floorplanPosition"];
+}): string {
+  return [
+    `${indent}<floorplan_position>`,
+    position.xPct === null
+      ? `${indent}  <x_pct>null</x_pct>`
+      : `${indent}  <x_pct>${position.xPct}</x_pct>`,
+    position.yPct === null
+      ? `${indent}  <y_pct>null</y_pct>`
+      : `${indent}  <y_pct>${position.yPct}</y_pct>`,
+    position.roomId === null
+      ? `${indent}  <room_id>null</room_id>`
+      : `${indent}  <room_id>${position.roomId}</room_id>`,
+    `${indent}  <confidence>${position.confidence}</confidence>`,
+    `${indent}  <rationale>${escapeXmlText(position.rationale)}</rationale>`,
+    `${indent}</floorplan_position>`,
   ].join("\n");
 }
 

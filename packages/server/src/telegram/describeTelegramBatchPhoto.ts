@@ -1,5 +1,10 @@
 import { promptOpenAI } from "@herbert/server/openai";
-import type { TelegramPromptBatchReport } from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
+import {
+  formatFloorplanXml,
+  type TelegramPromptBatchReport,
+} from "@herbert/server/telegram/buildTelegramOpenAIPrompt";
+import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
+import { resolveRoomReferenceImages } from "@herbert/server/telegram/roomReferenceImages";
 import {
   type RobotTaskBatchPhotoObservation,
   robotTaskBatchPhotoObservationOpenAISchema,
@@ -18,6 +23,13 @@ export async function describeTelegramBatchPhoto({
     prompt: buildBatchPhotoObservationPrompt({ batchReport, taskState }),
     images: [
       {
+        path: resolveFloorplanImagePath(),
+        detail: "high",
+        label:
+          "Apartment floorplan reference with a 0-100 coordinate grid. Use this first image to estimate floorplanPosition for the robot photo. It is not Herbert's current view.",
+      },
+      ...roomReferencePromptImages(),
+      {
         path: batchReport.photoPath,
         detail: "high",
         label:
@@ -31,6 +43,14 @@ export async function describeTelegramBatchPhoto({
   });
 }
 
+function roomReferencePromptImages() {
+  return resolveRoomReferenceImages().map((image) => ({
+    path: image.path,
+    detail: "low" as const,
+    label: `Static room reference photo for roomId=${image.roomId} (${image.label}). Use for visual room matching only; this is not Herbert's current view.`,
+  }));
+}
+
 function buildBatchPhotoObservationPrompt({
   batchReport,
   taskState,
@@ -39,6 +59,7 @@ function buildBatchPhotoObservationPrompt({
   readonly taskState?: string;
 }): string {
   return [
+    formatFloorplanXml(),
     "<task_state>",
     taskState?.trim() || "none",
     "</task_state>",
@@ -81,6 +102,13 @@ export const telegramBatchPhotoObservationTypeScript = [
   "    distanceCm: number | null;",
   '    confidence: "low" | "medium" | "high";',
   "  }>;",
+  "  floorplanPosition: {",
+  "    xPct: number | null;",
+  "    yPct: number | null;",
+  '    roomId: "living_dining" | "kitchen" | "bath" | "master_bath" | "bedroom_hall" | "entrance" | "master_bedroom" | "office_bedroom" | "balcony" | null;',
+  '    confidence: "low" | "medium" | "high";',
+  "    rationale: string;",
+  "  };",
   '  viewQuality: "poor" | "partial" | "good";',
   "  recommendedNextMove: string | null;",
   "};",
@@ -94,6 +122,9 @@ export const telegramBatchPhotoObservationInstructions = [
   "Each text field must be a complete sentence or phrase that stays within the schema limit; do not trail off mid-thought.",
   "notableObjects are context, not stop conditions. Furniture, chair legs, table frames, plants, cords, and foreground clutter are normal apartment navigation context unless they visibly block the wheel path.",
   "Populate distanceEstimates for the requested target when visible, useful route landmarks or openings, and the most relevant possible blockers. Distances are approximate camera-to-subject distances in centimeters; for possible blockers, estimate the nearest visible wheel-path edge.",
+  "Populate floorplanPosition by comparing the robot photo to the gridded floorplan image and the separate room reference photos. xPct is 0 at the left edge and 100 at the right edge; yPct is 0 at the top edge and 100 at the bottom edge.",
+  "Set roomId to the best matching floorplan room id. Do not use nearest markers; the floorplan has a coordinate grid and named rooms instead.",
+  "If the location is ambiguous, set xPct and yPct to null, use low confidence, and explain the ambiguity in rationale. Do not invent precise coordinates from a generic wall, cabinet, or floor-only view.",
   "Use distanceCm: null with low confidence only when the subject is visible but distance cannot be estimated. Prefer an honest low-confidence estimate over omitting a useful target, route marker, or possible blocker.",
   "Use ultrasonic_distance_cm only as a clue for objects in front of Herbert. Do not apply it to side objects or to targets outside the current forward sensor direction.",
   "A near distance estimate is context, not a stop condition. If open floor remains visible around or beyond a possible blocker, preserve that route in navigableSpace and recommendedNextMove.",

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { defaultDocumentStore } from "@herbert/server/persistence/defaultDocumentStore";
@@ -394,7 +394,7 @@ function renderImages({
     '        <div class="image-grid">',
     ...imagePaths.map((path, index) =>
       renderImageFigure({
-        label: imageLabel({ index, count: imagePaths.length }),
+        label: imageLabel({ index, count: imagePaths.length, path }),
         path,
       }),
     ),
@@ -453,6 +453,10 @@ function renderPhotoObservation({
       "distance estimates",
       formatPhotoObservationDistanceEstimates({ observation }),
     ),
+    renderMeta(
+      "floorplan position",
+      formatPhotoObservationFloorplanPosition({ observation }),
+    ),
     "        </dl>",
   ].join("\n");
 }
@@ -473,6 +477,22 @@ function formatPhotoObservationDistanceEstimates({
       return `${estimate.subject} (${estimate.category}, ${distance}, ${estimate.confidence} confidence)`;
     })
     .join("; ");
+}
+
+function formatPhotoObservationFloorplanPosition({
+  observation,
+}: {
+  readonly observation: NonNullable<RobotTaskBatchReport["photoObservation"]>;
+}): string {
+  const position = observation.floorplanPosition;
+
+  if (position.xPct === null || position.yPct === null) {
+    return `unknown (${position.confidence} confidence): ${position.rationale}`;
+  }
+
+  const room =
+    position.roomId === null ? "room unknown" : `room ${position.roomId}`;
+  return `x ${position.xPct}, y ${position.yPct} (${room}, ${position.confidence} confidence): ${position.rationale}`;
 }
 
 function renderDetails({
@@ -597,12 +617,21 @@ function nullableString(value: unknown): string | null | undefined {
 function imageLabel({
   index,
   count,
+  path,
 }: {
   readonly index: number;
   readonly count: number;
+  readonly path: string;
 }): string {
-  if (index === 0) {
+  if (
+    index === 0 ||
+    path.includes("/floorplan-") ||
+    path.includes("/floorplan.")
+  ) {
     return "floorplan";
+  }
+  if (path.includes("/room-references/")) {
+    return `room reference: ${basename(path, extname(path))}`;
   }
   if (index === count - 1) {
     return "latest robot photo";

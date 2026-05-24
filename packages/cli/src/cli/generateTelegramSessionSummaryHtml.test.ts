@@ -100,6 +100,14 @@ describe("generateTelegramSessionSummaryHtml", () => {
                 confidence: "medium",
               },
             ],
+            floorplanPosition: {
+              xPct: 69,
+              yPct: 29,
+              roomId: "living_dining",
+              confidence: "medium",
+              rationale:
+                "The window wall and sofa match the living dining room.",
+            },
             viewQuality: "partial",
             recommendedNextMove: "Drive boldly toward the window.",
           },
@@ -157,6 +165,8 @@ describe("generateTelegramSessionSummaryHtml", () => {
     expect(html).toContain("sofa foreground");
     expect(html).toContain("balcony window");
     expect(html).toContain("210 cm");
+    expect(html).toContain("x 69, y 29");
+    expect(html).toContain("living dining room");
     expect(html).toContain("-5 deg");
     expect(html).toContain("Full Prompt");
   });

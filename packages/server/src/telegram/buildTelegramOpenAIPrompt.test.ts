@@ -55,6 +55,14 @@ describe("buildTelegramOpenAIPrompt", () => {
                 confidence: "low",
               },
             ],
+            floorplanPosition: {
+              xPct: 48,
+              yPct: 32,
+              roomId: "kitchen",
+              confidence: "medium",
+              rationale:
+                "The kitchen island and window wall match the kitchen.",
+            },
             viewQuality: "partial",
             recommendedNextMove: "Drive through the doorway and re-shoot.",
           },
@@ -65,10 +73,13 @@ describe("buildTelegramOpenAIPrompt", () => {
     });
 
     expect(prompt).toContain("<floorplan>");
+    expect(prompt).toContain(
+      "<coordinates>xPct is 0 at the left edge and 100 at the right edge; yPct is 0 at the top edge and 100 at the bottom edge.",
+    );
     expect(prompt).not.toContain("<address>");
     expect(prompt).not.toContain("22 North 6th Street, Unit 10C");
-    expect(prompt).toContain('<room number="1" name="Living / Dining Room"');
-    expect(prompt).toContain('<room number="7"');
+    expect(prompt).toContain('<room id="living_dining"');
+    expect(prompt).toContain('<room id="office_bedroom"');
     expect(prompt).toContain("<turn_context>");
     expect(prompt).toContain("<trigger>telegram_messages</trigger>");
     expect(prompt).toContain("<new_message_count>2</new_message_count>");
@@ -140,6 +151,14 @@ describe("buildTelegramOpenAIPrompt", () => {
                 confidence: "low",
               },
             ],
+            floorplanPosition: {
+              xPct: 68,
+              yPct: 28,
+              roomId: "living_dining",
+              confidence: "medium",
+              rationale:
+                "The window wall and living room furniture match the living dining room.",
+            },
             viewQuality: "partial",
             recommendedNextMove: "Drive boldly toward the visible window side.",
           },
@@ -154,6 +173,13 @@ describe("buildTelegramOpenAIPrompt", () => {
             navigableSpace: "Unknown.",
             notableObjects: [],
             distanceEstimates: [],
+            floorplanPosition: {
+              xPct: null,
+              yPct: null,
+              roomId: null,
+              confidence: "low",
+              rationale: "The latest photo is too ambiguous to localize.",
+            },
             viewQuality: "poor",
             recommendedNextMove: null,
           },
@@ -179,6 +205,14 @@ describe("buildTelegramOpenAIPrompt", () => {
     expect(prompt).toContain("<distance_cm>240</distance_cm>");
     expect(prompt).toContain("<confidence>medium</confidence>");
     expect(prompt).toContain("<subject>glass table frame</subject>");
+    expect(prompt).toContain("<floorplan_position>");
+    expect(prompt).toContain("<x_pct>68</x_pct>");
+    expect(prompt).toContain("<y_pct>28</y_pct>");
+    expect(prompt).toContain("<room_id>living_dining</room_id>");
+    expect(prompt).not.toContain("<nearest_marker>");
+    expect(prompt).toContain(
+      "<rationale>The window wall and living room furniture match the living dining room.</rationale>",
+    );
     expect(prompt).toContain("<view_quality>partial</view_quality>");
     expect(prompt).not.toContain("Latest description should not be used");
   });

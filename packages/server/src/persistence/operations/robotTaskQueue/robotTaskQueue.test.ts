@@ -176,6 +176,13 @@ describe("robotTaskQueue operations", () => {
             confidence: "medium",
           },
         ],
+        floorplanPosition: {
+          xPct: 70,
+          yPct: 28,
+          roomId: "living_dining",
+          confidence: "medium",
+          rationale: "The window wall matches the living dining room.",
+        },
         viewQuality: "partial",
         recommendedNextMove: "Drive toward the visible window.",
       },
@@ -194,6 +201,13 @@ describe("robotTaskQueue operations", () => {
           confidence: "medium",
         },
       ],
+      floorplanPosition: {
+        xPct: 70,
+        yPct: 28,
+        roomId: "living_dining",
+        confidence: "medium",
+        rationale: "The window wall matches the living dining room.",
+      },
       viewQuality: "partial",
       recommendedNextMove: "Drive toward the visible window.",
     });
@@ -215,6 +229,13 @@ describe("robotTaskQueue operations", () => {
       navigableSpace: "Open floor remains ahead.",
       notableObjects: ["sofa in foreground"],
       distanceEstimates: [],
+      floorplanPosition: {
+        xPct: null,
+        yPct: null,
+        roomId: null,
+        confidence: "low",
+        rationale: "No floorplan position estimate was stored.",
+      },
       viewQuality: "partial",
       recommendedNextMove: "Drive toward the visible window.",
     });

@@ -4,6 +4,6 @@ import { fileURLToPath } from "node:url";
 export function resolveFloorplanImagePath(): string {
   return resolve(
     dirname(fileURLToPath(import.meta.url)),
-    "assets/floorplan.jpg",
+    "assets/generated/floorplan-grid.png",
   );
 }

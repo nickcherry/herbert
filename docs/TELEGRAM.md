@@ -104,9 +104,11 @@ with an empty action list.
 The Telegram domain owns Herbert's OpenAI prompt and robot-specific reference
 assets. `promptTelegramOpenAI.ts` builds the OpenAI call, `buildTelegramOpenAIPrompt.ts`
 formats the per-turn XML body, `telegramOpenAIResponse.ts` defines the response
-schema, and `assets/floorplan.jpg` is the static floorplan reference. The
-generic OpenAI helper under `packages/server/src/openai` should stay reusable
-for any structured OpenAI task.
+schema, and `assets/generated/floorplan-grid.png` plus
+`assets/generated/room-references/*.jpg` are the prompt-ready static reference
+images. Raw full-size reference images live under `assets/raw/`. The generic
+OpenAI helper under `packages/server/src/openai` should stay reusable for any
+structured OpenAI task.
 
 When actions are returned, the server queues them as a robot action batch in
 SQLite. Herbert's robot process polls the queue, executes the batch, captures an
@@ -165,9 +167,9 @@ OpenAI call (`telegram_batch_photo_observation`) to summarize the completion
 photo for future history. The stored observation includes a concise summary,
 target progress, navigable space, notable objects or occlusions, approximate
 distance estimates for visible targets, route markers, and possible blockers,
-view quality, and a recommended next move. These observations are useful
-continuity, but the latest attached photo remains ground truth when there is a
-conflict.
+an approximate `floorplanPosition`, view quality, and a recommended next move.
+These observations are useful continuity, but the latest attached photo remains
+ground truth when there is a conflict.
 
 Distance estimates in stored photo observations are approximate
 camera-to-subject distances in centimeters. Each estimate carries a subject,
@@ -175,6 +177,13 @@ category (`target`, `route_marker`, `possible_blocker`, `landmark`, or
 `other`), `distanceCm`, and confidence. They are prompt context, not automatic
 stop conditions; a nearby possible blocker still has to be interpreted together
 with visible floor, wheel path, and the current target.
+
+`floorplanPosition` uses the grid printed on the floorplan image:
+`xPct = 0` at the left edge, `xPct = 100` at the right edge, `yPct = 0` at the
+top edge, and `yPct = 100` at the bottom edge. The observation call receives
+the gridded floorplan, separate room reference photos, and the robot photo,
+then stores nullable coordinates, a `roomId`, confidence, and rationale.
+Coordinates are allowed to be null when the view is too generic to localize.
 
 To inspect what happened in the latest persisted task session, run:
 
@@ -185,9 +194,9 @@ bun herbert telegram:session-summary
 This writes an HTML report under `tmp/herbert-session-summary/` by default. The
 report combines the session's OpenAI Telegram turns, prompts, parsed JSON
 responses, attached image paths, robot batch reports, completion photos, and
-stored photo observations including their distance estimates. Use
-`--session-id <id>` to inspect an older persisted session, or `--output <path>`
-to choose a destination file.
+stored photo observations including their distance and floorplan position
+estimates. Use `--session-id <id>` to inspect an older persisted session, or
+`--output <path>` to choose a destination file.
 
 When the robot worker completes a batch, it also reports Herbert's current
 absolute camera pan/tilt and front steering angle when available. Those values
@@ -254,28 +263,63 @@ beyond those objects usually means there is still a route toward the target.
 ### Floorplan Attachment
 
 Every Telegram OpenAI turn attaches Herbert's apartment floorplan as the first
-image at `detail: "high"`. The floorplan image embeds seven numbered markers
-(1-7) matched to reference photos of each room, so the model can localize batch
-photos against the layout. The floorplan is NOT counted in
+image at `detail: "high"`. The floorplan image is only the apartment layout
+with a 0-100 coordinate grid. Separate prompt-ready room reference photos are
+attached after the floorplan at `detail: "low"`, so the model can match the
+current robot photo against individual rooms without reading a composite image.
+The floorplan and room reference images are NOT counted in
 `<attached_image_count>`; that count means "batch report photos attached on
 this turn":
 
 ```xml
 <floorplan>
   <rooms>
-    <room number="1" name="Living / Dining Room" dimensions="27'9&quot; x 12'9&quot;" />
+    <room id="living_dining" name="Living / Dining Room" dimensions="27'9&quot; x 12'9&quot;" />
     ...
   </rooms>
   <other_features>...</other_features>
+  <coordinates>...</coordinates>
   <usage>...NOT Herbert's current view.</usage>
 </floorplan>
 ```
 
-The image file lives at `packages/server/src/telegram/assets/floorplan.jpg` and
-the path is resolved by `packages/server/src/telegram/resolveFloorplanImagePath.ts`
+The raw floorplan image lives at
+`packages/server/src/telegram/assets/raw/floorplan.png`. The prompt-ready
+gridded copy lives at
+`packages/server/src/telegram/assets/generated/floorplan-grid.png`, and the
+path is resolved by `packages/server/src/telegram/resolveFloorplanImagePath.ts`
 so it works regardless of the process's cwd. To update the floorplan, replace
-that file and adjust the `<rooms>` list in `buildTelegramOpenAIPrompt.ts` if
-the markers change.
+the raw file, regenerate the gridded copy with
+`renderFloorplanOverlay.swift --grid`, and adjust the `<rooms>` list in
+`buildTelegramOpenAIPrompt.ts` if the room ids change.
+
+Raw full-size room reference photos live under
+`packages/server/src/telegram/assets/raw/room-references/`. The prompt-ready
+downsized copies live under
+`packages/server/src/telegram/assets/generated/room-references/` and are listed
+by `roomReferenceImages.ts`.
+
+Current generation commands:
+
+```sh
+swift packages/server/src/telegram/renderFloorplanOverlay.swift \
+  packages/server/src/telegram/assets/raw/floorplan.png \
+  packages/server/src/telegram/assets/generated/floorplan-grid.png \
+  --grid
+
+for image in packages/server/src/telegram/assets/raw/room-references/*.jpeg; do
+  name="$(basename "$image" .jpeg)"
+  sips -Z 1280 -s format jpeg -s formatOptions 82 "$image" \
+    --out "packages/server/src/telegram/assets/generated/room-references/$name.jpg"
+done
+```
+
+When a persisted batch report has a non-null `floorplanPosition`, the prompt
+uses `resolveFloorplanPromptImagePath.ts` to create a temporary PNG copy of the
+floorplan with a large red dot at the estimated coordinate. The source
+`assets/generated/floorplan-grid.png` is not modified at runtime; generated
+copies are written under `tmp/herbert-floorplan-overlays/`. If overlay
+generation fails, the prompt falls back to the normal gridded floorplan image.
 
 ### Response Schema
 

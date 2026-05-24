@@ -32,6 +32,15 @@ describe("telegramBatchPhotoObservationInstructions", () => {
     expect(telegramBatchPhotoObservationInstructions).toContain(
       "Use ultrasonic_distance_cm only as a clue",
     );
+    expect(telegramBatchPhotoObservationInstructions).toContain(
+      "Populate floorplanPosition",
+    );
+    expect(telegramBatchPhotoObservationInstructions).toContain(
+      "xPct is 0 at the left edge",
+    );
+    expect(telegramBatchPhotoObservationInstructions).toContain(
+      "Do not invent precise coordinates",
+    );
   });
 
   test("documents the structured observation response shape", () => {
@@ -47,6 +56,15 @@ describe("telegramBatchPhotoObservationInstructions", () => {
     expect(telegramBatchPhotoObservationTypeScript).toContain(
       "distanceCm: number | null;",
     );
+    expect(telegramBatchPhotoObservationTypeScript).toContain(
+      "floorplanPosition: {",
+    );
+    expect(telegramBatchPhotoObservationTypeScript).toContain(
+      "xPct: number | null;",
+    );
+    expect(telegramBatchPhotoObservationTypeScript).toContain(
+      'roomId: "living_dining" | "kitchen" | "bath" | "master_bath" | "bedroom_hall" | "entrance" | "master_bedroom" | "office_bedroom" | "balcony" | null;',
+    );
   });
 
   test("sends distance estimates in the OpenAI structured schema", () => {
@@ -60,5 +78,9 @@ describe("telegramBatchPhotoObservationInstructions", () => {
     expect(schemaJson).toContain("distanceCm");
     expect(schemaJson).toContain("category");
     expect(schemaJson).toContain("possible_blocker");
+    expect(schemaJson).toContain("floorplanPosition");
+    expect(schemaJson).toContain("xPct");
+    expect(schemaJson).toContain("roomId");
+    expect(schemaJson).not.toContain("nearestMarker");
   });
 });

@@ -9,7 +9,7 @@ describe("resolveFloorplanImagePath", () => {
     const path = resolveFloorplanImagePath();
 
     expect(relative(process.cwd(), path)).toBe(
-      "packages/server/src/telegram/assets/floorplan.jpg",
+      "packages/server/src/telegram/assets/generated/floorplan-grid.png",
     );
     expect(existsSync(path)).toBe(true);
   });

@@ -24,6 +24,7 @@ describe("telegramOpenAIInstructions", () => {
       "  <state>",
       "    <images>",
       "      <floorplan>",
+      "      <room_references>",
       "      <batch_photos>",
       "      <photo_observations>",
       "      <pose>",
@@ -67,6 +68,17 @@ describe("telegramOpenAIInstructions", () => {
     expect(telegramOpenAIInstructions).toContain("Do not guess");
     expect(telegramOpenAIInstructions).toContain("the deliverable is a photo");
     expect(telegramOpenAIInstructions).toContain("whole subject is captured");
+  });
+
+  test("describes floorplan grid and marked position context", () => {
+    expect(telegramOpenAIInstructions).toContain("0-100 x/y grid");
+    expect(telegramOpenAIInstructions).toContain("red dot");
+    expect(telegramOpenAIInstructions).toContain("approximate context");
+    expect(telegramOpenAIInstructions).toContain("floorplan_position");
+    expect(telegramOpenAIInstructions).toContain("<room_references>");
+    expect(telegramOpenAIInstructions).toContain(
+      "static room reference photos",
+    );
   });
 
   test("encodes the updated hard movement limits and a distance_estimates block", () => {
@@ -187,7 +199,7 @@ describe("telegramOpenAIInstructions", () => {
 });
 
 describe("buildTelegramOpenAIImages", () => {
-  test("attaches the floorplan and only the latest batch photo when photo limit is one", () => {
+  test("attaches static references and only the latest batch photo when photo limit is one", () => {
     expect(telegramConfig.openAIBatchPhotoLimit).toBe(1);
 
     const images = buildTelegramOpenAIImages({
@@ -211,9 +223,55 @@ describe("buildTelegramOpenAIImages", () => {
       latestPhotoPath: "data/robot-batch-photos/task/latest.jpg",
     });
 
-    expect(images.map((image) => image.path)).toEqual([
-      resolveFloorplanImagePath(),
-      "data/robot-batch-photos/task/latest.jpg",
+    expect(images[0]?.path).toBe(resolveFloorplanImagePath());
+    expect(images.slice(1, 8).map((image) => image.label)).toEqual([
+      "Static room reference photo for roomId=living_dining (Living / Dining Room). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=kitchen (Kitchen). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=master_bath (Bathroom / Master Bath). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=bedroom_hall (Bedroom Hall). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=entrance (Entry / Kitchen / Office). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=master_bedroom (Master Bedroom). Use for visual room matching only; this is not Herbert's current view.",
+      "Static room reference photo for roomId=office_bedroom (Office Bedroom). Use for visual room matching only; this is not Herbert's current view.",
     ]);
+    expect(images.at(-1)?.path).toBe("data/robot-batch-photos/task/latest.jpg");
+  });
+
+  test("uses a marked floorplan when a position estimate is available", () => {
+    const images = buildTelegramOpenAIImages({
+      batchReports: [
+        {
+          completedAtMs: 1,
+          photoPath: "data/robot-batch-photos/task/latest.jpg",
+          photoObservation: {
+            summary: "Window wall visible.",
+            targetProgress: "The balcony window is visible.",
+            navigableSpace: "Open floor leads toward the window.",
+            notableObjects: ["sofa foreground"],
+            distanceEstimates: [],
+            floorplanPosition: {
+              xPct: 69,
+              yPct: 29,
+              roomId: "living_dining",
+              confidence: "medium",
+              rationale:
+                "The living room window wall matches the living dining room.",
+            },
+            viewQuality: "partial",
+            recommendedNextMove: "Drive toward the window.",
+          },
+          actions: [{ type: "take_photo" }],
+        },
+      ],
+      latestPhotoPath: "data/robot-batch-photos/task/latest.jpg",
+      floorplanImagePathResolver({ position }) {
+        expect(position?.xPct).toBe(69);
+        expect(position?.yPct).toBe(29);
+        return "tmp/marked-floorplan.png";
+      },
+    });
+
+    expect(images[0]?.path).toBe("tmp/marked-floorplan.png");
+    expect(images[0]?.label).toContain("red dot");
+    expect(images[0]?.label).toContain("xPct=69");
   });
 });

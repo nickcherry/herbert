@@ -32,6 +32,34 @@ export const robotTaskPhotoObservationDistanceEstimateSchema = z.object({
   confidence: z.enum(["low", "medium", "high"]),
 });
 
+export const robotTaskFloorplanRoomIdSchema = z.enum([
+  "living_dining",
+  "kitchen",
+  "bath",
+  "master_bath",
+  "bedroom_hall",
+  "entrance",
+  "master_bedroom",
+  "office_bedroom",
+  "balcony",
+]);
+
+export const robotTaskFloorplanPositionEstimateSchema = z.object({
+  xPct: z.number().int().min(0).max(100).nullable(),
+  yPct: z.number().int().min(0).max(100).nullable(),
+  roomId: robotTaskFloorplanRoomIdSchema.nullable(),
+  confidence: z.enum(["low", "medium", "high"]),
+  rationale: robotTaskPhotoObservationTextSchema.max(240),
+});
+
+const unknownRobotTaskFloorplanPositionEstimate = {
+  xPct: null,
+  yPct: null,
+  roomId: null,
+  confidence: "low",
+  rationale: "No floorplan position estimate was stored.",
+} as const;
+
 export const robotTaskBatchPhotoObservationOpenAISchema = z.object({
   summary: robotTaskPhotoObservationTextSchema.max(240),
   targetProgress: robotTaskPhotoObservationTextSchema.max(240).nullable(),
@@ -40,6 +68,7 @@ export const robotTaskBatchPhotoObservationOpenAISchema = z.object({
   distanceEstimates: z
     .array(robotTaskPhotoObservationDistanceEstimateSchema)
     .max(6),
+  floorplanPosition: robotTaskFloorplanPositionEstimateSchema,
   viewQuality: z.enum(["poor", "partial", "good"]),
   recommendedNextMove: robotTaskPhotoObservationTextSchema.max(240).nullable(),
 });
@@ -50,13 +79,27 @@ export const robotTaskBatchPhotoObservationSchema = z.preprocess((value) => {
   }
 
   const record = value as Record<string, unknown>;
-  return record.distanceEstimates === undefined
-    ? { ...record, distanceEstimates: [] }
-    : value;
+  return {
+    ...record,
+    distanceEstimates:
+      record.distanceEstimates === undefined ? [] : record.distanceEstimates,
+    floorplanPosition:
+      record.floorplanPosition === undefined
+        ? unknownRobotTaskFloorplanPositionEstimate
+        : record.floorplanPosition,
+  };
 }, robotTaskBatchPhotoObservationOpenAISchema);
 
 export type RobotTaskPhotoObservationDistanceEstimate = z.infer<
   typeof robotTaskPhotoObservationDistanceEstimateSchema
+>;
+
+export type RobotTaskFloorplanPositionEstimate = z.infer<
+  typeof robotTaskFloorplanPositionEstimateSchema
+>;
+
+export type RobotTaskFloorplanRoomId = z.infer<
+  typeof robotTaskFloorplanRoomIdSchema
 >;
 
 export type RobotTaskBatchPhotoObservation = z.infer<

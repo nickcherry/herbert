@@ -157,6 +157,13 @@ describe("createServerFetch", () => {
               confidence: "medium",
             },
           ],
+          floorplanPosition: {
+            xPct: 70,
+            yPct: 28,
+            roomId: "living_dining",
+            confidence: "medium",
+            rationale: "The window wall matches the living dining room.",
+          },
           viewQuality: "partial",
           recommendedNextMove: "Drive boldly toward the window and re-shoot.",
         };
@@ -183,6 +190,13 @@ describe("createServerFetch", () => {
               confidence: "medium",
             },
           ],
+          floorplanPosition: {
+            xPct: 70,
+            yPct: 28,
+            roomId: "living_dining",
+            confidence: "medium",
+            rationale: "The window wall matches the living dining room.",
+          },
           viewQuality: "partial",
           recommendedNextMove: "Drive boldly toward the window and re-shoot.",
         });

@@ -161,9 +161,11 @@ reported them. Batch reports can also include a stored `photoObservation`: a
 compact structured description of the batch completion photo used as text
 history once that photo is no longer the latest/current attached image. Stored
 observations include approximate distance estimates for visible targets, route
-markers, and possible blockers when the model can infer them. The robot worker
-treats the first batch it sees for a task session as the session start, centers
-the steering, and tilts the camera fully up before executing that batch.
+markers, and possible blockers when the model can infer them, plus a
+`floorplanPosition` estimate with 0-100 floorplan grid coordinates when the
+photo can be localized. The robot worker treats the first batch it sees for a
+task session as the session start, centers the steering, and tilts the camera
+fully up before executing that batch.
 
 If the robot worker reports that a local action batch failed, the server marks
 that batch `abandoned`, appends a concise failure note to the active session's
