@@ -3,6 +3,7 @@ import {
   selectSessionOpenaiTurns,
 } from "@herbert/cli/cli/generateTelegramSessionSummaryHtml";
 import type { OpenaiCallLogEntry } from "@herbert/server/persistence/openaiCallLog";
+import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
 import type { RobotTaskSession } from "@herbert/shared/robotTaskQueue";
 import { describe, expect, test } from "bun:test";
 
@@ -169,6 +170,32 @@ describe("generateTelegramSessionSummaryHtml", () => {
     expect(html).toContain("living dining room");
     expect(html).toContain("-5 deg");
     expect(html).toContain("Full Prompt");
+  });
+
+  test("renders the current floorplan for legacy call log floorplan paths", () => {
+    const html = renderTelegramSessionSummaryHtml({
+      generatedAtMs: 25_000,
+      session: session({
+        id: "task_current",
+        createdAtMs: 10_000,
+        updatedAtMs: 20_000,
+      }),
+      turns: [
+        entry({
+          id: "turn_1",
+          chatId: "101",
+          taskId: "task_current",
+          createdAtMs: 11_000,
+          imagePaths: [
+            "/Users/nickcherry/src/herbert/packages/server/src/telegram/assets/floorplan.jpg",
+          ],
+        }),
+      ],
+    });
+
+    expect(html).not.toContain("missing image file");
+    expect(html).toContain("displaying current floorplan fallback");
+    expect(html).toContain(resolveFloorplanImagePath());
   });
 });
 

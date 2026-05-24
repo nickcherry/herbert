@@ -8,6 +8,7 @@ import type { DocumentStore } from "@herbert/server/persistence/documentStore";
 import { defaultOpenaiCallLog } from "@herbert/server/persistence/openaiCallLog";
 import type { OpenaiCallLogEntry } from "@herbert/server/persistence/openaiCallLog/openaiCallLog";
 import { readQueueDocument } from "@herbert/server/persistence/operations/robotTaskQueue/queueDocument";
+import { resolveFloorplanImagePath } from "@herbert/server/telegram/resolveFloorplanImagePath";
 import type {
   RobotTaskBatchReport,
   RobotTaskSession,
@@ -409,18 +410,52 @@ function renderImageFigure({
   readonly label: string;
   readonly path: string;
 }): string {
-  const resolvedPath = resolve(path);
-  const url = pathToFileURL(resolvedPath).href;
-  const exists = existsSync(resolvedPath);
+  const image = resolveSummaryImage({ path });
+  const url = pathToFileURL(image.resolvedPath).href;
 
   return [
-    `        <figure class="image-card${exists ? "" : " missing"}">`,
-    exists
+    `        <figure class="image-card${image.exists ? "" : " missing"}">`,
+    image.exists
       ? `          <a href="${escapeHtml(url)}"><img src="${escapeHtml(url)}" loading="lazy" alt="${escapeHtml(label)}"></a>`
       : '          <div class="missing-image">missing image file</div>',
-    `          <figcaption><strong>${escapeHtml(label)}</strong><span>${escapeHtml(path)}</span></figcaption>`,
+    `          <figcaption><strong>${escapeHtml(label)}</strong><span>${escapeHtml(path)}</span>${image.note === undefined ? "" : `<span>${escapeHtml(image.note)}</span>`}</figcaption>`,
     "        </figure>",
   ].join("\n");
+}
+
+function resolveSummaryImage({
+  path,
+}: {
+  readonly path: string;
+}): {
+  readonly exists: boolean;
+  readonly note?: string;
+  readonly resolvedPath: string;
+} {
+  const resolvedPath = resolve(path);
+
+  if (existsSync(resolvedPath)) {
+    return { exists: true, resolvedPath };
+  }
+
+  if (isLegacyFloorplanPath({ path })) {
+    const fallbackPath = resolveFloorplanImagePath();
+
+    if (existsSync(fallbackPath)) {
+      return {
+        exists: true,
+        note: `displaying current floorplan fallback: ${fallbackPath}`,
+        resolvedPath: fallbackPath,
+      };
+    }
+  }
+
+  return { exists: false, resolvedPath };
+}
+
+function isLegacyFloorplanPath({ path }: { readonly path: string }): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  return normalized.endsWith("/packages/server/src/telegram/assets/floorplan.jpg");
 }
 
 function renderPhotoObservation({
