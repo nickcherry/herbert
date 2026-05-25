@@ -119,11 +119,12 @@ Other accepted command shapes are:
 { "type": "steer", "delta": -8 }
 { "type": "camera", "axis": "tilt", "delta": 5 }
 { "type": "stop" }
+{ "type": "center" }
 ```
 
-The server validates the command and queues it in memory. `stop` clears older
-queued movement first so stale browser taps do not execute after an emergency
-stop.
+The server validates the command and queues it in memory. `stop` and `center`
+clear older queued movement first so stale browser taps do not execute after an
+emergency stop or reset.
 
 `GET /robot/control/next` is polled by `robot:stream` and returns the next
 queued command or `null`. `GET /robot/control/status` reports queue depth and is

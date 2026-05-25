@@ -125,6 +125,7 @@ describe("createServerFetch", () => {
     expect(html).toContain("/video.mjpeg");
     expect(html).toContain("/control");
     expect(html).toContain('data-control-action="forward"');
+    expect(html).toContain('data-control-action="center"');
   });
 
   test("queues browser control commands for the robot", async () => {
@@ -257,6 +258,44 @@ describe("createServerFetch", () => {
       await nextResponse.json(),
     );
     expect(nextPayload.command?.type).toBe("stop");
+  });
+
+  test("center control commands clear older queued movement", async () => {
+    const fetch = createServerFetch();
+
+    await fetch(
+      new Request("http://localhost/control", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "drive",
+          direction: "forward",
+          speed: 45,
+          durationMs: 300,
+        }),
+      }),
+    );
+    const centerResponse = await fetch(
+      new Request("http://localhost/control", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "center" }),
+      }),
+    );
+
+    const centerPayload = webControlCommandResponseSchema.parse(
+      await centerResponse.json(),
+    );
+    expect(centerPayload.queueDepth).toBe(1);
+    expect(centerPayload.command.type).toBe("center");
+
+    const nextResponse = await fetch(
+      new Request("http://localhost/robot/control/next"),
+    );
+    const nextPayload = robotControlNextResponseSchema.parse(
+      await nextResponse.json(),
+    );
+    expect(nextPayload.command?.type).toBe("center");
   });
 
   test("sends uploaded robot photos to telegram admins", async () => {

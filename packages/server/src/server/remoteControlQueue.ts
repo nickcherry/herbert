@@ -22,7 +22,7 @@ export function createRemoteControlQueue(): RemoteControlQueue {
 
   return {
     enqueue(command) {
-      if (command.type === "stop") {
+      if (command.type === "stop" || command.type === "center") {
         queue.splice(0, queue.length);
       }
 

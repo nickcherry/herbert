@@ -54,6 +54,17 @@ export async function runVideoStream(
     return await result;
   };
 
+  try {
+    const detail = await runRobotTask(async () => {
+      return await centerRobotPose({ robot });
+    });
+    process.stdout.write(`${pc.bold("control")} ${detail}\n`);
+  } catch (error) {
+    process.stderr.write(
+      `${pc.red(pc.bold("control"))} ${formatError(error)}\n`,
+    );
+  }
+
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
 
@@ -214,9 +225,25 @@ async function executeRemoteControlCommand({
     return `camera ${command.axis} delta=${command.delta} angle=${targetAngle}`;
   }
 
+  if (command.type === "center") {
+    return await centerRobotPose({ robot });
+  }
+
   await robot.stop();
   await robot.setSteering({ angle: 0 });
   return "stop motors, steering centered";
+}
+
+async function centerRobotPose({
+  robot,
+}: {
+  readonly robot: HerbertController;
+}): Promise<string> {
+  await robot.stop();
+  await robot.setSteering({ angle: 0 });
+  await robot.setCameraPan({ angle: 0 });
+  await robot.setCameraTilt({ angle: cameraAngleLimits.max });
+  return `center motors stopped, wheels=0, camera pan=0 tilt=${cameraAngleLimits.max}`;
 }
 
 function sleep(ms: number): Promise<void> {

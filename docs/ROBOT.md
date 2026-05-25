@@ -135,11 +135,15 @@ and exposes it to browsers as `/video.mjpeg`, `/video/latest.jpg`, and
 `/video/status`.
 
 The same page also exposes manual controls for forward and backward drive
-pulses, steering, and camera pan/tilt. Browser controls post to `POST /control`
-on the Mac mini. `robot:stream` polls `GET /robot/control/next`, executes
-one command at a time through the Python bridge, and keeps capture commands
-serialized with movement so a frame capture cannot delay the stop at the end of
-a drive pulse.
+pulses, steering, camera pan/tilt, and a center command that stops the motors,
+straightens the wheels, points the camera straight ahead, and tilts it fully
+up. Browser controls post to `POST /control` on the Mac mini. `robot:stream`
+polls `GET /robot/control/next`, executes one command at a time through the
+Python bridge, and keeps capture commands serialized with movement so a frame
+capture cannot delay the stop at the end of a drive pulse.
+
+When `robot:stream` starts, Herbert runs the same center command once before it
+begins streaming and polling.
 
 If the Mac mini server is protected with Basic Auth, run Herbert with the same
 credentials in its environment:

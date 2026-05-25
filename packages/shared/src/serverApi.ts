@@ -73,6 +73,9 @@ export const remoteControlCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("stop"),
   }),
+  z.object({
+    type: z.literal("center"),
+  }),
 ]);
 
 const remoteControlCommandMetadataSchema = z.object({
@@ -106,6 +109,9 @@ export const remoteControlQueuedCommandSchema = z.discriminatedUnion("type", [
   }),
   remoteControlCommandMetadataSchema.extend({
     type: z.literal("stop"),
+  }),
+  remoteControlCommandMetadataSchema.extend({
+    type: z.literal("center"),
   }),
 ]);
 

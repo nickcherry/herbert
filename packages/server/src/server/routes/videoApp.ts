@@ -28,73 +28,81 @@ const videoAppHtml = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Herbert Cam</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #07100d;
-        --panel: rgba(15, 35, 29, 0.92);
-        --panel-strong: rgba(20, 39, 32, 0.96);
-        --text: #fff6dd;
-        --muted: #d2c39b;
-        --line: rgba(229, 188, 91, 0.42);
-        --brass: #e5bc5b;
-        --brass-soft: #ffe095;
-        --green: #74d99c;
-        --yellow: #f0c86b;
-        --red: #ef766b;
-        --blue: #83cfe8;
-        --rose: #e98a8f;
-        --burgundy: #6f2537;
-        --button: rgba(30, 73, 62, 0.96);
-        --button-2: rgba(44, 91, 78, 0.96);
+        --stage-bg: #0c0907;
+        --shell-bg: #1a130d;
+        --cream: #f5ead0;
+        --cream-soft: #fbf5e1;
+        --cream-warm: #ead9ac;
+        --cream-deep: #d9c690;
+        --brown: #2b1c0e;
+        --brown-soft: #4a3320;
+        --brown-muted: #7a5d3b;
+        --honey: #f0c64a;
+        --honey-soft: #f8d670;
+        --honey-deep: #b88a1e;
+        --burgundy: #962b3a;
+        --burgundy-soft: #b54250;
+        --burgundy-deep: #5a1820;
+        --teal: #2c5847;
+        --line: rgba(43, 28, 14, 0.16);
+        --line-strong: rgba(43, 28, 14, 0.28);
+        --shadow-card: 0 8px 22px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.14);
+        --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.18);
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
-      html,
-      body {
+      html, body {
         margin: 0;
-        width: 100%;
-        min-height: 100vh;
-        background: var(--bg);
-        color: var(--text);
+        height: 100svh;
+        overflow: hidden;
+        background: var(--shell-bg);
+        color: var(--cream);
         font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Helvetica Neue", sans-serif;
         overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .shell {
-        min-height: 100svh;
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
         background:
-          repeating-linear-gradient(
-            135deg,
-            rgba(229, 188, 91, 0.05) 0,
-            rgba(229, 188, 91, 0.05) 1px,
-            transparent 1px,
-            transparent 18px
-          ),
-          linear-gradient(145deg, rgba(39, 83, 68, 0.32), rgba(8, 13, 11, 0) 54%),
-          #07100d;
+          radial-gradient(ellipse at 50% 0%, rgba(240, 198, 74, 0.07), transparent 55%),
+          var(--shell-bg);
       }
 
       .stage {
         position: relative;
-        min-height: 100svh;
-        background: #050607;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--stage-bg);
+      }
+
+      .feed-wrap {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         overflow: hidden;
       }
 
       .feed {
         display: block;
         width: 100%;
-        height: 100svh;
+        max-height: 100%;
         object-fit: contain;
-        background: #050607;
       }
 
       .masthead {
@@ -104,15 +112,15 @@ const videoAppHtml = `<!doctype html>
         right: 0;
         z-index: 4;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 10px;
-        padding: max(12px, env(safe-area-inset-top)) 12px 10px;
+        padding: max(12px, env(safe-area-inset-top)) 14px 26px;
         background: linear-gradient(
           to bottom,
-          rgba(5, 8, 7, 0.92),
-          rgba(5, 8, 7, 0.62),
-          rgba(5, 8, 7, 0)
+          rgba(0, 0, 0, 0.55),
+          rgba(0, 0, 0, 0.18),
+          transparent
         );
         pointer-events: none;
       }
@@ -120,57 +128,55 @@ const videoAppHtml = `<!doctype html>
       .identity {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        min-width: 0;
-        padding: 8px 10px 8px 8px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background:
-          linear-gradient(135deg, rgba(30, 73, 62, 0.86), rgba(14, 24, 21, 0.82)),
-          rgba(15, 24, 21, 0.76);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 246, 221, 0.08),
-          0 10px 30px rgba(0, 0, 0, 0.22);
-        backdrop-filter: blur(10px);
+        gap: 11px;
+        padding: 7px 16px 7px 7px;
+        border-radius: 999px;
+        background: var(--cream);
+        color: var(--brown);
+        box-shadow: var(--shadow-card);
+        pointer-events: auto;
       }
 
-      .chauffeur-mark {
-        width: 32px;
-        height: 32px;
+      .badge {
+        width: 38px;
+        height: 38px;
         flex: 0 0 auto;
         display: grid;
         place-items: center;
-        border: 1px solid rgba(229, 188, 91, 0.8);
-        border-radius: 999px;
-        color: var(--brass-soft);
+        border-radius: 50%;
         background:
-          radial-gradient(circle at 35% 25%, rgba(255, 246, 221, 0.2), transparent 38%),
-          rgba(111, 37, 55, 0.52);
+          radial-gradient(circle at 32% 28%, var(--honey-soft), var(--honey) 55%, var(--honey-deep));
+        color: var(--brown);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 13px;
-        font-weight: 700;
-        box-shadow: inset 0 -8px 14px rgba(0, 0, 0, 0.22);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        box-shadow:
+          inset 0 -3px 6px rgba(43, 28, 14, 0.32),
+          inset 0 2px 3px rgba(255, 255, 255, 0.55),
+          0 1px 1px rgba(0, 0, 0, 0.18);
       }
 
       .identity-text {
         display: grid;
-        gap: 1px;
+        gap: 2px;
         min-width: 0;
       }
 
       h1 {
         margin: 0;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 19px;
-        line-height: 1.2;
+        font-size: 18px;
+        line-height: 1;
         font-weight: 700;
-        letter-spacing: 0;
+        color: var(--brown);
+        letter-spacing: -0.005em;
       }
 
       .tagline {
         margin: 0;
-        color: var(--muted);
-        font-size: 11px;
+        color: var(--brown-muted);
+        font-size: 11.5px;
         line-height: 1.1;
         font-style: italic;
       }
@@ -178,45 +184,30 @@ const videoAppHtml = `<!doctype html>
       .status {
         display: inline-flex;
         align-items: center;
-        gap: 7px;
-        min-height: 30px;
-        max-width: 46vw;
-        padding: 0 9px;
-        border: 1px solid var(--line);
+        gap: 8px;
+        padding: 7px 12px;
         border-radius: 999px;
-        background:
-          linear-gradient(135deg, rgba(28, 64, 54, 0.84), rgba(15, 24, 21, 0.78)),
-          rgba(15, 24, 21, 0.78);
+        background: var(--cream);
+        color: var(--brown);
         font-size: 12px;
         font-weight: 650;
-        white-space: nowrap;
-        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow-card);
+        pointer-events: auto;
       }
 
-      .dot {
+      .status[hidden] { display: none; }
+
+      .status .dot {
         width: 8px;
         height: 8px;
         flex: 0 0 auto;
         border-radius: 999px;
-        background: var(--yellow);
       }
 
-      .status.live .dot {
-        background: var(--green);
-      }
-
-      .status.stale .dot {
-        background: var(--yellow);
-      }
-
-      .status.offline .dot {
-        background: var(--red);
-      }
-
-      .status-age {
-        color: var(--muted);
-        font-weight: 600;
-      }
+      .status.stale { background: #fbecbe; color: #6a4514; }
+      .status.stale .dot { background: #d99a14; }
+      .status.offline { background: #f5d3d3; color: #7a1d22; }
+      .status.offline .dot { background: #c43838; }
 
       .empty {
         position: absolute;
@@ -224,358 +215,464 @@ const videoAppHtml = `<!doctype html>
         z-index: 2;
         display: grid;
         place-items: center;
-        padding: 80px 18px 24px;
-        background: rgba(5, 8, 7, 0.62);
-        color: var(--muted);
+        padding: 110px 22px 28px;
+        background: rgba(10, 8, 7, 0.78);
       }
 
-      .empty.hidden {
-        display: none;
-      }
+      .empty.hidden { display: none; }
 
       .empty-panel {
         display: grid;
-        gap: 12px;
-        width: min(260px, 100%);
-        padding: 16px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background:
-          linear-gradient(145deg, rgba(38, 80, 66, 0.48), rgba(20, 39, 32, 0.96)),
-          var(--panel-strong);
+        gap: 14px;
+        width: min(300px, 100%);
+        padding: 22px 22px 20px;
+        border-radius: 18px;
+        background: var(--cream);
+        color: var(--brown);
         text-align: center;
-        box-shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
       }
 
       .empty-title {
-        color: var(--text);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 18px;
+        font-size: 20px;
+        line-height: 1.15;
         font-weight: 700;
       }
 
-      .controls {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 3;
-        padding: 46px 10px max(10px, env(safe-area-inset-bottom));
-        background: linear-gradient(
-          to top,
-          rgba(5, 8, 7, 0.96),
-          rgba(5, 8, 7, 0.78),
-          rgba(5, 8, 7, 0)
-        );
-        pointer-events: none;
-      }
-
-      .controls[hidden] {
-        display: none;
-      }
-
-      .controls-panel {
-        width: min(920px, 100%);
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 0.82fr);
-        gap: 10px;
-        align-items: end;
-        pointer-events: auto;
-      }
-
-      .panel {
-        min-width: 0;
-        padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background:
-          linear-gradient(180deg, rgba(255, 246, 221, 0.04), transparent 28%),
-          repeating-linear-gradient(
-            90deg,
-            transparent 0,
-            transparent 13px,
-            rgba(229, 188, 91, 0.035) 13px,
-            rgba(229, 188, 91, 0.035) 14px
-          ),
-          var(--panel);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 246, 221, 0.08),
-          0 14px 38px rgba(0, 0, 0, 0.24);
-      }
-
-      .panel h2 {
-        margin: 0 0 8px;
-        color: var(--muted);
-        font-size: 11px;
-        line-height: 1.2;
-        font-weight: 650;
-        text-transform: uppercase;
-        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
-      }
-
-      .action-button,
-      .control-button {
-        width: 100%;
-        border: 1px solid rgba(216, 181, 109, 0.42);
-        border-radius: 8px;
-        background: var(--button);
-        color: var(--text);
-        font: inherit;
-        cursor: pointer;
-        touch-action: manipulation;
-        user-select: none;
-      }
-
-      .action-button:hover,
-      .control-button:hover {
-        border-color: var(--brass);
-        background: var(--button-2);
+      .empty-sub {
+        margin: 0;
+        font-size: 13px;
+        color: var(--brown-muted);
+        font-style: italic;
+        line-height: 1.3;
       }
 
       .action-button {
-        min-height: 44px;
-        color: #17120b;
-        background:
-          linear-gradient(180deg, var(--brass-soft), var(--brass)),
-          var(--brass);
+        display: inline-grid;
+        place-items: center;
+        justify-self: center;
+        min-height: 42px;
+        padding: 0 22px;
+        border: none;
+        border-radius: 999px;
+        background: var(--honey);
+        color: var(--brown);
+        font: inherit;
         font-weight: 750;
-        box-shadow:
-          inset 0 1px 0 rgba(255, 246, 221, 0.42),
-          0 10px 22px rgba(0, 0, 0, 0.24);
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 3px 0 var(--honey-deep);
+        transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.12s;
       }
 
-      .control-grid {
-        width: max-content;
+      .action-button:hover { background: var(--honey-soft); }
+
+      .action-button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 var(--honey-deep);
+      }
+
+      .center-button {
+        width: 100%;
+        min-height: 38px;
+        margin-top: 2px;
+        font-size: 13px;
+      }
+
+      .controls {
+        position: relative;
+        z-index: 3;
+        flex: 0 0 auto;
+        padding: 14px 14px max(14px, env(safe-area-inset-bottom));
+        background: var(--cream);
+        border-top: 2px solid var(--honey);
+        color: var(--brown);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
+      }
+
+      .controls[hidden] { display: none; }
+
+      .controls-inner {
+        max-width: 1100px;
         margin: 0 auto;
         display: grid;
-        grid-template-columns: repeat(3, var(--button-size));
-        gap: 6px;
-        --button-size: clamp(46px, 13vw, 72px);
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: stretch;
       }
 
-      .control-button {
-        aspect-ratio: 1;
-        min-height: 0;
+      .pad {
         display: grid;
-        place-items: center;
-        font-size: clamp(20px, 5vw, 28px);
+        grid-template-rows: auto 1fr;
+        gap: 8px;
+        padding: 10px 12px 12px;
+        border-radius: 14px;
+        background: var(--cream-soft);
+        border: 1px solid var(--line);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.65),
+          0 1px 2px rgba(43, 28, 14, 0.05);
+      }
+
+      .pad-title {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 11.5px;
         line-height: 1;
         font-weight: 700;
-        color: #fff8e6;
-        text-shadow: 0 2px 0 rgba(0, 0, 0, 0.34);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.08),
-          0 8px 18px rgba(0, 0, 0, 0.22);
+        letter-spacing: 0.08em;
+        color: var(--brown-muted);
+        text-transform: uppercase;
+        text-align: center;
       }
 
-      .control-button:active {
-        transform: translateY(1px) scale(0.98);
-      }
-
-      .control-button.forward,
-      .control-button.tilt-up {
-        grid-column: 2;
-      }
-
-      .control-button.left,
-      .control-button.pan-left {
-        grid-column: 1;
-      }
-
-      .control-button.stop {
-        grid-column: 2;
-        background: var(--burgundy);
-        border-color: rgba(233, 138, 143, 0.72);
-      }
-
-      .control-button.right,
-      .control-button.pan-right {
-        grid-column: 3;
-      }
-
-      .control-button.backward,
-      .control-button.tilt-down {
-        grid-column: 2;
-      }
-
-      .range-row {
+      .pad-grid {
+        --btn-size: 46px;
         display: grid;
-        grid-template-columns: 42px minmax(0, 1fr) 34px;
+        grid-template-columns: repeat(3, var(--btn-size));
+        grid-template-rows: repeat(3, var(--btn-size));
+        gap: 6px;
+        margin: 0 auto;
+      }
+
+      .ctl {
+        all: unset;
+        position: relative;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--cream);
+        color: var(--brown);
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        touch-action: manipulation;
+        user-select: none;
+        box-shadow:
+          0 2px 0 var(--line-strong),
+          inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.12s;
+      }
+
+      .ctl:hover { background: var(--cream-warm); }
+
+      .ctl:active {
+        transform: translateY(1px);
+        box-shadow: 0 1px 0 var(--line-strong);
+      }
+
+      .ctl.drive {
+        background: var(--honey);
+        box-shadow:
+          0 2px 0 var(--honey-deep),
+          inset 0 1px 0 rgba(255, 255, 255, 0.42);
+      }
+      .ctl.drive:hover { background: var(--honey-soft); }
+      .ctl.drive:active { box-shadow: 0 1px 0 var(--honey-deep); }
+
+      .ctl.stop {
+        background: var(--burgundy);
+        color: var(--cream-soft);
+        box-shadow:
+          0 2px 0 var(--burgundy-deep),
+          inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+      .ctl.stop:hover { background: var(--burgundy-soft); }
+      .ctl.stop:active { box-shadow: 0 1px 0 var(--burgundy-deep); }
+
+      .ctl .hk {
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      .ctl.stop .hk { color: var(--cream-soft); opacity: 0.7; }
+
+      @media (hover: none) and (pointer: coarse) {
+        .ctl .hk { display: none; }
+      }
+
+      .pad-grid .pos-up { grid-column: 2; grid-row: 1; }
+      .pad-grid .pos-left { grid-column: 1; grid-row: 2; }
+      .pad-grid .pos-center { grid-column: 2; grid-row: 2; }
+      .pad-grid .pos-right { grid-column: 3; grid-row: 2; }
+      .pad-grid .pos-down { grid-column: 2; grid-row: 3; }
+
+      .trim {
+        display: grid;
+        align-content: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 14px;
+        background: var(--cream-soft);
+        border: 1px solid var(--line);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.65),
+          0 1px 2px rgba(43, 28, 14, 0.05);
+        min-width: 0;
+      }
+
+      .trim-row {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) 40px;
         align-items: center;
-        gap: 8px;
-        min-height: 32px;
-        color: var(--muted);
+        gap: 12px;
+      }
+
+      .trim-label {
         font-size: 12px;
+        font-weight: 700;
+        color: var(--brown-soft);
+        letter-spacing: 0.02em;
+      }
+
+      .trim-value {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--brown);
       }
 
       input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
         width: 100%;
-        accent-color: var(--rose);
+        height: 22px;
+        background: transparent;
+        cursor: pointer;
+        margin: 0;
       }
 
-      .range-row strong,
-      .control-state {
-        color: var(--text);
-        font-size: 12px;
-        font-weight: 600;
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px;
+        background: var(--cream-warm);
+        border-radius: 999px;
+        border: 1px solid var(--line);
       }
 
-      .trim-panel {
-        display: grid;
-        gap: 6px;
+      input[type="range"]::-moz-range-track {
+        height: 6px;
+        background: var(--cream-warm);
+        border-radius: 999px;
+        border: 1px solid var(--line);
       }
 
-      .control-state {
-        min-height: 16px;
-        overflow-wrap: anywhere;
-        color: var(--muted);
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        margin-top: -8px;
+        border-radius: 50%;
+        background: var(--honey);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+        border: 2px solid var(--cream-soft);
+        cursor: grab;
       }
 
-      @media (max-width: 820px) {
-        .controls-panel {
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--honey);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+        border: 2px solid var(--cream-soft);
+        cursor: grab;
+      }
+
+      input[type="range"]:focus-visible::-webkit-slider-thumb {
+        outline: 2px solid var(--honey-deep);
+        outline-offset: 1px;
+      }
+
+      .controls-tip {
+        max-width: 1100px;
+        margin: 10px auto 0;
+        text-align: center;
+        font-size: 10.5px;
+        color: var(--brown-muted);
+        font-style: italic;
+        letter-spacing: 0.02em;
+      }
+
+      .kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        margin: 0 1px;
+        border-radius: 4px;
+        background: var(--cream-warm);
+        color: var(--brown);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+        font-weight: 700;
+        font-style: normal;
+        border: 1px solid var(--line);
+      }
+
+      @media (hover: none) and (pointer: coarse) {
+        .controls-tip { display: none; }
+      }
+
+      @media (max-width: 720px) {
+        .controls {
+          padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+        }
+
+        .controls-inner {
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-areas:
+            "trim trim"
+            "cam drive";
+          gap: 10px;
         }
 
-        .trim-panel {
-          grid-column: 1 / -1;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          align-items: center;
+        .pad--camera { grid-area: cam; }
+        .pad--drive { grid-area: drive; }
+
+        .trim {
+          grid-area: trim;
+          padding: 9px 14px 8px;
+          gap: 4px;
         }
 
-        .control-state {
-          grid-column: 1 / -1;
+        .pad {
+          padding: 9px 10px 11px;
         }
-      }
 
-      @media (max-width: 430px) {
+        .pad-grid {
+          --btn-size: clamp(52px, 17vw, 64px);
+          gap: 7px;
+        }
+
+        .ctl {
+          font-size: 22px;
+        }
+
+        .controls-tip { display: none; }
+
         .masthead {
-          padding-left: 8px;
-          padding-right: 8px;
+          padding-bottom: 18px;
+        }
+
+        .tagline { display: none; }
+
+        h1 { font-size: 16.5px; }
+
+        .badge {
+          width: 34px;
+          height: 34px;
+          font-size: 13px;
         }
 
         .identity {
-          padding: 7px 8px 7px 7px;
-        }
-
-        .chauffeur-mark {
-          width: 28px;
-          height: 28px;
-          font-size: 16px;
-        }
-
-        h1 {
-          font-size: 17px;
-        }
-
-        .tagline {
-          display: none;
+          padding: 6px 13px 6px 6px;
         }
 
         .status {
-          max-width: 48vw;
-          min-height: 28px;
-          font-size: 11px;
+          padding: 6px 11px;
+          font-size: 11.5px;
         }
+      }
 
+      @media (max-width: 380px) {
         .controls {
-          padding-left: 8px;
-          padding-right: 8px;
+          padding-left: 10px;
+          padding-right: 10px;
         }
 
-        .controls-panel {
-          gap: 8px;
-        }
-
-        .panel {
-          padding: 8px;
-        }
-
-        .control-grid {
-          gap: 5px;
-        }
-
-        .range-row {
-          grid-template-columns: 38px minmax(0, 1fr) 30px;
-          gap: 6px;
-        }
+        .controls-inner { gap: 8px; }
+        .pad { padding: 8px 8px 10px; }
+        .trim { padding: 8px 12px; }
+        .trim-row { grid-template-columns: 48px 1fr 36px; gap: 10px; }
       }
     </style>
   </head>
   <body>
     <div class="shell">
       <main class="stage">
-        <img id="feed" class="feed" alt="Herbert live camera feed">
+        <div class="feed-wrap">
+          <img id="feed" class="feed" alt="Herbert live camera feed">
+        </div>
         <header class="masthead">
           <div class="identity">
-            <div class="chauffeur-mark">HC</div>
+            <div class="badge">HC</div>
             <div class="identity-text">
               <h1>Herbert Cam</h1>
-              <p class="tagline">Cheerio, ready</p>
+              <p class="tagline">Ready for action. Cheerio!</p>
             </div>
           </div>
-          <div id="status" class="status offline">
+          <div id="status" class="status" hidden>
             <span class="dot"></span>
-            <span id="statusText">Waiting</span>
-            <span id="ageText" class="status-age">-</span>
+            <span id="statusText"></span>
           </div>
         </header>
         <div id="empty" class="empty">
           <div class="empty-panel">
-            <div id="emptyTitle" class="empty-title">Awaiting Herbert Cam</div>
-            <button id="reconnect" class="action-button" type="button">Reconnect</button>
+            <div id="emptyTitle" class="empty-title">Waiting for Herbert</div>
+            <p id="emptySub" class="empty-sub">Just polishing the lens, one moment...</p>
+            <button id="reconnect" class="action-button" type="button">Give him a nudge</button>
           </div>
         </div>
-        <section id="controls" class="controls" hidden>
-          <div class="controls-panel">
-            <section class="panel">
-              <h2>Drive</h2>
-              <div class="control-grid">
-                <button class="control-button forward" type="button" data-control-action="forward" title="Forward" aria-label="Forward">&#8593;</button>
-                <button class="control-button left" type="button" data-control-action="steer-left" title="Turn wheels left" aria-label="Turn wheels left">&#8592;</button>
-                <button class="control-button stop" type="button" data-control-action="stop" title="Stop" aria-label="Stop">&#9632;</button>
-                <button class="control-button right" type="button" data-control-action="steer-right" title="Turn wheels right" aria-label="Turn wheels right">&#8594;</button>
-                <button class="control-button backward" type="button" data-control-action="backward" title="Backward" aria-label="Backward">&#8595;</button>
-              </div>
-            </section>
-            <section class="panel">
-              <h2>Camera</h2>
-              <div class="control-grid">
-                <button class="control-button tilt-up" type="button" data-control-action="tilt-up" title="Tilt camera up" aria-label="Tilt camera up">&#8593;</button>
-                <button class="control-button pan-left" type="button" data-control-action="pan-left" title="Pan camera left" aria-label="Pan camera left">&#8592;</button>
-                <button class="control-button pan-right" type="button" data-control-action="pan-right" title="Pan camera right" aria-label="Pan camera right">&#8594;</button>
-                <button class="control-button tilt-down" type="button" data-control-action="tilt-down" title="Tilt camera down" aria-label="Tilt camera down">&#8595;</button>
-              </div>
-            </section>
-            <section class="panel trim-panel">
-              <label class="range-row">
-                <span>Speed</span>
-                <input id="speed" type="range" min="15" max="80" step="5" value="45">
-                <strong id="speedValue">45</strong>
-              </label>
-              <label class="range-row">
-                <span>Pulse</span>
-                <input id="pulse" type="range" min="100" max="800" step="50" value="300">
-                <strong id="pulseValue">300</strong>
-              </label>
-              <div id="controlState" class="control-state">Ready</div>
-            </section>
-          </div>
-        </section>
       </main>
+      <section id="controls" class="controls" hidden>
+        <div class="controls-inner">
+          <section class="pad pad--camera">
+            <h2 class="pad-title">Camera</h2>
+            <div class="pad-grid">
+              <button class="ctl pos-up" type="button" data-control-action="tilt-up" title="Tilt camera up (W)" aria-label="Tilt camera up">&#8593;<span class="hk">W</span></button>
+              <button class="ctl pos-left" type="button" data-control-action="pan-left" title="Pan camera left (A)" aria-label="Pan camera left">&#8592;<span class="hk">A</span></button>
+              <button class="ctl pos-right" type="button" data-control-action="pan-right" title="Pan camera right (D)" aria-label="Pan camera right">&#8594;<span class="hk">D</span></button>
+              <button class="ctl pos-down" type="button" data-control-action="tilt-down" title="Tilt camera down (S)" aria-label="Tilt camera down">&#8595;<span class="hk">S</span></button>
+            </div>
+          </section>
+          <section class="trim">
+            <label class="trim-row">
+              <span class="trim-label">Speed</span>
+              <input id="speed" type="range" min="15" max="80" step="5" value="45">
+              <strong class="trim-value" id="speedValue">45</strong>
+            </label>
+            <label class="trim-row">
+              <span class="trim-label">Pulse</span>
+              <input id="pulse" type="range" min="100" max="800" step="50" value="300">
+              <strong class="trim-value" id="pulseValue">300</strong>
+            </label>
+            <button class="action-button center-button" type="button" data-control-action="center" title="Center wheels and camera (C)" aria-label="Center wheels and camera">Center</button>
+          </section>
+          <section class="pad pad--drive">
+            <h2 class="pad-title">Drive</h2>
+            <div class="pad-grid">
+              <button class="ctl drive pos-up" type="button" data-control-action="forward" title="Forward (↑)" aria-label="Forward">&#8593;<span class="hk">↑</span></button>
+              <button class="ctl drive pos-left" type="button" data-control-action="steer-left" title="Steer left (←)" aria-label="Steer left">&#8592;<span class="hk">←</span></button>
+              <button class="ctl stop pos-center" type="button" data-control-action="stop" title="Stop (Space)" aria-label="Stop">&#9632;<span class="hk">␣</span></button>
+              <button class="ctl drive pos-right" type="button" data-control-action="steer-right" title="Steer right (→)" aria-label="Steer right">&#8594;<span class="hk">→</span></button>
+              <button class="ctl drive pos-down" type="button" data-control-action="backward" title="Backward (↓)" aria-label="Backward">&#8595;<span class="hk">↓</span></button>
+            </div>
+          </section>
+        </div>
+        <p class="controls-tip">Arrows to drive · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> for camera · <span class="kbd">C</span> to center · <span class="kbd">Space</span> to stop</p>
+      </section>
     </div>
     <script>
+      const freshThresholdMs = 2000;
       const staleThresholdMs = 5000;
 
       const statusEl = document.getElementById("status");
       const statusTextEl = document.getElementById("statusText");
-      const ageTextEl = document.getElementById("ageText");
       const feedEl = document.getElementById("feed");
       const emptyEl = document.getElementById("empty");
       const emptyTitleEl = document.getElementById("emptyTitle");
+      const emptySubEl = document.getElementById("emptySub");
       const controlsEl = document.getElementById("controls");
       const reconnectEl = document.getElementById("reconnect");
-      const controlStateEl = document.getElementById("controlState");
       const speedEl = document.getElementById("speed");
       const speedValueEl = document.getElementById("speedValue");
       const pulseEl = document.getElementById("pulse");
@@ -585,14 +682,18 @@ const videoAppHtml = `<!doctype html>
         feedEl.src = "${videoMjpegPath}?t=" + Date.now();
       }
 
-      function setStatus(name, text, ageText) {
+      function showStatus(name, text) {
         statusEl.className = "status " + name;
         statusTextEl.textContent = text;
-        ageTextEl.textContent = ageText;
+        statusEl.hidden = false;
+      }
+
+      function hideStatus() {
+        statusEl.hidden = true;
       }
 
       function formatAge(value) {
-        if (value === null) return "-";
+        if (value === null || value === undefined) return "";
         if (value < 1000) return "<1s";
         if (value < 60000) return Math.round(value / 1000) + "s";
         return Math.round(value / 60000) + "m";
@@ -603,37 +704,56 @@ const videoAppHtml = `<!doctype html>
         emptyEl.classList.toggle("hidden", connected);
       }
 
-      function renderDisconnected(title, statusText, ageText) {
-        setConnected(false);
+      function showEmpty(title, sub) {
         emptyTitleEl.textContent = title;
-        setStatus("offline", statusText, ageText);
+        emptySubEl.textContent = sub;
       }
 
       function renderStatus(status) {
         if (!status.hasFrame) {
-          renderDisconnected("Awaiting Herbert Cam", "Waiting", "-");
+          setConnected(false);
+          showEmpty(
+            "Waiting for Herbert",
+            "Just polishing the lens, one moment..."
+          );
+          showStatus("offline", "Connecting");
           return;
         }
 
-        const ageText = formatAge(status.ageMs);
+        const ageMs = status.ageMs ?? 0;
 
-        if (status.ageMs !== null && status.ageMs > staleThresholdMs) {
+        if (ageMs >= staleThresholdMs) {
           setConnected(false);
-          emptyTitleEl.textContent = "Feed is stale";
-          setStatus("stale", "Stale", ageText);
+          showEmpty(
+            "Feed's gone quiet",
+            "Last frame " + formatAge(ageMs) + " ago. Try reconnecting."
+          );
+          showStatus("stale", "Stale " + formatAge(ageMs));
           return;
         }
 
         setConnected(true);
-        setStatus("live", "Connected", ageText);
+
+        if (ageMs >= freshThresholdMs) {
+          showStatus("stale", "Lagging " + formatAge(ageMs));
+        } else {
+          hideStatus();
+        }
       }
 
       async function refreshStatus() {
         try {
-          const response = await fetch("${videoStatusPath}", { cache: "no-store" });
+          const response = await fetch("${videoStatusPath}", {
+            cache: "no-store",
+          });
           renderStatus(await response.json());
         } catch {
-          renderDisconnected("Herbert is unreachable", "Offline", "-");
+          setConnected(false);
+          showEmpty(
+            "Herbert is unreachable",
+            "We can't reach the server. Check that he's running."
+          );
+          showStatus("offline", "Offline");
         }
       }
 
@@ -661,6 +781,7 @@ const videoAppHtml = `<!doctype html>
         if (action === "pan-left") return { type: "camera", axis: "pan", delta: -5 };
         if (action === "pan-right") return { type: "camera", axis: "pan", delta: 5 };
         if (action === "stop") return { type: "stop" };
+        if (action === "center") return { type: "center" };
         return undefined;
       }
 
@@ -669,18 +790,22 @@ const videoAppHtml = `<!doctype html>
         if (event.key === "ArrowDown") return "backward";
         if (event.key === "ArrowLeft") return "steer-left";
         if (event.key === "ArrowRight") return "steer-right";
-        if (event.key.toLowerCase() === "w") return "tilt-up";
-        if (event.key.toLowerCase() === "s") return "tilt-down";
-        if (event.key.toLowerCase() === "a") return "pan-left";
-        if (event.key.toLowerCase() === "d") return "pan-right";
-        if (event.key === " ") return "stop";
+        const lower = event.key.toLowerCase();
+        if (lower === "w") return "tilt-up";
+        if (lower === "s") return "tilt-down";
+        if (lower === "a") return "pan-left";
+        if (lower === "d") return "pan-right";
+        if (lower === "c") return "center";
+        if (event.key === " " || lower === "space" || lower === "escape") return "stop";
         return undefined;
       }
 
+      let lastSent = 0;
       async function sendControl(command) {
         if (controlsEl.hidden) return;
-
-        controlStateEl.textContent = "Sending...";
+        const now = Date.now();
+        if (now - lastSent < 80) return;
+        lastSent = now;
 
         try {
           const response = await fetch("${webControlCommandPath}", {
@@ -688,16 +813,16 @@ const videoAppHtml = `<!doctype html>
             headers: { "content-type": "application/json" },
             body: JSON.stringify(command),
           });
-          const payload = await response.json();
 
           if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
             throw new Error(payload.message ?? "Control command failed.");
           }
-
-          controlStateEl.textContent = "Right away: " + payload.command.type;
         } catch (error) {
-          controlStateEl.textContent =
-            error instanceof Error ? error.message : "Control command failed.";
+          showStatus(
+            "offline",
+            error instanceof Error ? error.message : "Control failed"
+          );
         }
       }
 
@@ -710,6 +835,7 @@ const videoAppHtml = `<!doctype html>
 
       document.addEventListener("keydown", (event) => {
         if (event.target instanceof HTMLInputElement || controlsEl.hidden) return;
+        if (event.repeat) return;
 
         const action = actionForKey(event);
         if (action === undefined) return;
