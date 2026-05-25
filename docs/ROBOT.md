@@ -57,8 +57,9 @@ bun herbert robot:keyboard --speed 30 --turn-angle 20 --pulse-ms 200
 - `--pulse-ms` controls how long the car keeps moving after a drive keypress.
 - `--safety-ms` controls the Python watchdog timeout.
 - `--python` overrides the Python executable. `HERBERT_PYTHON` can also set it.
-- `--server-url` sets the Herbert server used for photo and video upload. The current
-  default points at the Mac mini: `http://mac-mini.local:8787`.
+- `--server-url` sets the Herbert server used for photo upload, video upload,
+  and browser-control polling. The current default points at the Mac mini:
+  `http://mac-mini.local:8787`.
 - `--no-photo-upload` keeps photos local and does not send them to the server.
 - `--fps`, `--frame-width`, and `--frame-height` tune `robot:stream`.
 - `--once` makes `robot:stream` send one frame and exit.
@@ -156,6 +157,18 @@ bun herbert robot:stream
 
 The robot process sends those credentials on photo uploads, video frame uploads,
 and control polling requests.
+
+If Herbert cannot resolve the default `mac-mini.local` hostname, or the server
+is running on a different computer, pass the server machine's LAN URL
+explicitly. For example, if the server is running on a machine with LAN IP
+`192.168.86.121`:
+
+```sh
+bun herbert robot:stream --server-url http://192.168.86.121:8787
+```
+
+That URL is used for both frame uploads and polling
+`GET /robot/control/next`.
 
 Defaults are 640x480 at 2 fps. Increase them only after checking LAN latency
 and CPU load:

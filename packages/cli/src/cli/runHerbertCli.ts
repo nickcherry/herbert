@@ -172,9 +172,12 @@ export async function runHerbertCli({
       port: flags.port,
     });
 
-    process.stdout.write(
-      `${pc.bold("server")} listening ${pc.cyan(handle.url)}\n`,
-    );
+    const urls =
+      handle.displayUrls.length > 0 ? handle.displayUrls : [handle.url];
+    process.stdout.write(`${pc.bold("server")} listening:\n`);
+    for (const url of urls) {
+      process.stdout.write(`  ${pc.cyan(url)}\n`);
+    }
 
     await waitForShutdown(async () => {
       await handle.stop();
@@ -256,7 +259,7 @@ export function renderUsage(): string {
     `  ${pc.cyan("--camera-step <1-20>")}    camera pan/tilt step per keypress (default: 5)`,
     `  ${pc.cyan("--pulse-ms <ms>")}         drive pulse duration after keypress (default: 250)`,
     `  ${pc.cyan("--safety-ms <ms>")}        Python motor watchdog timeout (default: 750)`,
-    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for photo/video upload (default: ${robotServerConfig.baseUrl})`,
+    `  ${pc.cyan("--server-url <url>")}      Herbert server URL for upload/control polling (default: ${robotServerConfig.baseUrl})`,
     `  ${pc.cyan("--no-photo-upload")}       save photos locally without sending them to the server`,
     `  ${pc.cyan("--fps <n>")}               video stream frames per second (default: 2)`,
     `  ${pc.cyan("--frame-width <px>")}      video stream frame width (default: 640)`,

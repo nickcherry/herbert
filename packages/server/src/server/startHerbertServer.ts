@@ -1,3 +1,5 @@
+import { networkInterfaces } from "node:os";
+
 import { env } from "@herbert/server/constants/env";
 import { serverConfig } from "@herbert/server/constants/server";
 import {
@@ -15,6 +17,7 @@ export interface StartHerbertServerOptions {
 export interface HerbertServerHandle {
   readonly server: Bun.Server<undefined>;
   readonly url: string;
+  readonly displayUrls: readonly string[];
   readonly stop: () => Promise<void>;
 }
 
@@ -36,9 +39,13 @@ export async function startHerbertServer({
     ...(tls === undefined ? {} : { tls }),
   });
 
+  const tlsEnabled = tls !== undefined;
+  const boundPort = server.port ?? port;
+
   return {
     server,
-    url: localUrlForServer({ server, tlsEnabled: tls !== undefined }),
+    url: localUrlForServer({ server, tlsEnabled }),
+    displayUrls: displayUrlsForServer({ host, port: boundPort, tlsEnabled }),
     async stop() {
       await server.stop(true);
     },
@@ -59,6 +66,47 @@ function localUrlForServer({
   }
 
   return `${tlsEnabled ? "https" : "http"}://127.0.0.1:${port}`;
+}
+
+function displayUrlsForServer({
+  host,
+  port,
+  tlsEnabled,
+}: {
+  readonly host: string;
+  readonly port: number;
+  readonly tlsEnabled: boolean;
+}): readonly string[] {
+  const scheme = tlsEnabled ? "https" : "http";
+
+  if (host !== "0.0.0.0" && host !== "::") {
+    return [`${scheme}://${host}:${port}`];
+  }
+
+  const lanAddresses = lanIpv4Addresses();
+  return [
+    `${scheme}://localhost:${port}`,
+    ...lanAddresses.map((address) => `${scheme}://${address}:${port}`),
+  ];
+}
+
+function lanIpv4Addresses(): readonly string[] {
+  const interfaces = networkInterfaces();
+  const addresses: string[] = [];
+
+  for (const list of Object.values(interfaces)) {
+    if (list === undefined) {
+      continue;
+    }
+
+    for (const entry of list) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        addresses.push(entry.address);
+      }
+    }
+  }
+
+  return addresses;
 }
 
 function requireBasicAuthCredentials(): BasicAuthCredentials {

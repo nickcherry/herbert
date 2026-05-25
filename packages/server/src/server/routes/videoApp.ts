@@ -790,13 +790,13 @@ const videoAppHtml = `<!doctype html>
           <section class="trim">
             <label class="trim-row">
               <span class="trim-label">Speed</span>
-              <input id="speed" type="range" min="15" max="80" step="5" value="70">
-              <strong class="trim-value" id="speedValue">70</strong>
+              <input id="speed" type="range" min="15" max="80" step="5" value="80">
+              <strong class="trim-value" id="speedValue">80</strong>
             </label>
             <label class="trim-row">
               <span class="trim-label">Pulse</span>
-              <input id="pulse" type="range" min="100" max="2000" step="50" value="800">
-              <strong class="trim-value" id="pulseValue">800ms</strong>
+              <input id="pulse" type="range" min="100" max="3000" step="50" value="1500">
+              <strong class="trim-value" id="pulseValue">1500ms</strong>
             </label>
             <button class="action-button center-button" type="button" data-control-action="center" title="Straighten wheels and camera (C)" aria-label="Straighten wheels and camera"><span class="straighten-icon" aria-hidden="true">&#8635;</span> Straighten up</button>
           </section>

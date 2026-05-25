@@ -109,13 +109,13 @@ for operator control commands.
 `POST /control` accepts JSON control commands from the browser:
 
 ```json
-{ "type": "drive", "direction": "forward", "speed": 45, "durationMs": 300 }
+{ "type": "drive", "direction": "forward", "speed": 80, "durationMs": 1500 }
 ```
 
 Other accepted command shapes are:
 
 ```json
-{ "type": "drive", "direction": "backward", "speed": 45, "durationMs": 300 }
+{ "type": "drive", "direction": "backward", "speed": 80, "durationMs": 1500 }
 { "type": "steer", "delta": -8 }
 { "type": "camera", "axis": "tilt", "delta": 5 }
 { "type": "stop" }
@@ -124,7 +124,7 @@ Other accepted command shapes are:
 
 The server validates the command and queues it in memory. `stop` and `center`
 clear older queued movement first so stale browser taps do not execute after an
-emergency stop or reset.
+emergency stop or reset. Browser drive pulses may run up to 3000 ms.
 
 `GET /robot/control/next` is polled by `robot:stream` and returns the next
 queued command or `null`. `GET /robot/control/status` reports queue depth and is

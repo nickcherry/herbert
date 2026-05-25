@@ -51,7 +51,7 @@ export const remoteControlCommandSchema = z.discriminatedUnion("type", [
     type: z.literal("drive"),
     direction: z.enum(["forward", "backward"]),
     speed: z.number().int().min(1).max(motorSpeedLimits.max),
-    durationMs: z.number().int().min(50).max(2_000),
+    durationMs: z.number().int().min(50).max(3_000),
   }),
   z.object({
     type: z.literal("steer"),
@@ -88,7 +88,7 @@ export const remoteControlQueuedCommandSchema = z.discriminatedUnion("type", [
     type: z.literal("drive"),
     direction: z.enum(["forward", "backward"]),
     speed: z.number().int().min(1).max(motorSpeedLimits.max),
-    durationMs: z.number().int().min(50).max(2_000),
+    durationMs: z.number().int().min(50).max(3_000),
   }),
   remoteControlCommandMetadataSchema.extend({
     type: z.literal("steer"),

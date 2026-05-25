@@ -126,6 +126,12 @@ describe("createServerFetch", () => {
     expect(html).toContain("/control");
     expect(html).toContain('data-control-action="forward"');
     expect(html).toContain('data-control-action="center"');
+    expect(html).toContain(
+      'id="speed" type="range" min="15" max="80" step="5" value="80"',
+    );
+    expect(html).toContain(
+      'id="pulse" type="range" min="100" max="3000" step="50" value="1500"',
+    );
   });
 
   test("queues browser control commands for the robot", async () => {
@@ -137,8 +143,8 @@ describe("createServerFetch", () => {
         body: JSON.stringify({
           type: "drive",
           direction: "forward",
-          speed: 45,
-          durationMs: 300,
+          speed: 80,
+          durationMs: 3_000,
         }),
       }),
     );
@@ -153,8 +159,8 @@ describe("createServerFetch", () => {
       command: {
         type: "drive",
         direction: "forward",
-        speed: 45,
-        durationMs: 300,
+        speed: 80,
+        durationMs: 3_000,
       },
     });
 
